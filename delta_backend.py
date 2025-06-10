@@ -4,534 +4,441 @@ TastyTracker Delta Backend
 Streams live delta data from Tastytrade and serves it via Flask API
 """
 
-import os
-import asyncio
-import json
-import threading
-import time
+import os, sys, time, json, asyncio, threading, logging, websockets
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
-from flask import Flask, jsonify, render_template
+from collections import defaultdict, deque
+from typing import Dict, List, Optional, Any
+
+# Flask and CORS
+from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
-import websockets
+
+# Environment and Tastytrade API
+import dotenv
+dotenv.load_dotenv()
+
 from tastytrade import Session, Account
-from dotenv import load_dotenv
+from tastytrade.market_data import get_streamer_symbol
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Configure logging to be less verbose
-import logging
+# --- Configuration & Setup ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger('tastytrade').setLevel(logging.WARNING)
 logging.getLogger('websockets').setLevel(logging.WARNING)
 
 class DeltaTracker:
+    # --- Field Index Constants for Websocket Data ---
+    GREEKS_SYMBOL_IDX = 1
+    GREEKS_PRICE_IDX = 7
+    GREEKS_DELTA_IDX = 9
+    GREEKS_RECORD_SIZE = 14
+
+    QUOTE_SYMBOL_IDX = 1
+    QUOTE_BID_PRICE_IDX = 7
+    QUOTE_ASK_PRICE_IDX = 10
+    QUOTE_RECORD_SIZE = 11
+    # --- End of Constants ---
+
     def __init__(self):
-        self.positions = {}      # symbol -> position info
-        self.deltas = {}         # symbol -> Greeks data
-        self.underlying_prices = {}  # underlying symbol -> current price
-        self.websocket = None
-        self.session = None
-        self.account = None
-        self.last_update = None
-        self.total_delta = 0.0
-        self.running = False
-        self.api_quote_token = None
+        # Account and session details
+        self.tasty_client = None
         self.dxlink_url = None
-        self.account_numbers = []
+        self.api_quote_token = None
+        self.target_accounts = ["5WX84566", "5WU39639"]
         
+        # Data storage with locks for thread safety
+        self.positions = {}          # Key: account_specific_key, Value: position info
+        self.account_balances = {}   # Key: account_number, Value: balance info
+        self.underlying_prices = {}  # Key: underlying_symbol, Value: price
+        self.streamer_to_position = {}  # Map streamer symbol to position key
+        self.positions_lock = threading.Lock()
+        self.balances_lock = threading.Lock()
+        self.prices_lock = threading.Lock()
+        
+        # Websocket and streaming state
+        self.websocket = None
+        self.running = False
+
+    def _get_login_credentials(self):
+        login = os.getenv("TASTYTRADE_LOGIN")
+        password = os.getenv("TASTYTRADE_PASSWORD")
+        if not login or not password:
+            logging.error("🚨 TASTYTRADE_LOGIN and TASTYTRADE_PASSWORD must be set in .env file")
+        return login, password
+
     def initialize_session(self):
-        """Initialize Tastytrade session"""
+        login, password = self._get_login_credentials()
+        if not login or not password:
+            return False
         try:
-            print("🔄 Establishing Tastytrade session...")
-            self.session = Session(
-                login=os.environ['TASTYTRADE_LOGIN'],
-                password=os.environ['TASTYTRADE_PASSWORD']
-            )
-            
-            # Validate session has token
-            if hasattr(self.session, 'session_token') and self.session.session_token:
-                token = self.session.session_token
-                self.api_quote_token = self.session.streamer_token
-                self.dxlink_url = self.session.dxlink_url
-            else:
-                print("❌ No valid token found in session. Please check credentials in .env file.")
-                return False
-                
-            print(f"✅ Session established with token: {token[:20]}...")
-            
-            # Set your specific account numbers
-            self.account_numbers = ["5WX84566", "5WU39639"]
-            print(f"🏦 Using accounts: {', '.join(self.account_numbers)}")
-            
+            logging.info("🔄 Establishing Tastytrade session...")
+            self.tasty_client = Session(login, password)
+            self.api_quote_token = self.tasty_client.streamer_token
+            self.dxlink_url = self.tasty_client.dxlink_url
+            logging.info(f"✅ Session established.")
             return True
-        except KeyError as e:
-            print(f"❌ Missing environment variable: {e}. Please ensure TASTYTRADE_LOGIN and TASTYTRADE_PASSWORD are in your .env file.")
-            return False
         except Exception as e:
-            print(f"❌ Session error: {e}")
+            logging.error(f"❌ Session error: {e}")
             return False
+
+    def _update_account_balances_sync(self):
+        if not self.tasty_client:
+            return
+        with self.balances_lock:
+            for acc_num in self.target_accounts:
+                try:
+                    account = Account.get(self.tasty_client, acc_num)
+                    balance = account.get_balances(self.tasty_client)
+                    if balance:
+                        self.account_balances[acc_num] = balance
+                        logging.info(f"💰 Fetched balance for {acc_num}: Net Liq = ${balance.net_liquidating_value:,.2f}")
+                except Exception as e:
+                    logging.error(f"❌ Could not fetch balance for account {acc_num}: {e}")
+
+    def _balance_update_thread(self):
+        while True:
+            self._update_account_balances_sync()
+            time.sleep(30)
 
     def fetch_positions(self):
-        """Fetch all stock and option positions from the broker."""
+        """Fetch positions from all target accounts"""
         try:
-            print("🔄 Fetching positions...")
-            all_positions_with_accounts = []
+            logging.info("🔄 Fetching positions...")
             
-            all_accounts = Account.get(self.session)
-            target_accounts = [acc for acc in all_accounts if acc.account_number in self.account_numbers]
-            print(f"📋 Using {len(target_accounts)} target accounts.")
-            
-            for account in target_accounts:
-                print(f"📋 Fetching positions for account: {account.account_number}")
-                positions = account.get_positions(self.session)
-                for pos in positions:
-                    all_positions_with_accounts.append((pos, account.account_number))
-            
-            print(f"📊 Total positions across all accounts: {len(all_positions_with_accounts)}")
-            
-            for pos, account_number in all_positions_with_accounts:
-                symbol = pos.symbol
-                quantity = float(pos.quantity)
-                instrument_type = pos.instrument_type
-                
-                if quantity == 0:
-                    continue
+            with self.positions_lock:
+                self.positions.clear()
+                for acc_num in self.target_accounts:
+                    account = Account.get(self.tasty_client, acc_num)
+                    positions_list = account.get_positions(self.tasty_client)
+                    logging.info(f"    ✅ Found {len(positions_list)} positions in account {acc_num}")
+                    for pos in positions_list:
+                        quantity = float(pos.quantity) * (-1 if pos.quantity_direction == 'Short' else 1)
+                        if quantity == 0: continue
 
-                if instrument_type == 'Equity Option':
-                    parts = symbol.split()
-                    if len(parts) >= 2:
-                        underlying = parts[0]
-                        option_part = parts[1]
-                        date_str, option_type, strike_str = option_part[:6], option_part[6], option_part[7:]
-                        strike_dollars = int(strike_str) / 1000
-                        strike_display = f"{strike_dollars:.3f}".rstrip('0').rstrip('.')
-                        if strike_dollars == int(strike_dollars):
-                            strike_display = str(int(strike_dollars))
-                        
-                        streamer_symbol = f".{underlying}{date_str}{option_type}{strike_display}"
-                        
-                        self.positions[streamer_symbol] = {
-                            'original_symbol': symbol, 'underlying': underlying, 'strike': strike_dollars,
-                            'option_type': 'Call' if option_type == 'C' else 'Put', 'quantity': quantity,
-                            'expiration': date_str, 'account_number': account_number, 'instrument_type': instrument_type
+                        # Handle None mark_price by setting to 0 for now
+                        mark_price = float(pos.mark_price) if pos.mark_price is not None else 0.0
+
+                        key = f"{acc_num}:{pos.symbol}"
+                        self.positions[key] = {
+                            'account_number': acc_num,
+                            'symbol_occ': pos.symbol,
+                            'underlying_symbol': pos.underlying_symbol,
+                            'instrument_type': pos.instrument_type,
+                            'quantity': quantity,
+                            'strike_price': float(pos.strike_price) if hasattr(pos, 'strike_price') and pos.strike_price else None,
+                            'option_type': getattr(pos, 'option_type', None),
+                            'price': mark_price,
+                            'notional': 0, # will be calculated
+                            'delta': 1.0 if pos.instrument_type == 'Equity' else 0,
+                            'position_delta': quantity if pos.instrument_type == 'Equity' else 0,
+                            'net_liq': mark_price * quantity * (100 if pos.instrument_type == 'Equity Option' else 1)
                         }
-                elif instrument_type == 'Equity':
-                    self.positions[symbol] = {
-                        'original_symbol': symbol, 'underlying': symbol, 'strike': None, 'option_type': 'Stock',
-                        'quantity': quantity, 'expiration': None, 'account_number': account_number,
-                        'instrument_type': instrument_type
-                    }
-            
-            print(f"✅ Found {len(self.positions)} total stock and option positions.")
+
+            # Set fallback underlying prices from CSV data
+            self._set_csv_underlying_prices()
+
+            logging.info(f"✅ Position loading complete. Total loaded: {len(self.positions)}")
             return len(self.positions) > 0
         except Exception as e:
-            print(f"❌ Error fetching positions: {e}")
+            logging.error(f"❌ Error fetching positions: {e}")
             return False
 
-    async def connect_websocket(self):
-        """Connect to DXLink websocket"""
+    def _convert_occ_to_streamer(self, occ_symbol):
+        """Convert OCC format to streamer symbol format using the SDK."""
         try:
-            print("🔄 Connecting to DXLink websocket...")
-            self.websocket = await websockets.connect(self.dxlink_url)
-            print("✅ Websocket connected!")
-            return True
+            # The SDK function handles the conversion reliably.
+            return get_streamer_symbol(occ_symbol)
         except Exception as e:
-            print(f"❌ Websocket connection error: {e}")
-            return False
+            logging.error(f"Error converting {occ_symbol}: {e}")
+            return None
 
-    async def setup_dxlink(self):
-        """Setup DXLink protocol and channels for Greeks and Quotes."""
-        try:
-            print("\n--- Setting up DXLink protocol ---")
-            
-            # 1. SETUP
-            setup_msg = {
-                "type": "SETUP",
-                "channel": 0,
-                "keepaliveTimeout": 60,
-                "acceptKeepaliveTimeout": 60,
-                "version": "1.0.0"
-            }
-            await self.websocket.send(json.dumps(setup_msg))
-            print("📤 Sent SETUP message")
-            
-            # Receive SETUP response
-            response = await asyncio.wait_for(self.websocket.recv(), timeout=10)
-            setup_response = json.loads(response)
-            print(f"📥 SETUP Response: {setup_response}")
-            
-            # Wait for AUTH_STATE
-            auth_state = await asyncio.wait_for(self.websocket.recv(), timeout=10)
-            auth_state_data = json.loads(auth_state)
-            print(f"📥 AUTH_STATE: {auth_state_data}")
-            
-            # 2. AUTHORIZE
-            auth_msg = {
-                "type": "AUTH",
-                "channel": 0,
-                "token": self.api_quote_token
-            }
-            await self.websocket.send(json.dumps(auth_msg))
-            print("📤 Sent AUTH message")
-            
-            # Receive AUTH_STATE response
-            auth_response = await asyncio.wait_for(self.websocket.recv(), timeout=10)
-            auth_data = json.loads(auth_response)
-            print(f"📥 AUTH Response: {auth_data}")
-            
-            if auth_data.get('state') != 'AUTHORIZED':
-                print("❌ Authorization failed")
-                return False
-            
-            print("✅ Successfully authorized!")
-            
-            # 3. CHANNEL_REQUEST for FEED (Greeks and Quotes on same channel)
-            channel_msg = {
-                "type": "CHANNEL_REQUEST",
-                "channel": 1,
-                "service": "FEED",
-                "parameters": {"contract": "AUTO"}
-            }
-            await self.websocket.send(json.dumps(channel_msg))
-            print("📤 Sent FEED CHANNEL_REQUEST message")
-            
-            # Receive CHANNEL_OPENED response
-            channel_response = await asyncio.wait_for(self.websocket.recv(), timeout=10)
-            channel_data = json.loads(channel_response)
-            print(f"📥 FEED CHANNEL Response: {channel_data}")
-            
-            print("✅ DXLink connection setup complete!")
-            return True
-            
-        except asyncio.TimeoutError:
-            print("❌ Timeout during DXLink setup")
-            return False
-        except Exception as e:
-            print(f"❌ Error setting up DXLink connection: {e}")
-            return False
-
-    async def subscribe_to_feeds(self):
-        """Subscribe to Greeks for options and Quotes for underlyings."""
-        try:
-            option_symbols = [s for s, p in self.positions.items() if p['instrument_type'] == 'Equity Option']
-            underlying_symbols = list(set(p['underlying'] for p in self.positions.values()))
-            
-            # Subscribe to both Greeks and Quotes on Channel 1
-            subscriptions = []
-            
-            # Add Greeks subscriptions for options
-            for symbol in option_symbols:
-                subscriptions.append({"symbol": symbol, "type": "Greeks"})
-            
-            # Add Quote subscriptions for underlyings
-            for symbol in underlying_symbols:
-                subscriptions.append({"symbol": symbol, "type": "Quote"})
-            
-            # Send single subscription message
-            subscription_msg = {
-                "type": "FEED_SUBSCRIPTION",
-                "channel": 1,
-                "add": subscriptions
-            }
-            
-            await self.websocket.send(json.dumps(subscription_msg))
-            print(f"📈 Subscribed to Greeks for {len(option_symbols)} options and Quotes for {len(underlying_symbols)} underlyings on channel 1")
-
-            self.initialize_all_positions()
-            
-            # Fallback: Initialize underlying prices if not getting quotes
-            await self.initialize_fallback_prices()
-            
-            return True
-        except Exception as e:
-            print(f"❌ Subscription error: {e}")
-            return False
-
-    def initialize_all_positions(self):
-        """Initialize delta records for all positions."""
-        for symbol, position in self.positions.items():
-            delta_payload = {k: v for k, v in position.items()}
-            delta_payload.update({
-                'position_delta': 0, 
-                'notional_value': 0, 
-                'delta_per_contract': 0,
-                'price': 0,
-                'net_liq': 0  # Will be calculated from mark price
-            })
-            if position['instrument_type'] == 'Equity':
-                delta_payload['position_delta'] = position['quantity']
-                delta_payload['delta_per_contract'] = 1.0
-            self.deltas[symbol] = delta_payload
-
-    async def initialize_fallback_prices(self):
-        """Initialize fallback prices for underlying symbols"""
-        fallback_prices = {
-            'AMD': 121.78, 'AMZN': 217.45, 'ASML': 773.25, 'GOOGL': 176.07,
-            'HOOD': 71.7, 'IBIT': 61.76, 'META': 698.04, 'PYPL': 73.81,
-            'QQQ': 531.96, 'SHOP': 109.87, 'SOFI': 14.1, 'TSLA': 301.76
+    def _set_csv_underlying_prices(self):
+        """Set underlying prices from CSV data as fallback since Quote feeds aren't working"""
+        csv_prices = {
+            'AMD': 123.68,
+            'HOOD': 71.69, 
+            'IBIT': 61.90,
+            'AMZN': 216.37,
+            'ASML': 787.68,
+            'GOOGL': 179.75,
+            'META': 698.65,
+            'PYPL': 74.85,
+            'QQQ': 532.85,
+            'SHOP': 109.14,
+            'SOFI': 14.30,
+            'TSLA': 317.05
         }
         
-        # Only initialize if we don't have real prices yet
-        for symbol, price in fallback_prices.items():
-            if symbol not in self.underlying_prices:
+        with self.prices_lock:
+            for symbol, price in csv_prices.items():
                 self.underlying_prices[symbol] = price
-                print(f"📊 Initialized {symbol}: ${price:.2f} (fallback)")
-                await self.update_notional_for_underlying(symbol)
+                logging.info(f"📊 Set fallback price for {symbol}: ${price:.2f}")
+        
+        # Immediately recalculate notionals to update stock prices
+        self._recalculate_notionals()
+        
+        logging.info(f"✅ Set {len(csv_prices)} fallback underlying prices from CSV data")
 
-    async def handle_feed_data(self, data):
-        """Handle incoming live feed data for Greeks and Quotes."""
+    async def _connect_and_subscribe(self):
         try:
-            events = data.get('data', [])
-            if len(events) >= 2:
-                event_type = events[0]
-                if event_type == 'Greeks':
-                    await self.handle_greeks_data(events[1])
-                elif event_type == 'Quote':
-                    await self.handle_quote_data(events[1])
-                else:
-                    # Debug: print unknown event types
-                    print(f"📊 Unknown event type: {event_type}")
-        except Exception as e:
-            # Add more detailed error info
-            print(f"⚠️ Error handling feed data: {e}")
-            print(f"📊 Raw data: {data}")
-
-    async def handle_greeks_data(self, greeks_data):
-        """Handle Greeks data and update position deltas and notional value."""
-        i = 0
-        while i + 13 < len(greeks_data):
-            if greeks_data[i] == 'Greeks':
-                symbol = greeks_data[i + 1]
-                price = greeks_data[i + 7]
-                delta = greeks_data[i + 9]
+            logging.info(f"🔄 Connecting to DXLink websocket at {self.dxlink_url}...")
+            async with websockets.connect(self.dxlink_url) as self.websocket:
+                logging.info("✅ Websocket connected!")
                 
-                if symbol in self.deltas and delta is not None and isinstance(delta, (int, float)):
-                    try:
-                        delta_info = self.deltas[symbol]
-                        delta_info['position_delta'] = float(delta) * delta_info['quantity'] * 100
-                        delta_info['delta_per_contract'] = float(delta)
-                        if price is not None and isinstance(price, (int, float)):
-                            delta_info['price'] = float(price)
-                            # Calculate net liquidation for options when we get option price
-                            if delta_info['instrument_type'] != 'Equity':
-                                old_net_liq = delta_info.get('net_liq', 0)
-                                delta_info['net_liq'] = float(price) * delta_info['quantity'] * 100
-                                if abs(old_net_liq - delta_info['net_liq']) > 10:  # Only log significant changes
-                                    print(f"💵 Net Liq Update: {delta_info.get('original_symbol', symbol)} ${old_net_liq:.0f} → ${delta_info['net_liq']:.0f}")
-                        await self.update_notional_for_underlying(delta_info['underlying'])
-                        print(f"🔥 {delta_info.get('original_symbol', symbol):<25} | Δ={delta:>8.4f} | Position Δ={delta_info['position_delta']:>10.2f}")
-                    except (ValueError, TypeError) as e:
-                        print(f"⚠️ Error processing Greeks for {symbol}: {e}")
-            i += 14
+                await self.websocket.send(json.dumps({"type": "SETUP", "channel": 0, "keepaliveTimeout": 60, "acceptKeepaliveTimeout": 60, "version": "1.0.0"}))
+                await self.websocket.recv() 
+                await self.websocket.recv() 
 
-    async def handle_quote_data(self, quote_data):
-        """Handle Quote data and update underlying prices."""
-        print(f"🔍 Quote data received: {quote_data[:20]}...")  # Debug first 20 elements
-        
-        # Quote data format: [flat array of Quote records]
-        i = 0
-        while i + 10 < len(quote_data):  # Reduced from 15 to 10 for safety
-            if quote_data[i] == 'Quote':
-                symbol = quote_data[i + 1]
+                await self.websocket.send(json.dumps({"type": "AUTH", "channel": 0, "token": self.api_quote_token}))
+                auth_response = json.loads(await self.websocket.recv())
+                if auth_response.get('state') != 'AUTHORIZED':
+                    logging.error("❌ Websocket authorization failed.")
+                    return False
                 
-                try:
-                    # Extract price fields - adjust indices based on actual format
-                    bid_price = quote_data[i + 7] if len(quote_data) > i + 7 else None
-                    ask_price = quote_data[i + 11] if len(quote_data) > i + 11 else None
-                    
-                    # Use bid/ask mid-point for price
-                    price = None
-                    if bid_price and ask_price and isinstance(bid_price, (int, float)) and isinstance(ask_price, (int, float)):
-                        price = (float(bid_price) + float(ask_price)) / 2
-                        print(f"💰 {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}, mid=${price:.2f}")
-                    
-                    if symbol and price and abs(self.underlying_prices.get(symbol, 0) - price) > 0.01:
-                        old_price = self.underlying_prices.get(symbol, 0)
-                        self.underlying_prices[symbol] = price
-                        print(f"💲 Price Update: {symbol} ${old_price:.2f} → ${price:.2f}")
-                        await self.update_notional_for_underlying(symbol)
+                logging.info("✅ Websocket authorized.")
+                await self.websocket.send(json.dumps({"type": "CHANNEL_REQUEST", "channel": 1, "service": "FEED", "parameters": {"contract": "AUTO"}}))
+                await self.websocket.recv()
+
+                # Create symbol mapping and subscription lists
+                self.streamer_to_position = {}  # Map streamer symbol to position key
+                option_subscriptions = []
+                underlying_symbols = set()
+                
+                with self.positions_lock:
+                    for key, pos in self.positions.items():
+                        underlying_symbols.add(pos['underlying_symbol'])
                         
-                except (ValueError, TypeError, IndexError) as e:
-                    print(f"⚠️ Error processing Quote for {symbol}: {e}")
-                    print(f"🔍 Quote data around index {i}: {quote_data[i:i+15]}")
-            i += 12  # Adjust step size based on actual quote record length
-
-    async def update_notional_for_underlying(self, underlying_symbol):
-        """Update notional values for all positions with a given underlying."""
-        underlying_price = self.underlying_prices.get(underlying_symbol, 0)
-        if underlying_price == 0: 
-            print(f"⚠️ No price available for {underlying_symbol}")
-            return # Don't calculate if price is unknown
-
-        updated_positions = []
-        for symbol, delta_info in self.deltas.items():
-            if delta_info['underlying'] == underlying_symbol:
-                old_notional = delta_info.get('notional_value', 0)
-                delta_info['notional_value'] = delta_info['position_delta'] * underlying_price
+                        if pos['instrument_type'] == 'Equity Option':
+                            # Convert OCC symbol to streamer symbol
+                            streamer_symbol = self._convert_occ_to_streamer(pos['symbol_occ'])
+                            if streamer_symbol:
+                                self.streamer_to_position[streamer_symbol] = key
+                                option_subscriptions.append({"symbol": streamer_symbol, "type": "Greeks"})
+                                option_subscriptions.append({"symbol": streamer_symbol, "type": "Quote"})
+                                logging.info(f"📈 Mapped {pos['symbol_occ']} -> {streamer_symbol}")
+                            else:
+                                logging.warning(f"⚠️ Could not convert symbol: {pos['symbol_occ']}")
                 
-                # Calculate net liquidation value for stocks only here
-                # (Options net liq is calculated when we receive option prices from Greeks)
-                if delta_info['instrument_type'] == 'Equity':
-                    # For stocks: net liq = current price × quantity
-                    delta_info['net_liq'] = underlying_price * delta_info['quantity']
+                # Subscribe to underlying quotes
+                underlying_subscriptions = [{"symbol": s, "type": "Quote"} for s in underlying_symbols]
                 
-                updated_positions.append(f"{delta_info.get('original_symbol', symbol)}: ${old_notional:.0f} → ${delta_info['notional_value']:.0f}")
-        
-        self.last_update = datetime.now(timezone.utc)
-        total_notional = sum(d.get('notional_value', 0) for d in self.deltas.values())
-        
-        if updated_positions:
-            print(f"💰 Notional updated for {underlying_symbol} @ ${underlying_price:.2f}:")
-            for update in updated_positions[:3]:  # Show first 3 positions
-                print(f"   {update}")
-            if len(updated_positions) > 3:
-                print(f"   ... and {len(updated_positions) - 3} more")
-            print(f"📊 Portfolio Notional: ${total_notional:,.2f}")
+                all_subscriptions = option_subscriptions + underlying_subscriptions
+                
+                await self.websocket.send(json.dumps({"type": "FEED_SUBSCRIPTION", "channel": 1, "add": all_subscriptions}))
+                logging.info(f"📈 Subscribed to {len(all_subscriptions)} feeds ({len(option_subscriptions)} options, {len(underlying_subscriptions)} underlyings).")
 
-    async def stream_data(self):
-        """Main streaming loop."""
-        self.running = True
-        print("\n🚀 Delta tracking started! Waiting for live data...\n")
+                self.running = True
+                await self._streaming_loop()
+        except Exception as e:
+            logging.error(f"❌ Websocket connection failed: {e}")
+            self.running = False
+
+    async def _streaming_loop(self):
+        logging.info("🚀 Delta tracking started! Waiting for live data...\n")
         while self.running:
             try:
                 message = await asyncio.wait_for(self.websocket.recv(), timeout=65)
                 data = json.loads(message)
                 if data.get('type') == 'FEED_DATA':
-                    await self.handle_feed_data(data)
+                    await self._handle_feed_data(data['data'])
                 elif data.get('type') == 'KEEPALIVE':
                     await self.websocket.send(json.dumps({"type": "KEEPALIVE"}))
-                elif data.get('type') == 'FEED_CONFIG':
-                    print(f"📊 Feed configured: {data.get('eventFields', {}).keys()}")
-                else:
-                    # Debug: print other message types
-                    print(f"📥 Other message: {data.get('type')}")
             except asyncio.TimeoutError:
-                print("Connection timed out. Reconnecting...")
-                break # Break to allow outer loop to reconnect
+                logging.warning("Connection timed out, will attempt to reconnect.")
+                break
             except websockets.exceptions.ConnectionClosed:
-                print("❌ Websocket connection closed.")
-                self.running = False
+                logging.warning("❌ Websocket connection closed.")
+                break
             except Exception as e:
-                print(f"❌ Streaming error: {e}")
-                import traceback
-                traceback.print_exc()
+                logging.error(f"❌ Streaming error: {e}")
+
+    async def _handle_feed_data(self, events):
+        """Handle incoming live data from WebSocket in flat array format"""
+        try:
+            if len(events) < 2:
+                return
+                
+            event_type = events[0]
+            
+            if event_type == 'Greeks':
+                greeks_data = events[1]
+                i = 0
+                while i + self.GREEKS_RECORD_SIZE <= len(greeks_data):
+                    if greeks_data[i] == 'Greeks':
+                        symbol = greeks_data[i + self.GREEKS_SYMBOL_IDX]
+                        price = greeks_data[i + self.GREEKS_PRICE_IDX]
+                        delta = greeks_data[i + self.GREEKS_DELTA_IDX]
+                        
+                        if symbol and delta is not None and isinstance(delta, (int, float)):
+                            # Use streamer symbol mapping to find position
+                            position_key = self.streamer_to_position.get(symbol)
+                            if position_key:
+                                with self.positions_lock:
+                                    if position_key in self.positions:
+                                        pos = self.positions[position_key]
+                                        pos['delta'] = float(delta)
+                                        pos['position_delta'] = pos['quantity'] * float(delta) * 100
+                                        if price is not None and isinstance(price, (int, float)):
+                                            pos['price'] = float(price)
+                                            pos['net_liq'] = pos['quantity'] * float(price) * 100
+                                        logging.debug(f"📊 Updated {pos['symbol_occ']}: Δ={delta:.4f}, P=${price:.2f}")
+                    
+                    i += self.GREEKS_RECORD_SIZE  # Move to next Greeks record
+                    
+            elif event_type == 'Quote':
+                quote_data = events[1]
+                i = 0
+                while i < len(quote_data):
+                    if i + 1 < len(quote_data) and quote_data[i] == 'Quote':
+                        symbol = quote_data[i + self.QUOTE_SYMBOL_IDX]
+                        
+                        # Quote structure - look for bid/ask in specific positions
+                        if i + self.QUOTE_RECORD_SIZE <= len(quote_data):
+                            try:
+                                bid_price = quote_data[i + self.QUOTE_BID_PRICE_IDX]
+                                ask_price = quote_data[i + self.QUOTE_ASK_PRICE_IDX]
+                                
+                                if (isinstance(bid_price, (int, float)) and isinstance(ask_price, (int, float)) 
+                                    and bid_price > 0 and ask_price > 0 and ask_price >= bid_price):
+                                    
+                                    price = (float(bid_price) + float(ask_price)) / 2
+                                    
+                                    if symbol and symbol.startswith('.'): # It's an option
+                                        # Use streamer symbol mapping
+                                        position_key = self.streamer_to_position.get(symbol)
+                                        if position_key:
+                                            with self.positions_lock:
+                                                if position_key in self.positions:
+                                                    pos = self.positions[position_key]
+                                                    pos['price'] = price
+                                                    pos['net_liq'] = pos['quantity'] * price * 100
+                                                    logging.debug(f"📊 Updated option price {pos['symbol_occ']}: ${price:.2f}")
+                                    elif symbol: # It's an underlying
+                                        with self.prices_lock:
+                                            self.underlying_prices[symbol] = price
+                                            logging.debug(f"📊 Updated underlying {symbol}: ${price:.2f}")
+                            except (IndexError, TypeError, ValueError):
+                                pass  # Skip malformed quote data
+                        
+                        i += self.QUOTE_RECORD_SIZE
+                    else:
+                        i += 1
+            
+            self._recalculate_notionals()
+            
+        except Exception as e:
+            logging.error(f"❌ Error parsing feed data: {e}")
+            # Don't raise to avoid stopping the stream
+
+    def _recalculate_notionals(self):
+        """Calculate notional values for all positions"""
+        with self.positions_lock, self.prices_lock:
+            for pos in self.positions.values():
+                underlying_price = self.underlying_prices.get(pos['underlying_symbol'], 0)
+                if pos['instrument_type'] == 'Equity':
+                    # For stocks, set the position price to the underlying price
+                    pos['price'] = underlying_price
+                    pos['notional'] = pos['quantity'] * underlying_price
+                    pos['net_liq'] = pos['notional']
+                else: # Option
+                    pos['notional'] = pos['position_delta'] * underlying_price
+
+    def get_dashboard_data(self, filter_accounts=None):
+        with self.positions_lock, self.balances_lock, self.prices_lock:
+            positions_copy = list(self.positions.values())
+            balances_copy = self.account_balances.copy()
+            
+            # Filter by account if specified
+            if filter_accounts:
+                positions_copy = [p for p in positions_copy if p['account_number'] in filter_accounts]
+                balances_copy = {k: v for k, v in balances_copy.items() if k in filter_accounts}
+            
+            grouped_positions = {}
+            for pos in positions_copy:
+                symbol = pos['underlying_symbol']
+                if symbol not in grouped_positions:
+                    grouped_positions[symbol] = []
+                grouped_positions[symbol].append(pos)
+
+            flattened_list = []
+            grouped_list = []
+            for symbol, positions_list in sorted(grouped_positions.items()):
+                summary_row = {
+                    'is_summary': True, 'symbol_root': symbol,
+                    'price': self.underlying_prices.get(symbol, 0),
+                    'quantity': sum(p['quantity'] for p in positions_list if p['instrument_type'] == 'Equity'),
+                    'position_delta': sum(p['position_delta'] for p in positions_list),
+                    'notional': sum(p['notional'] for p in positions_list),
+                    'net_liq': sum(p['net_liq'] for p in positions_list),
+                    'leverage': None, 'delta': None
+                }
+                if summary_row['quantity'] == 0: summary_row['quantity'] = '-'
+                flattened_list.append(summary_row)
+
+                # Add to grouped list for charts
+                grouped_list.append({
+                    'symbol': symbol,
+                    'total_notional': summary_row['notional'],
+                    'total_net_liq': summary_row['net_liq']
+                })
+
+                for pos in sorted(positions_list, key=lambda p: p.get('strike_price') or 0):
+                    pos_copy = pos.copy()
+                    notional = pos_copy.get('notional', 0)
+                    net_liq = pos_copy.get('net_liq', 0)
+                    pos_copy['leverage'] = (notional / net_liq) if net_liq != 0 else 0
+                    flattened_list.append(pos_copy)
+
+            net_liq_deployed = sum(p['net_liq'] for p in positions_copy)
+            total_notional = sum(p['notional'] for p in positions_copy)
+            total_net_liq = sum(b.net_liquidating_value for b in balances_copy.values())
+
+            totals = {
+                'total_net_liquidating_value': total_net_liq,
+                'net_liq_deployed': net_liq_deployed,
+                'total_notional': total_notional,
+                'total_delta': sum(p['position_delta'] for p in positions_copy),
+                'portfolio_leverage': (total_notional / net_liq_deployed) if net_liq_deployed != 0 else 0,
+            }
+            return {'positions': flattened_list, 'totals': totals, 'grouped_positions': grouped_list}
 
     async def start(self):
-        """Start the delta tracking system."""
         if not self.initialize_session(): return
-        if not self.fetch_positions(): return
+        threading.Thread(target=self._balance_update_thread, daemon=True).start()
         
-        while True: # Main loop to handle reconnects
-            if await self.connect_websocket():
-                if await self.setup_dxlink():
-                    await self.subscribe_to_feeds()
-                    await self.stream_data()
-            print("Attempting to reconnect in 10 seconds...")
+        while True:
+            if self.fetch_positions():
+                await self._connect_and_subscribe()
+            logging.info("Attempting to reconnect in 10 seconds...")
             await asyncio.sleep(10)
 
-    def get_dashboard_data(self, selected_accounts=None):
-        """Get formatted data for dashboard, safely."""
-        selected_accounts = selected_accounts or self.account_numbers
-        filtered_deltas = {s: d for s, d in self.deltas.items() if d.get('account_number') in selected_accounts}
-        
-        grouped_positions = {}
-        for symbol, delta_info in filtered_deltas.items():
-            underlying = delta_info.get('underlying')
-            if not underlying: continue
-
-            if underlying not in grouped_positions:
-                grouped_positions[underlying] = {'symbol': underlying, 'positions': [], 'total_delta': 0, 'total_notional': 0}
-            
-            group = grouped_positions[underlying]
-            group['positions'].append(delta_info)
-            group['total_delta'] += delta_info.get('position_delta', 0)
-            group['total_notional'] += delta_info.get('notional_value', 0)
-            group['total_net_liq'] = group.get('total_net_liq', 0) + delta_info.get('net_liq', 0)
-            
-        return {
-            'portfolio_delta': sum(d.get('position_delta', 0) for d in filtered_deltas.values()),
-            'total_notional': sum(d.get('notional_value', 0) for d in filtered_deltas.values()),
-            'total_net_liq': sum(d.get('net_liq', 0) for d in filtered_deltas.values()),
-            'position_count': len(filtered_deltas),
-            'last_update': self.last_update.isoformat() if self.last_update else None,
-            'grouped_positions': sorted(grouped_positions.values(), key=lambda x: abs(x.get('total_net_liq', 0)), reverse=True),
-            'all_accounts': self.account_numbers,
-            'selected_accounts': selected_accounts,
-        }
-
-# Global tracker instance & Flask app
-tracker = DeltaTracker()
-app = Flask(__name__)
+# --- Flask App and Endpoints ---
+app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
+tracker = DeltaTracker()
 
 @app.route('/')
-def dashboard():
-    """Serve the dashboard HTML"""
+def index():
     return render_template('dashboard.html')
 
 @app.route('/api/data')
-def get_data():
-    from flask import request
-    data = tracker.get_dashboard_data(request.args.getlist('accounts'))
-    return jsonify(data)
-
-@app.route('/api/debug')
-def debug_data():
-    """Debug endpoint to see raw data"""
-    return jsonify({
-        'underlying_prices': tracker.underlying_prices,
-        'total_deltas': len(tracker.deltas),
-        'sample_positions': {k: v for k, v in list(tracker.deltas.items())[:3]},
-        'all_notionals': {k: v.get('notional_value', 0) for k, v in tracker.deltas.items()},
-        'all_net_liq': {k: v.get('net_liq', 0) for k, v in tracker.deltas.items()},
-        'total_notional': sum(d.get('notional_value', 0) for d in tracker.deltas.values()),
-        'total_net_liq': sum(d.get('net_liq', 0) for d in tracker.deltas.values())
-    })
-
-@app.route('/api/calculate_netliq')
-def calculate_netliq():
-    """Force calculate net liquidation using current prices"""
-    total_calculated = 0
-    for symbol, delta_info in tracker.deltas.items():
-        if delta_info['instrument_type'] == 'Equity':
-            # For stocks: net liq = current underlying price × quantity
-            underlying_price = tracker.underlying_prices.get(delta_info['underlying'], 0)
-            if underlying_price > 0:
-                delta_info['net_liq'] = underlying_price * delta_info['quantity']
-                total_calculated += delta_info['net_liq']
-        else:
-            # For options: net liq = option price × quantity × 100
-            option_price = delta_info.get('price', 0)
-            if option_price > 0:
-                delta_info['net_liq'] = option_price * delta_info['quantity'] * 100
-                total_calculated += delta_info['net_liq']
+def api_data():
+    # Get account filter from query parameters
+    requested_accounts = request.args.getlist('accounts')
     
-    return jsonify({
-        'message': 'Net liquidation values calculated',
-        'total_net_liq': total_calculated,
-        'sample_calculations': [
-            {
-                'symbol': k,
-                'instrument_type': v['instrument_type'],
-                'price': v.get('price', 0),
-                'quantity': v['quantity'],
-                'net_liq': v.get('net_liq', 0)
-            }
-            for k, v in list(tracker.deltas.items())[:5]
-        ]
-    })
+    # If no accounts specified, return all data
+    if not requested_accounts:
+        return jsonify(tracker.get_dashboard_data())
+    
+    # Filter data by requested accounts
+    return jsonify(tracker.get_dashboard_data(filter_accounts=requested_accounts))
 
-def run_tracker():
+def run_async_tracker():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(tracker.start())
 
 if __name__ == '__main__':
-    print("🚀 Starting TastyTracker backend...")
-    tracker_thread = threading.Thread(target=run_tracker, daemon=True)
-    tracker_thread.start()
-    
-    print("🌐 Starting dashboard server on http://localhost:5001")
-    # Turn off debug mode for production/stable use
+    logging.info("🚀 Starting TastyTracker backend...")
+    threading.Thread(target=run_async_tracker, daemon=True).start()
+    logging.info("🌐 Starting dashboard server on http://localhost:5001")
     app.run(host='0.0.0.0', port=5001, debug=False) 
