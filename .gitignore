@@ -21,6 +21,15 @@ tastytrade_*.gsheet
 positions_*.csv
 *.tsv
 
+# Debug, test, and development files
+debug_*.py
+test_*.py
+check_*.py
+scan_*.py
+find_*.py
+*_backup.py
+apply_improvements.py
+
 # IDE and editor files
 .vscode/
 .idea/
