@@ -493,6 +493,8 @@
         <div class="tab-navigation">
             <button class="tab-button active" data-tab="portfolio">📊 Portfolio</button>
             <button class="tab-button" data-tab="screener">🔍 Screener</button>
+            <button class="tab-button" data-tab="risk">⚡ Risk Manager</button>
+            <button class="tab-button" data-tab="analytics">📈 Analytics</button>
         </div>
         
         <!-- Portfolio Tab Content -->
@@ -587,32 +589,32 @@
                     
                     <div class="form-group">
                         <label for="min-iv-rank">Min IV Rank (%)</label>
-                        <input type="number" id="min-iv-rank" value="30" min="0" max="100">
+                        <input type="number" id="min-iv-rank" value="0" min="0" max="100">
                     </div>
                     
                     <div class="form-group">
                         <label for="max-iv-rank">Max IV Rank (%)</label>
-                        <input type="number" id="max-iv-rank" value="80" min="0" max="100">
+                        <input type="number" id="max-iv-rank" value="100" min="0" max="100">
                     </div>
                     
                     <div class="form-group">
                         <label for="min-price">Min Price ($)</label>
-                        <input type="number" id="min-price" value="10" min="0" step="0.01">
+                        <input type="number" id="min-price" value="0" min="0" step="0.01">
                     </div>
                     
                     <div class="form-group">
                         <label for="max-price">Max Price ($)</label>
-                        <input type="number" id="max-price" value="200" min="0" step="0.01">
+                        <input type="number" id="max-price" value="1000" min="0" step="0.01">
                     </div>
                     
                     <div class="form-group">
                         <label for="min-volume">Min Volume</label>
-                        <input type="number" id="min-volume" value="100000" min="0">
+                        <input type="number" id="min-volume" value="0" min="0">
                     </div>
                     
                     <div class="form-group">
                         <label for="min-liquidity">Min Liquidity Rank</label>
-                        <input type="number" id="min-liquidity" value="3" min="0" max="5">
+                        <input type="number" id="min-liquidity" value="0" min="0" max="5">
                     </div>
                 </div>
                 
@@ -683,6 +685,173 @@
                 
                 <div id="selected-stocks-summary" style="margin-top: 20px;">
                     <p><strong>Selected Stocks:</strong> <span id="selected-count">0</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Risk Manager Tab Content -->
+        <div id="risk-tab" class="tab-content">
+            <div class="screener-section">
+                <h2 class="section-title">⚡ Portfolio Risk Management</h2>
+                
+                <!-- Account Selection for Risk Analysis -->
+                <div class="screener-form">
+                    <div class="form-group">
+                        <label for="risk-account-select">Account</label>
+                        <select id="risk-account-select">
+                            <option value="5WX84566">Joint Tenant (5WX84566)</option>
+                            <option value="5WU39639">Roth IRA (5WU39639)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="risk-level-select">Risk Level</label>
+                        <select id="risk-level-select">
+                            <option value="conservative">Conservative (1% risk)</option>
+                            <option value="moderate" selected>Moderate (2% risk)</option>
+                            <option value="aggressive">Aggressive (5% risk)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="custom-risk-pct">Custom Risk % (Optional)</label>
+                        <input type="number" id="custom-risk-pct" value="" min="0.1" max="10" step="0.1" placeholder="Override default">
+                    </div>
+                </div>
+                
+                <!-- Portfolio Risk Summary -->
+                <div class="screener-actions">
+                    <button class="btn-primary" id="load-portfolio-risk">📊 Analyze Portfolio Risk</button>
+                    <button class="btn-secondary" id="refresh-risk-data">🔄 Refresh Data</button>
+                    <span id="risk-status"></span>
+                </div>
+                
+                <!-- Risk Summary Display -->
+                <div id="portfolio-risk-summary" style="display: none;">
+                    <div class="results-table">
+                        <div class="results-header">
+                            <div colspan="8" style="text-align: center; font-weight: 600;">Portfolio Risk Summary</div>
+                        </div>
+                        <div id="risk-summary-body">
+                            <!-- Risk summary will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Position Sizing Calculator -->
+                <div class="screener-section" style="margin-top: 30px;">
+                    <h3 class="section-title">🎯 Position Sizing Calculator</h3>
+                    
+                    <div class="screener-form">
+                        <div class="form-group">
+                            <label for="calc-symbol">Symbol</label>
+                            <input type="text" id="calc-symbol" placeholder="e.g., AAPL" style="text-transform: uppercase;">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="calc-underlying-price">Underlying Price ($)</label>
+                            <input type="number" id="calc-underlying-price" placeholder="Current stock price" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="calc-short-strike">Short Strike ($)</label>
+                            <input type="number" id="calc-short-strike" placeholder="Sell strike" step="0.50">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="calc-long-strike">Long Strike ($)</label>
+                            <input type="number" id="calc-long-strike" placeholder="Buy strike" step="0.50">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="calc-premium">Net Premium ($)</label>
+                            <input type="number" id="calc-premium" placeholder="Premium received" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="screener-actions">
+                        <button class="btn-primary" id="calculate-position-size">📏 Calculate Position Size</button>
+                        <button class="btn-secondary" id="clear-calculator">🗑️ Clear</button>
+                        <span id="calc-status"></span>
+                    </div>
+                    
+                    <!-- Position Size Results -->
+                    <div id="position-size-results" style="display: none;">
+                        <div style="margin-top: 20px; padding: 20px; background: rgba(59, 130, 246, 0.1); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <h4 style="margin-bottom: 15px; color: #60a5fa;">📊 Position Size Recommendation</h4>
+                            <div id="position-size-details">
+                                <!-- Position sizing details will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analytics Tab Content -->
+        <div id="analytics-tab" class="tab-content">
+            <div class="screener-section">
+                <h2 class="section-title">📈 Advanced Portfolio Analytics</h2>
+                
+                <!-- Account Selection -->
+                <div class="screener-form">
+                    <div class="form-group">
+                        <label for="analytics-account-select">Account</label>
+                        <select id="analytics-account-select">
+                            <option value="5WX84566">Joint Tenant (5WX84566)</option>
+                            <option value="5WU39639">Roth IRA (5WU39639)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Analytics Actions -->
+                <div class="screener-actions">
+                    <button class="btn-primary" id="load-comprehensive-report">📊 Generate Full Report</button>
+                    <button class="btn-secondary" id="load-var-analysis">📉 VaR Analysis</button>
+                    <button class="btn-secondary" id="load-greeks-analysis">🔺 Greeks Exposure</button>
+                    <button class="btn-secondary" id="load-performance-metrics">📈 Performance</button>
+                    <button class="btn-secondary" id="load-scenario-analysis">🎯 Scenarios</button>
+                    <span id="analytics-status"></span>
+                </div>
+                
+                <!-- VaR Analysis Section -->
+                <div id="var-analysis-section" class="screener-section" style="display: none; margin-top: 30px;">
+                    <h3 class="section-title">📉 Value at Risk (VaR) Analysis</h3>
+                    <div id="var-analysis-content">
+                        <!-- VaR content will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Greeks Exposure Section -->
+                <div id="greeks-analysis-section" class="screener-section" style="display: none; margin-top: 30px;">
+                    <h3 class="section-title">🔺 Portfolio Greeks Exposure</h3>
+                    <div id="greeks-analysis-content">
+                        <!-- Greeks content will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Performance Metrics Section -->
+                <div id="performance-analysis-section" class="screener-section" style="display: none; margin-top: 30px;">
+                    <h3 class="section-title">📈 Performance Analytics</h3>
+                    <div id="performance-analysis-content">
+                        <!-- Performance content will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Scenario Analysis Section -->
+                <div id="scenario-analysis-section" class="screener-section" style="display: none; margin-top: 30px;">
+                    <h3 class="section-title">🎯 Scenario Analysis</h3>
+                    <div id="scenario-analysis-content">
+                        <!-- Scenario content will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Comprehensive Report Section -->
+                <div id="comprehensive-report-section" class="screener-section" style="display: none; margin-top: 30px;">
+                    <h3 class="section-title">📊 Comprehensive Risk Report</h3>
+                    <div id="comprehensive-report-content">
+                        <!-- Comprehensive report will be populated here -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -1181,8 +1350,8 @@
                 $(this).addClass('active');
                 
                 // Show/hide tab content
-                $('.tab-content').removeClass('active').hide();
-                $(`#${targetTab}-tab`).addClass('active').show();
+                $('.tab-content').removeClass('active');
+                $(`#${targetTab}-tab`).addClass('active');
             });
         }
         
@@ -1319,6 +1488,16 @@
                 updateSelectedStocksSummary();
             });
             
+            $('#preview-trades').on('click', function() {
+                const selected = $('.stock-checkbox:checked');
+                if (selected.length === 0) {
+                    alert('Please select at least one stock');
+                    return;
+                }
+                
+                analyzeStrategies(true); // Preview mode
+            });
+            
             $('#create-bulk-trades').on('click', function() {
                 const selected = $('.stock-checkbox:checked');
                 if (selected.length === 0) {
@@ -1326,9 +1505,202 @@
                     return;
                 }
                 
-                $('#trade-status').text('🔄 Creating trades... (Not implemented yet)');
-                // TODO: Implement trade creation
+                if (confirm(`Are you sure you want to create trades for ${selected.length} stocks?`)) {
+                    analyzeStrategies(false); // Execute mode
+                }
             });
+        }
+        
+        function analyzeStrategies(previewOnly = true) {
+            const selectedCheckboxes = $('.stock-checkbox:checked');
+            const selectedSymbols = [];
+            
+            selectedCheckboxes.each(function() {
+                const stockData = JSON.parse($(this).attr('data-stock'));
+                selectedSymbols.push(stockData);
+            });
+            
+            if (selectedSymbols.length === 0) {
+                alert('Please select at least one stock');
+                return;
+            }
+            
+            const strategyParams = {
+                strategy: $('#strategy-select').val(),
+                target_premium: parseFloat($('#target-premium').val()) || 1.0,
+                dte: parseInt($('#dte-select').val()) || 45,
+                spread_width: 5.0
+            };
+            
+            $('#trade-status').text(previewOnly ? '🔄 Analyzing strategies...' : '🔄 Creating trades...');
+            $('#preview-trades').prop('disabled', true);
+            $('#create-bulk-trades').prop('disabled', true);
+            
+            // First, analyze strategies
+            fetch('/api/screener/analyze-strategy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    symbols: selectedSymbols,
+                    strategy_params: strategyParams
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                const strategies = data.results || [];
+                const validStrategies = strategies.filter(s => s.best_strategy);
+                
+                if (validStrategies.length === 0) {
+                    $('#trade-status').text('❌ No valid strategies found for selected stocks');
+                    $('#preview-trades').prop('disabled', false);
+                    $('#create-bulk-trades').prop('disabled', false);
+                    return;
+                }
+                
+                if (previewOnly) {
+                    displayStrategyPreview(validStrategies);
+                    $('#trade-status').text(`✅ Found ${validStrategies.length} valid strategies`);
+                    $('#preview-trades').prop('disabled', false);
+                    $('#create-bulk-trades').prop('disabled', false);
+                } else {
+                    // Actually create the trades
+                    createTrades(validStrategies, strategyParams);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Strategy analysis error:', error);
+                $('#trade-status').text(`❌ Error analyzing strategies: ${error.message}`);
+                $('#preview-trades').prop('disabled', false);
+                $('#create-bulk-trades').prop('disabled', false);
+            });
+        }
+        
+        function displayStrategyPreview(strategies) {
+            let previewHtml = '<div style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">';
+            previewHtml += '<h4 style="margin-bottom: 15px; color: #60a5fa;">📊 Strategy Preview</h4>';
+            
+            let totalPremium = 0;
+            strategies.forEach(strategy => {
+                if (strategy.best_strategy) {
+                    const s = strategy.best_strategy;
+                    const premium = s.net_premium || 0;
+                    totalPremium += premium;
+                    
+                    previewHtml += `
+                        <div style="margin-bottom: 10px; padding: 10px; background: rgba(30, 41, 59, 0.5); border-radius: 8px;">
+                            <strong>${strategy.symbol}</strong> - 
+                            Premium: $${premium.toFixed(2)}, 
+                            Max Profit: $${(s.max_profit || 0).toFixed(2)}, 
+                            Max Loss: $${(s.max_loss || 0).toFixed(2)}, 
+                            DTE: ${s.days_to_expiration || 0}
+                        </div>
+                    `;
+                }
+            });
+            
+            previewHtml += `<div style="margin-top: 15px; font-weight: 600; color: #10b981;">
+                Total Expected Premium: $${totalPremium.toFixed(2)} (${strategies.length} trades)
+            </div>`;
+            previewHtml += '</div>';
+            
+            // Add preview to the trade execution panel
+            let existingPreview = $('#strategy-preview');
+            if (existingPreview.length) {
+                existingPreview.html(previewHtml);
+            } else {
+                $('#trade-execution .screener-actions').after(`<div id="strategy-preview">${previewHtml}</div>`);
+            }
+        }
+        
+        function createTrades(strategies, strategyParams) {
+            const quantity = parseInt($('#quantity').val()) || 1;
+            const targetPremium = parseFloat($('#target-premium').val()) || 1.0;
+            
+            // For now, we'll use the first available account
+            // In a real implementation, you might want to let users choose the account
+            const accountNumber = "5WX84566"; // This should be made configurable
+            
+            const priceAdjustment = 0.0; // Could be made configurable
+            
+            fetch('/api/screener/create-trades', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    strategies: strategies,
+                    account_number: accountNumber,
+                    quantity: quantity,
+                    price_adjustment: priceAdjustment,
+                    dry_run_only: false
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayTradeResults(data);
+                $('#preview-trades').prop('disabled', false);
+                $('#create-bulk-trades').prop('disabled', false);
+            })
+            .catch(error => {
+                console.error('❌ Trade creation error:', error);
+                $('#trade-status').text(`❌ Error creating trades: ${error.message}`);
+                $('#preview-trades').prop('disabled', false);
+                $('#create-bulk-trades').prop('disabled', false);
+            });
+        }
+        
+        function displayTradeResults(results) {
+            const successCount = results.orders_submitted || 0;
+            const totalCount = results.total_strategies || 0;
+            const failedCount = results.orders_failed || 0;
+            
+            let statusText = `✅ Trade creation complete: ${successCount}/${totalCount} orders submitted`;
+            if (failedCount > 0) {
+                statusText += `, ${failedCount} failed`;
+            }
+            
+            $('#trade-status').text(statusText);
+            
+            // Display detailed results
+            let resultsHtml = '<div style="margin-top: 20px; padding: 15px; background: rgba(16, 185, 129, 0.1); border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.3);">';
+            resultsHtml += '<h4 style="margin-bottom: 15px; color: #10b981;">📋 Trade Results</h4>';
+            
+            resultsHtml += `<div style="margin-bottom: 15px;">
+                <strong>Summary:</strong> ${successCount} submitted, ${results.orders_created || 0} created, ${failedCount} failed
+            </div>`;
+            
+            if (results.errors && results.errors.length > 0) {
+                resultsHtml += '<div style="margin-bottom: 15px;"><strong>Errors:</strong><ul>';
+                results.errors.forEach(error => {
+                    resultsHtml += `<li style="color: #ef4444;">${error}</li>`;
+                });
+                resultsHtml += '</ul></div>';
+            }
+            
+            if (results.orders && results.orders.length > 0) {
+                resultsHtml += '<div><strong>Orders:</strong></div>';
+                results.orders.forEach(order => {
+                    const status = order.submission?.success ? '✅' : '❌';
+                    const symbol = order.symbol || 'Unknown';
+                    resultsHtml += `<div style="margin: 5px 0;">${status} ${symbol}</div>`;
+                });
+            }
+            
+            resultsHtml += '</div>';
+            
+            // Add results to the trade execution panel
+            let existingResults = $('#trade-results');
+            if (existingResults.length) {
+                existingResults.html(resultsHtml);
+            } else {
+                $('#trade-execution .screener-actions').after(`<div id="trade-results">${resultsHtml}</div>`);
+            }
         }
         
         // Initialize screener when tab is first shown
@@ -1338,19 +1710,555 @@
             }
         });
         
-        // Initial setup
-        setupTabSwitching();
-        setupScreenerListeners();
-        setupAccountListeners();
-        setupTableExpansion();
-        fetchData();
+        // Risk Management functionality
+        function setupRiskManagementListeners() {
+            $('#load-portfolio-risk').on('click', loadPortfolioRiskSummary);
+            $('#refresh-risk-data').on('click', loadPortfolioRiskSummary);
+            $('#calculate-position-size').on('click', calculatePositionSize);
+            $('#clear-calculator').on('click', clearCalculator);
+        }
         
-        // Auto-refresh every 2 seconds (only for portfolio tab)
-        setInterval(() => {
-            if ($('#portfolio-tab').hasClass('active')) {
-                fetchData();
+        function loadPortfolioRiskSummary() {
+            const accountNumber = $('#risk-account-select').val();
+            $('#risk-status').text('🔄 Analyzing portfolio risk...');
+            
+            fetch(`/api/risk/portfolio-summary/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayPortfolioRiskSummary(data);
+                    $('#risk-status').text('✅ Portfolio risk analysis complete');
+                })
+                .catch(error => {
+                    console.error('❌ Risk analysis error:', error);
+                    $('#risk-status').text(`❌ Error: ${error.message}`);
+                });
+        }
+        
+        function displayPortfolioRiskSummary(data) {
+            const tbody = $('#risk-summary-body');
+            tbody.empty();
+            
+            // Summary metrics
+            const summaryHtml = `
+                <div style="padding: 20px; background: rgba(30, 41, 59, 0.5); border-radius: 8px; margin-bottom: 15px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <strong>Net Liquidation:</strong><br>
+                            <span style="font-size: 1.2em; color: #10b981;">${formatCurrency(data.net_liquidation_value)}</span>
+                        </div>
+                        <div>
+                            <strong>Total Notional:</strong><br>
+                            <span style="font-size: 1.2em;">${formatCurrency(data.total_notional)}</span>
+                        </div>
+                        <div>
+                            <strong>Portfolio Leverage:</strong><br>
+                            <span style="font-size: 1.2em; color: ${data.portfolio_leverage > 2 ? '#ef4444' : '#10b981'};">${data.portfolio_leverage.toFixed(2)}x</span>
+                        </div>
+                        <div>
+                            <strong>Delta Exposure:</strong><br>
+                            <span style="font-size: 1.2em; color: ${Math.abs(data.delta_exposure) > 100 ? '#ef4444' : '#10b981'};">${data.delta_exposure.toFixed(1)}</span>
+                        </div>
+                        <div>
+                            <strong>Total Positions:</strong><br>
+                            <span style="font-size: 1.2em;">${data.total_positions}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Risk flags
+            if (data.risk_flags && data.risk_flags.length > 0) {
+                const flagsHtml = `
+                    <div style="padding: 15px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <strong style="color: #ef4444;">⚠️ Risk Flags:</strong><br>
+                        ${data.risk_flags.map(flag => `<span style="color: #ef4444;">• ${flag}</span>`).join('<br>')}
+                    </div>
+                `;
+                tbody.append(flagsHtml);
             }
-        }, 2000);
+            
+            tbody.append(summaryHtml);
+            
+            // Top concentrations
+            if (data.top_concentrations && data.top_concentrations.length > 0) {
+                let concentrationHtml = '<div style="margin-top: 15px;"><strong>Top Position Concentrations:</strong><br>';
+                data.top_concentrations.forEach(([symbol, info]) => {
+                    const color = info.concentration_pct > 15 ? '#ef4444' : info.concentration_pct > 10 ? '#f59e0b' : '#10b981';
+                    concentrationHtml += `
+                        <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                            <span>${symbol}:</span>
+                            <span style="color: ${color}; font-weight: 600;">${info.concentration_pct.toFixed(1)}% (${formatCurrency(info.exposure)})</span>
+                        </div>
+                    `;
+                });
+                concentrationHtml += '</div>';
+                tbody.append(concentrationHtml);
+            }
+            
+            $('#portfolio-risk-summary').show();
+        }
+        
+        function calculatePositionSize() {
+            const accountNumber = $('#risk-account-select').val();
+            const riskLevel = $('#risk-level-select').val();
+            const customRiskPct = parseFloat($('#custom-risk-pct').val()) || null;
+            
+            // Get strategy data from form
+            const symbol = $('#calc-symbol').val().toUpperCase();
+            const underlyingPrice = parseFloat($('#calc-underlying-price').val());
+            const shortStrike = parseFloat($('#calc-short-strike').val());
+            const longStrike = parseFloat($('#calc-long-strike').val());
+            const netPremium = parseFloat($('#calc-premium').val());
+            
+            if (!symbol || !underlyingPrice || !shortStrike || !longStrike || !netPremium) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            if (shortStrike <= longStrike) {
+                alert('Short strike must be higher than long strike for put credit spreads');
+                return;
+            }
+            
+            const strategyData = {
+                strategy_type: 'put_credit_spread',
+                underlying_symbol: symbol,
+                net_premium: netPremium,
+                max_profit: netPremium,
+                max_loss: (shortStrike - longStrike) - netPremium,
+                notional_per_contract: underlyingPrice * 100,
+                short_leg: {
+                    strike_price: shortStrike
+                },
+                long_leg: {
+                    strike_price: longStrike
+                }
+            };
+            
+            $('#calc-status').text('🔄 Calculating optimal position size...');
+            
+            const payload = {
+                account_number: accountNumber,
+                strategy_data: strategyData,
+                risk_level: riskLevel
+            };
+            
+            if (customRiskPct) {
+                payload.custom_risk_pct = customRiskPct;
+            }
+            
+            fetch('/api/risk/position-size', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                displayPositionSizeResults(data);
+                $('#calc-status').text('✅ Position size calculated');
+            })
+            .catch(error => {
+                console.error('❌ Position sizing error:', error);
+                $('#calc-status').text(`❌ Error: ${error.message}`);
+            });
+        }
+        
+        function displayPositionSizeResults(data) {
+            const detailsDiv = $('#position-size-details');
+            
+            let resultsHtml = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <strong>Recommended Quantity:</strong><br>
+                        <span style="font-size: 1.5em; color: #60a5fa; font-weight: 600;">${data.recommended_quantity} contracts</span>
+                    </div>
+                    <div>
+                        <strong>Max Loss:</strong><br>
+                        <span style="font-size: 1.2em; color: #ef4444;">${formatCurrency(data.max_loss_amount)} (${data.max_loss_percentage.toFixed(2)}%)</span>
+                    </div>
+                    <div>
+                        <strong>Buying Power Required:</strong><br>
+                        <span style="font-size: 1.2em;">${formatCurrency(data.buying_power_required)}</span>
+                    </div>
+                    <div>
+                        <strong>Risk Score:</strong><br>
+                        <span style="font-size: 1.2em; color: ${data.risk_score === 'Low' ? '#10b981' : data.risk_score === 'Medium' ? '#f59e0b' : '#ef4444'};">${data.risk_score}</span>
+                    </div>
+                </div>
+            `;
+            
+            // Delta impact
+            if (data.delta_impact !== undefined) {
+                resultsHtml += `
+                    <div style="margin-bottom: 15px;">
+                        <strong>Portfolio Delta Impact:</strong> <span style="color: ${Math.abs(data.delta_impact) > 50 ? '#ef4444' : '#10b981'};">${data.delta_impact > 0 ? '+' : ''}${data.delta_impact.toFixed(1)}</span>
+                    </div>
+                `;
+            }
+            
+            // Concentration impact
+            if (data.concentration_impact) {
+                const conc = data.concentration_impact;
+                resultsHtml += `
+                    <div style="margin-bottom: 15px;">
+                        <strong>Concentration Impact for ${conc.symbol}:</strong><br>
+                        Current: ${conc.current_concentration_pct.toFixed(1)}% → New: ${conc.new_concentration_pct.toFixed(1)}% 
+                        <span style="color: ${conc.concentration_increase_pct > 5 ? '#ef4444' : '#10b981'};">(+${conc.concentration_increase_pct.toFixed(1)}%)</span>
+                    </div>
+                `;
+            }
+            
+            // Warnings
+            if (data.warnings && data.warnings.length > 0) {
+                resultsHtml += `
+                    <div style="padding: 15px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <strong style="color: #ef4444;">Warnings:</strong><br>
+                        ${data.warnings.map(warning => `<span style="color: #ef4444;">• ${warning}</span>`).join('<br>')}
+                    </div>
+                `;
+            }
+            
+            detailsDiv.html(resultsHtml);
+            $('#position-size-results').show();
+        }
+        
+        function clearCalculator() {
+            $('#calc-symbol').val('');
+            $('#calc-underlying-price').val('');
+            $('#calc-short-strike').val('');
+            $('#calc-long-strike').val('');
+            $('#calc-premium').val('');
+            $('#position-size-results').hide();
+            $('#calc-status').text('');
+        }
+        
+        // Analytics functionality
+        function setupAnalyticsListeners() {
+            // Use event delegation to handle clicks
+            $(document).on('click', '#load-comprehensive-report', function(e) {
+                e.preventDefault();
+                loadComprehensiveReport();
+            });
+            
+            $(document).on('click', '#load-var-analysis', function(e) {
+                e.preventDefault();
+                loadVarAnalysis();
+            });
+            
+            $(document).on('click', '#load-greeks-analysis', function(e) {
+                e.preventDefault();
+                loadGreeksAnalysis();
+            });
+            
+            $(document).on('click', '#load-performance-metrics', function(e) {
+                e.preventDefault();
+                loadPerformanceMetrics();
+            });
+            
+            $(document).on('click', '#load-scenario-analysis', function(e) {
+                e.preventDefault();
+                loadScenarioAnalysis();
+            });
+        }
+        
+        function loadComprehensiveReport() {
+            const accountNumber = $('#analytics-account-select').val();
+            $('#analytics-status').text('🔄 Generating comprehensive report...');
+            
+            fetch(`/api/analytics/comprehensive-report/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayComprehensiveReport(data);
+                    $('#analytics-status').text('✅ Comprehensive report generated');
+                })
+                .catch(error => {
+                    console.error('❌ Analytics error:', error);
+                    $('#analytics-status').text(`❌ Error: ${error.message}`);
+                });
+        }
+        
+        function loadVarAnalysis() {
+            const accountNumber = $('#analytics-account-select').val();
+            $('#analytics-status').text('🔄 Calculating VaR...');
+            
+            fetch(`/api/analytics/var/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayVarAnalysis(data);
+                    $('#analytics-status').text('✅ VaR analysis complete');
+                })
+                .catch(error => {
+                    console.error('❌ VaR error:', error);
+                    $('#analytics-status').text(`❌ Error: ${error.message}`);
+                });
+        }
+        
+        function loadGreeksAnalysis() {
+            const accountNumber = $('#analytics-account-select').val();
+            $('#analytics-status').text('🔄 Analyzing Greeks exposure...');
+            
+            fetch(`/api/analytics/greeks/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayGreeksAnalysis(data);
+                    $('#analytics-status').text('✅ Greeks analysis complete');
+                })
+                .catch(error => {
+                    console.error('❌ Greeks error:', error);
+                    $('#analytics-status').text(`❌ Error: ${error.message}`);
+                });
+        }
+        
+        function loadPerformanceMetrics() {
+            const accountNumber = $('#analytics-account-select').val();
+            $('#analytics-status').text('🔄 Loading performance metrics...');
+            
+            fetch(`/api/analytics/performance/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayPerformanceMetrics(data);
+                    $('#analytics-status').text('✅ Performance analysis complete');
+                })
+                .catch(error => {
+                    console.error('❌ Performance error:', error);
+                    $('#analytics-status').text(`❌ Error: ${error.message}`);
+                });
+        }
+        
+        function loadScenarioAnalysis() {
+            const accountNumber = $('#analytics-account-select').val();
+            $('#analytics-status').text('🔄 Running scenario analysis...');
+            
+            fetch(`/api/analytics/scenarios/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayScenarioAnalysis(data);
+                    $('#analytics-status').text('✅ Scenario analysis complete');
+                })
+                .catch(error => {
+                    console.error('❌ Scenario error:', error);
+                    $('#analytics-status').text(`❌ Error: ${error.message}`);
+                });
+        }
+        
+        function displayVarAnalysis(data) {
+            const content = $('#var-analysis-content');
+            
+            const html = `
+                <div style="padding: 20px; background: rgba(30, 41, 59, 0.5); border-radius: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                        <div>
+                            <strong>1-Day VaR (95%):</strong><br>
+                            <span style="font-size: 1.3em; color: ${data.var_1d_95 > 50000 ? '#ef4444' : '#f59e0b'};">${formatCurrency(data.var_1d_95)}</span>
+                        </div>
+                        <div>
+                            <strong>1-Day VaR (99%):</strong><br>
+                            <span style="font-size: 1.3em; color: ${data.var_1d_99 > 75000 ? '#ef4444' : '#f59e0b'};">${formatCurrency(data.var_1d_99)}</span>
+                        </div>
+                        <div>
+                            <strong>10-Day VaR (95%):</strong><br>
+                            <span style="font-size: 1.3em; color: ${data.var_10d_95 > 150000 ? '#ef4444' : '#f59e0b'};">${formatCurrency(data.var_10d_95)}</span>
+                        </div>
+                        <div>
+                            <strong>Expected Shortfall:</strong><br>
+                            <span style="font-size: 1.3em; color: #ef4444;">${formatCurrency(data.expected_shortfall_95)}</span>
+                        </div>
+                        <div>
+                            <strong>Portfolio Volatility:</strong><br>
+                            <span style="font-size: 1.3em; color: ${data.portfolio_volatility > 0.3 ? '#ef4444' : '#10b981'};">${(data.portfolio_volatility * 100).toFixed(1)}%</span>
+                        </div>
+                        <div>
+                            <strong>Worst Case Scenario:</strong><br>
+                            <span style="font-size: 1.3em; color: #ef4444;">${formatCurrency(data.worst_case_scenario)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            content.html(html);
+            $('#var-analysis-section').show();
+        }
+        
+        function displayGreeksAnalysis(data) {
+            const content = $('#greeks-analysis-content');
+            
+            const html = `
+                <div style="padding: 20px; background: rgba(30, 41, 59, 0.5); border-radius: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                        <div>
+                            <strong>Total Delta:</strong><br>
+                            <span style="font-size: 1.3em; color: ${Math.abs(data.total_delta) > 1000 ? '#ef4444' : '#10b981'};">${data.total_delta.toFixed(0)}</span>
+                        </div>
+                        <div>
+                            <strong>Total Gamma:</strong><br>
+                            <span style="font-size: 1.3em; color: #60a5fa;">${data.total_gamma.toFixed(0)}</span>
+                        </div>
+                        <div>
+                            <strong>Total Theta:</strong><br>
+                            <span style="font-size: 1.3em; color: ${data.total_theta > 0 ? '#10b981' : '#ef4444'};">${formatCurrency(data.total_theta)}</span>
+                        </div>
+                        <div>
+                            <strong>Total Vega:</strong><br>
+                            <span style="font-size: 1.3em; color: #a78bfa;">${data.total_vega.toFixed(0)}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="border-top: 1px solid #475569; padding-top: 20px;">
+                        <h4 style="margin-bottom: 15px; color: #f1f5f9;">Dollar Exposure Analysis</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                            <div>
+                                <strong>Delta Dollars:</strong><br>
+                                <span style="font-size: 1.2em; color: ${Math.abs(data.delta_dollars) > 500000 ? '#ef4444' : '#10b981'};">${formatCurrency(data.delta_dollars)}</span>
+                            </div>
+                            <div>
+                                <strong>Gamma Dollars (1% move):</strong><br>
+                                <span style="font-size: 1.2em; color: #60a5fa;">${formatCurrency(data.gamma_dollars)}</span>
+                            </div>
+                            <div>
+                                <strong>Daily Theta Decay:</strong><br>
+                                <span style="font-size: 1.2em; color: ${data.theta_dollars > 0 ? '#10b981' : '#ef4444'};">${formatCurrency(data.theta_dollars)}</span>
+                            </div>
+                            <div>
+                                <strong>Vega Dollars (1% vol):</strong><br>
+                                <span style="font-size: 1.2em; color: #a78bfa;">${formatCurrency(data.vega_dollars)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                        <strong>Delta Hedge Required:</strong> 
+                        <span style="font-size: 1.2em; color: #60a5fa;">${data.delta_hedge_required.toFixed(0)} shares</span>
+                        <div style="font-size: 0.9em; color: #94a3b8; margin-top: 5px;">
+                            ${data.delta_hedge_required > 0 ? 'Buy' : 'Sell'} ${Math.abs(data.delta_hedge_required).toFixed(0)} shares to achieve delta neutrality
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            content.html(html);
+            $('#greeks-analysis-section').show();
+        }
+        
+        function displayPerformanceMetrics(data) {
+            const content = $('#performance-analysis-content');
+            
+            const html = `
+                <div style="padding: 20px; background: rgba(30, 41, 59, 0.5); border-radius: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                        <div>
+                            <strong>Total P&L:</strong><br>
+                            <span style="font-size: 1.5em; color: ${data.total_pnl >= 0 ? '#10b981' : '#ef4444'};">${formatCurrency(data.total_pnl)}</span>
+                        </div>
+                        <div>
+                            <strong>YTD P&L:</strong><br>
+                            <span style="font-size: 1.3em; color: ${data.ytd_pnl >= 0 ? '#10b981' : '#ef4444'};">${formatCurrency(data.ytd_pnl)}</span>
+                        </div>
+                        <div>
+                            <strong>Win Rate:</strong><br>
+                            <span style="font-size: 1.3em; color: ${data.win_rate >= 0.6 ? '#10b981' : '#f59e0b'};">${(data.win_rate * 100).toFixed(1)}%</span>
+                        </div>
+                        <div>
+                            <strong>Sharpe Ratio:</strong><br>
+                            <span style="font-size: 1.3em; color: ${data.sharpe_ratio >= 1.0 ? '#10b981' : '#f59e0b'};">${data.sharpe_ratio.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            content.html(html);
+            $('#performance-analysis-section').show();
+        }
+        
+        function displayScenarioAnalysis(data) {
+            const content = $('#scenario-analysis-content');
+            
+            let html = `
+                <div style="padding: 20px; background: rgba(30, 41, 59, 0.5); border-radius: 8px;">
+                    <h4 style="margin-bottom: 15px; color: #f1f5f9;">Portfolio P&L Under Different Market Scenarios</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            `;
+            
+            Object.entries(data.scenarios).forEach(([scenario, pnl]) => {
+                const color = pnl >= 0 ? '#10b981' : '#ef4444';
+                html += `
+                    <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                        <strong>${scenario}:</strong><br>
+                        <span style="font-size: 1.2em; color: ${color};">${formatCurrency(pnl)}</span>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            content.html(html);
+            $('#scenario-analysis-section').show();
+        }
+        
+        function displayComprehensiveReport(data) {
+            // Show all sections with comprehensive data
+            if (data.var_analysis) displayVarAnalysis(data.var_analysis);
+            if (data.greeks_exposure) displayGreeksAnalysis(data.greeks_exposure);
+            if (data.performance_metrics) displayPerformanceMetrics(data.performance_metrics);
+            if (data.scenario_analysis) displayScenarioAnalysis({scenarios: data.scenario_analysis});
+            
+            // Add overall risk score
+            const reportContent = $('#comprehensive-report-content');
+            const riskScoreHtml = `
+                <div style="padding: 20px; background: rgba(30, 41, 59, 0.5); border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 15px; color: #f1f5f9;">Overall Risk Assessment</h4>
+                    <div style="text-align: center;">
+                        <span style="font-size: 2em; font-weight: 600; color: ${
+                            data.risk_score === 'Low' ? '#10b981' : 
+                            data.risk_score === 'Medium' ? '#f59e0b' : 
+                            data.risk_score === 'High' ? '#ef4444' : '#dc2626'
+                        };">${data.risk_score} Risk</span>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.9em; color: #94a3b8; text-align: center;">
+                        Generated: ${new Date(data.timestamp).toLocaleString()}
+                    </div>
+                </div>
+            `;
+            
+            reportContent.html(riskScoreHtml);
+            $('#comprehensive-report-section').show();
+        }
+        
+        // Initial data fetch and setup
+        $(document).ready(function() {
+            fetchData(); // Initial fetch
+            setInterval(fetchData, 5000); // Refresh every 5 seconds
+            
+            setupTabSwitching();
+            setupScreenerListeners();
+            setupRiskManagementListeners();
+            setupAnalyticsListeners();
+            setupAccountListeners();
+            setupTableExpansion();
+        });
     </script>
 </body>
 </html> 

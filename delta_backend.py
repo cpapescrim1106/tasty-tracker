@@ -442,6 +442,7 @@ tracker = DeltaTracker()
 # Import and setup screener functionality
 from screener_backend import create_screener_routes
 
+
 @app.route('/')
 def index():
     return render_template('dashboard.html')
