@@ -431,7 +431,7 @@
             color: white;
             padding: 12px;
             display: grid;
-            grid-template-columns: 50px 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: 50px 2fr 1fr 1fr 1fr 1fr 1fr;
             gap: 10px;
             font-weight: 600;
             font-size: 0.9rem;
@@ -441,7 +441,7 @@
             padding: 12px;
             border-bottom: 1px solid #475569;
             display: grid;
-            grid-template-columns: 50px 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: 50px 2fr 1fr 1fr 1fr 1fr 1fr;
             gap: 10px;
             align-items: center;
             transition: background-color 0.2s;
@@ -637,7 +637,6 @@
                             <div>IV Rank</div>
                             <div>IV %ile</div>
                             <div>Volume</div>
-                            <div>Avg Vol</div>
                             <div>Liq Rank</div>
                         </div>
                         <div id="results-body">
@@ -1631,7 +1630,6 @@
                         <div>${stock.iv_rank !== null && stock.iv_rank !== undefined ? (parseFloat(stock.iv_rank) || 0).toFixed(1) + '%' : 'N/A'}</div>
                         <div>${stock.iv_percentile !== null && stock.iv_percentile !== undefined ? (parseFloat(stock.iv_percentile) || 0).toFixed(1) + '%' : 'N/A'}</div>
                         <div>${stock.volume !== null && stock.volume !== undefined ? formatNumber(stock.volume) : 'N/A'}</div>
-                        <div>${stock.avg_volume !== null && stock.avg_volume !== undefined ? formatNumber(stock.avg_volume) : 'N/A'}</div>
                         <div>${stock.liquidity_rank !== null && stock.liquidity_rank !== undefined ? stock.liquidity_rank : 'N/A'}</div>
                     </div>
                 `);
