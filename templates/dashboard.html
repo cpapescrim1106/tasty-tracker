@@ -495,6 +495,8 @@
             <button class="tab-button" data-tab="screener">🔍 Screener</button>
             <button class="tab-button" data-tab="risk">⚡ Risk Manager</button>
             <button class="tab-button" data-tab="analytics">📈 Analytics</button>
+            <button class="tab-button" data-tab="hedging">⚖️ Hedging</button>
+            <button class="tab-button" data-tab="positions">🎯 Position Manager</button>
         </div>
         
         <!-- Portfolio Tab Content -->
@@ -851,6 +853,172 @@
                     <h3 class="section-title">📊 Comprehensive Risk Report</h3>
                     <div id="comprehensive-report-content">
                         <!-- Comprehensive report will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hedging Tab Content -->
+        <div id="hedging-tab" class="tab-content">
+            <div class="screener-container">
+                <h2 class="section-title">⚖️ Portfolio Delta Hedging</h2>
+                
+                <!-- Account Selector for Hedging -->
+                <div class="screener-section">
+                    <h3 class="section-title">📊 Account Selection</h3>
+                    <select id="hedge-account-select" class="form-control">
+                        <option value="5WX84566">Account 5WX84566</option>
+                        <option value="5WU39639">Account 5WU39639</option>
+                    </select>
+                </div>
+
+                <!-- Current Delta Status -->
+                <div class="screener-section">
+                    <h3 class="section-title">📈 Current Delta Status</h3>
+                    <div id="delta-status-content">
+                        <div class="loading-spinner">Loading delta metrics...</div>
+                    </div>
+                </div>
+
+                <!-- Hedge Configuration -->
+                <div class="screener-section">
+                    <h3 class="section-title">⚙️ Hedge Configuration</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Target Delta:</label>
+                            <input type="number" id="target-delta" value="0" step="10" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Delta Tolerance:</label>
+                            <input type="number" id="delta-tolerance" value="50" step="5" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Hedge Cost (%):</label>
+                            <input type="number" id="max-hedge-cost" value="1.0" step="0.1" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Hedge Symbols:</label>
+                            <select id="hedge-symbols" class="form-control" multiple>
+                                <option value="SPY" selected>SPY - S&P 500</option>
+                                <option value="QQQ" selected>QQQ - Nasdaq 100</option>
+                                <option value="IWM">IWM - Russell 2000</option>
+                                <option value="DIA">DIA - Dow Jones</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="screener-actions">
+                        <button id="analyze-hedge-btn" class="btn btn-primary">🔍 Analyze Hedge Requirement</button>
+                        <button id="rebalance-summary-btn" class="btn btn-secondary">📊 Full Rebalance Summary</button>
+                    </div>
+                </div>
+
+                <!-- Hedge Recommendation -->
+                <div id="hedge-recommendation-section" class="screener-section" style="display: none;">
+                    <h3 class="section-title">💡 Hedge Recommendation</h3>
+                    <div id="hedge-recommendation-content">
+                        <!-- Hedge recommendation will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Portfolio Rebalance Summary -->
+                <div id="rebalance-summary-section" class="screener-section" style="display: none;">
+                    <h3 class="section-title">📊 Portfolio Rebalance Summary</h3>
+                    <div id="rebalance-summary-content">
+                        <!-- Rebalance summary will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Position Manager Tab Content -->
+        <div id="positions-tab" class="tab-content">
+            <div class="screener-container">
+                <h2 class="section-title">🎯 Position Management & Automation</h2>
+                
+                <!-- Account Selector for Position Management -->
+                <div class="screener-section">
+                    <h3 class="section-title">📊 Account Selection</h3>
+                    <select id="position-account-select" class="form-control">
+                        <option value="5WX84566">Account 5WX84566</option>
+                        <option value="5WU39639">Account 5WU39639</option>
+                    </select>
+                </div>
+
+                <!-- Position Rules Summary -->
+                <div class="screener-section">
+                    <h3 class="section-title">📋 Current Rules & Monitoring Status</h3>
+                    <div id="rules-summary-content">
+                        <div class="loading-spinner">Loading position rules...</div>
+                    </div>
+                </div>
+
+                <!-- Add New Rule -->
+                <div class="screener-section">
+                    <h3 class="section-title">➕ Add Position Management Rule</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Position:</label>
+                            <select id="rule-position-select" class="form-control">
+                                <option value="">Select a position...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rule Type:</label>
+                            <select id="rule-type" class="form-control">
+                                <option value="stop_loss">Stop Loss</option>
+                                <option value="profit_target">Profit Target</option>
+                                <option value="trailing_stop">Trailing Stop</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Trigger Type:</label>
+                            <select id="trigger-type" class="form-control">
+                                <option value="percentage">Percentage</option>
+                                <option value="price">Price Level</option>
+                                <option value="delta">Delta Threshold</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Trigger Value:</label>
+                            <input type="number" id="trigger-value" step="0.1" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Action:</label>
+                            <select id="rule-action" class="form-control">
+                                <option value="close_position">Close Position</option>
+                                <option value="partial_close">Partial Close</option>
+                                <option value="hedge">Hedge Position</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantity (%):</label>
+                            <input type="number" id="quantity-pct" value="100" min="1" max="100" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes:</label>
+                        <textarea id="rule-notes" class="form-control" rows="2" placeholder="Optional notes about this rule..."></textarea>
+                    </div>
+                    <div class="screener-actions">
+                        <button id="add-rule-btn" class="btn btn-primary">➕ Add Rule</button>
+                        <button id="create-sample-rules-btn" class="btn btn-secondary">📝 Create Sample Rules</button>
+                        <button id="monitor-positions-btn" class="btn btn-accent">👁️ Monitor Positions</button>
+                    </div>
+                </div>
+
+                <!-- Position Monitoring Results -->
+                <div id="monitoring-results-section" class="screener-section" style="display: none;">
+                    <h3 class="section-title">⚠️ Position Monitoring Results</h3>
+                    <div id="monitoring-results-content">
+                        <!-- Monitoring results will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Active Rules Display -->
+                <div id="active-rules-section" class="screener-section" style="display: none;">
+                    <h3 class="section-title">🎯 Active Position Rules</h3>
+                    <div id="active-rules-content">
+                        <!-- Active rules will be populated here -->
                     </div>
                 </div>
             </div>
@@ -1386,12 +1554,22 @@
         
         function runScreener() {
             const selectedWatchlist = $('#watchlist-select').val();
-            if (!selectedWatchlist || !watchlistData[selectedWatchlist]) {
-                alert('Please select a watchlist first');
+            console.log('🔍 Selected watchlist:', selectedWatchlist);
+            console.log('🔍 Available watchlists:', Object.keys(watchlistData));
+            
+            if (!selectedWatchlist) {
+                $('#screen-status').text('❌ Please select a watchlist first');
+                return;
+            }
+            
+            if (!watchlistData[selectedWatchlist]) {
+                $('#screen-status').text('❌ Watchlist data not found. Reloading...');
+                loadWatchlists();
                 return;
             }
             
             const symbols = watchlistData[selectedWatchlist];
+            console.log('🔍 Symbols to screen:', symbols);
             const criteria = {
                 min_iv_rank: parseFloat($('#min-iv-rank').val()) || 0,
                 max_iv_rank: parseFloat($('#max-iv-rank').val()) || 100,
@@ -1409,8 +1587,17 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ symbols, criteria })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('🔍 Screener response:', data);
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 screenerResults = data.results || [];
                 displayResults(screenerResults);
                 $('#screen-status').text(`✅ Found ${screenerResults.length} stocks out of ${data.total_screened} screened`);
@@ -1418,7 +1605,7 @@
             })
             .catch(error => {
                 console.error('❌ Screener error:', error);
-                $('#screen-status').text('❌ Error running screener');
+                $('#screen-status').text(`❌ Error: ${error.message}`);
                 $('#run-screen').prop('disabled', false);
             });
         }
@@ -1441,11 +1628,11 @@
                         </div>
                         <div style="font-weight: 600;">${stock.symbol}</div>
                         <div>${formatCurrency(stock.last_price, true, 2)}</div>
-                        <div>${(stock.iv_rank || 0).toFixed(1)}%</div>
-                        <div>${(stock.iv_percentile || 0).toFixed(1)}%</div>
-                        <div>${formatNumber(stock.volume || 0)}</div>
-                        <div>${formatNumber(stock.avg_volume || 0)}</div>
-                        <div>${stock.liquidity_rank || '-'}</div>
+                        <div>${stock.iv_rank !== null && stock.iv_rank !== undefined ? (parseFloat(stock.iv_rank) || 0).toFixed(1) + '%' : 'N/A'}</div>
+                        <div>${stock.iv_percentile !== null && stock.iv_percentile !== undefined ? (parseFloat(stock.iv_percentile) || 0).toFixed(1) + '%' : 'N/A'}</div>
+                        <div>${stock.volume !== null && stock.volume !== undefined ? formatNumber(stock.volume) : 'N/A'}</div>
+                        <div>${stock.avg_volume !== null && stock.avg_volume !== undefined ? formatNumber(stock.avg_volume) : 'N/A'}</div>
+                        <div>${stock.liquidity_rank !== null && stock.liquidity_rank !== undefined ? stock.liquidity_rank : 'N/A'}</div>
                     </div>
                 `);
                 tbody.append(row);
@@ -1705,6 +1892,7 @@
         
         // Initialize screener when tab is first shown
         $(document).on('click', '[data-tab="screener"]', function() {
+            console.log('🔍 Screener tab clicked, loading watchlists...');
             if ($('#watchlist-select option').length <= 1) {
                 loadWatchlists();
             }
@@ -2247,6 +2435,581 @@
             $('#comprehensive-report-section').show();
         }
         
+        // Hedging functionality
+        function setupHedgingListeners() {
+            // Account selector change
+            $('#hedge-account-select').on('change', function() {
+                loadDeltaStatus();
+            });
+            
+            // Analyze hedge button
+            $('#analyze-hedge-btn').on('click', function() {
+                analyzeHedgeRequirement();
+            });
+            
+            // Rebalance summary button
+            $('#rebalance-summary-btn').on('click', function() {
+                loadRebalanceSummary();
+            });
+            
+            // Load initial delta status
+            loadDeltaStatus();
+        }
+        
+        function loadDeltaStatus() {
+            const accountNumber = $('#hedge-account-select').val();
+            $('#delta-status-content').html('<div class="loading-spinner">Loading delta metrics...</div>');
+            
+            fetch(`/api/hedge/portfolio-delta/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayDeltaStatus(data);
+                })
+                .catch(error => {
+                    console.error('❌ Delta status error:', error);
+                    $('#delta-status-content').html(`<div class="error">❌ Error: ${error.message}</div>`);
+                });
+        }
+        
+        function displayDeltaStatus(data) {
+            const statusHtml = `
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Portfolio Delta</div>
+                        <div class="metric-value ${data.total_delta >= 0 ? 'positive' : 'negative'}">
+                            ${formatNumber(data.total_delta, 0)}
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Equity Delta</div>
+                        <div class="metric-value ${data.equity_delta >= 0 ? 'positive' : 'negative'}">
+                            ${formatNumber(data.equity_delta, 0)}
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Options Delta</div>
+                        <div class="metric-value ${data.options_delta >= 0 ? 'positive' : 'negative'}">
+                            ${formatNumber(data.options_delta, 0)}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h4>Delta by Symbol</h4>
+                    <div class="symbol-deltas">
+                        ${Object.entries(data.symbol_deltas)
+                            .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                            .slice(0, 10)
+                            .map(([symbol, delta]) => `
+                                <div class="symbol-delta-row">
+                                    <span class="symbol">${symbol}</span>
+                                    <span class="delta ${delta >= 0 ? 'positive' : 'negative'}">
+                                        ${formatNumber(delta, 1)}
+                                    </span>
+                                </div>
+                            `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            $('#delta-status-content').html(statusHtml);
+        }
+        
+        function analyzeHedgeRequirement() {
+            const accountNumber = $('#hedge-account-select').val();
+            const targetDelta = parseFloat($('#target-delta').val());
+            const deltaTolerance = parseFloat($('#delta-tolerance').val());
+            const maxHedgeCost = parseFloat($('#max-hedge-cost').val());
+            const hedgeSymbols = $('#hedge-symbols').val();
+            
+            const requestData = {
+                account_number: accountNumber,
+                target_delta: targetDelta,
+                delta_tolerance: deltaTolerance,
+                max_hedge_cost_pct: maxHedgeCost,
+                hedge_symbols: hedgeSymbols
+            };
+            
+            $('#hedge-recommendation-content').html('<div class="loading-spinner">Analyzing hedge requirement...</div>');
+            $('#hedge-recommendation-section').show();
+            
+            fetch('/api/hedge/analyze', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(requestData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayHedgeRecommendation(data);
+                })
+                .catch(error => {
+                    console.error('❌ Hedge analysis error:', error);
+                    $('#hedge-recommendation-content').html(`<div class="error">❌ Error: ${error.message}</div>`);
+                });
+        }
+        
+        function displayHedgeRecommendation(data) {
+            const recommendationClass = data.hedge_required ? 'hedge-required' : 'hedge-not-required';
+            const actionColor = data.recommended_action === 'BUY' ? 'positive' : 
+                               data.recommended_action === 'SELL' ? 'negative' : 'neutral';
+            
+            const recommendationHtml = `
+                <div class="hedge-recommendation ${recommendationClass}">
+                    <div class="recommendation-header">
+                        <h4>${data.hedge_required ? '⚠️ Hedge Required' : '✅ Portfolio Balanced'}</h4>
+                        <div class="confidence-score">
+                            Confidence: ${(data.confidence * 100).toFixed(0)}%
+                        </div>
+                    </div>
+                    
+                    <div class="delta-summary">
+                        <div class="delta-item">
+                            <span>Current Delta:</span>
+                            <span class="${data.current_delta >= 0 ? 'positive' : 'negative'}">
+                                ${formatNumber(data.current_delta, 0)}
+                            </span>
+                        </div>
+                        <div class="delta-item">
+                            <span>Target Delta:</span>
+                            <span>${formatNumber(data.target_delta, 0)}</span>
+                        </div>
+                        <div class="delta-item">
+                            <span>Delta Imbalance:</span>
+                            <span class="${data.delta_imbalance >= 0 ? 'positive' : 'negative'}">
+                                ${formatNumber(data.delta_imbalance, 0)}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    ${data.hedge_required ? `
+                        <div class="hedge-action">
+                            <div class="action-summary">
+                                <span class="action ${actionColor}">${data.recommended_action}</span>
+                                <span class="quantity">${data.hedge_quantity}</span>
+                                <span class="symbol">${data.hedge_symbol}</span>
+                            </div>
+                            <div class="hedge-cost">
+                                Estimated Cost: ${formatCurrency(data.hedge_cost)}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.warnings.length > 0 ? `
+                        <div class="warnings">
+                            <h5>⚠️ Warnings:</h5>
+                            ${data.warnings.map(warning => `<div class="warning">${warning}</div>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            $('#hedge-recommendation-content').html(recommendationHtml);
+        }
+        
+        function loadRebalanceSummary() {
+            const accountNumber = $('#hedge-account-select').val();
+            
+            $('#rebalance-summary-content').html('<div class="loading-spinner">Loading rebalance summary...</div>');
+            $('#rebalance-summary-section').show();
+            
+            fetch(`/api/hedge/rebalance-summary/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayRebalanceSummary(data);
+                })
+                .catch(error => {
+                    console.error('❌ Rebalance summary error:', error);
+                    $('#rebalance-summary-content').html(`<div class="error">❌ Error: ${error.message}</div>`);
+                });
+        }
+        
+        function displayRebalanceSummary(data) {
+            const summaryHtml = `
+                <div class="rebalance-summary">
+                    <div class="summary-overview">
+                        <h4>Portfolio Overview</h4>
+                        <div class="overview-metrics">
+                            <div class="metric">
+                                <span>Total Delta:</span>
+                                <span class="${data.delta_metrics.total_delta >= 0 ? 'positive' : 'negative'}">
+                                    ${formatNumber(data.delta_metrics.total_delta, 0)}
+                                </span>
+                            </div>
+                            <div class="metric">
+                                <span>Rebalance Status:</span>
+                                <span class="status-${data.rebalance_status.status.toLowerCase()}">
+                                    ${data.rebalance_status.status}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="urgency">${data.rebalance_status.urgency}</div>
+                    </div>
+                    
+                    <div class="hedge-scenarios">
+                        <h4>Hedge Scenarios</h4>
+                        ${Object.entries(data.hedge_scenarios).map(([scenario, rec]) => `
+                            <div class="scenario ${scenario}">
+                                <h5>${scenario.charAt(0).toUpperCase() + scenario.slice(1)} Strategy</h5>
+                                <div class="scenario-details">
+                                    <div>Required: ${rec.hedge_required ? '✅ Yes' : '❌ No'}</div>
+                                    ${rec.hedge_required ? `
+                                        <div>Action: <span class="${rec.recommended_action === 'BUY' ? 'positive' : 'negative'}">${rec.recommended_action} ${rec.hedge_quantity} ${rec.hedge_symbol}</span></div>
+                                        <div>Cost: ${formatCurrency(rec.hedge_cost)}</div>
+                                        <div>Confidence: ${(rec.confidence * 100).toFixed(0)}%</div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="symbol-exposures">
+                        <h4>Top Symbol Exposures</h4>
+                        <div class="exposures-list">
+                            ${data.symbol_exposures.slice(0, 8).map(exp => `
+                                <div class="exposure-item">
+                                    <span class="symbol">${exp.symbol}</span>
+                                    <span class="delta ${exp.delta >= 0 ? 'positive' : 'negative'}">
+                                        Δ${formatNumber(exp.delta, 0)}
+                                    </span>
+                                    <span class="dollar-exposure">
+                                        ${formatCurrency(exp.dollar_exposure)}
+                                    </span>
+                                    <span class="percentage">
+                                        ${exp.percentage.toFixed(1)}%
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            $('#rebalance-summary-content').html(summaryHtml);
+        }
+        
+        // Position Manager functionality
+        function setupPositionManagerListeners() {
+            // Account selector change
+            $('#position-account-select').on('change', function() {
+                loadPositionRulesSummary();
+                loadPositionsList();
+            });
+            
+            // Add rule button
+            $('#add-rule-btn').on('click', function() {
+                addPositionRule();
+            });
+            
+            // Create sample rules button
+            $('#create-sample-rules-btn').on('click', function() {
+                createSampleRules();
+            });
+            
+            // Monitor positions button
+            $('#monitor-positions-btn').on('click', function() {
+                monitorPositions();
+            });
+            
+            // Load initial data
+            loadPositionRulesSummary();
+            loadPositionsList();
+        }
+        
+        function loadPositionRulesSummary() {
+            const accountNumber = $('#position-account-select').val();
+            $('#rules-summary-content').html('<div class="loading-spinner">Loading position rules...</div>');
+            
+            fetch(`/api/positions/rules/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayPositionRulesSummary(data);
+                })
+                .catch(error => {
+                    console.error('❌ Position rules error:', error);
+                    $('#rules-summary-content').html(`<div class="error">❌ Error: ${error.message}</div>`);
+                });
+        }
+        
+        function displayPositionRulesSummary(data) {
+            const summaryHtml = `
+                <div class="position-rules-summary">
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Rules:</span>
+                            <span class="stat-value">${data.total_rules}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Active Rules:</span>
+                            <span class="stat-value">${data.active_rules}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Triggered Rules:</span>
+                            <span class="stat-value">${data.triggered_rules}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Positions with Rules:</span>
+                            <span class="stat-value">${data.positions_with_rules.length}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="monitoring-status">
+                        <h4>📊 Monitoring Status</h4>
+                        <div class="status-item">
+                            <span>Enabled: ${data.monitoring_status.enabled ? '✅ Yes' : '❌ No'}</span>
+                        </div>
+                        <div class="status-item">
+                            <span>Last Check: ${new Date(data.monitoring_status.last_check).toLocaleString()}</span>
+                        </div>
+                        <div class="status-item">
+                            <span>Daily Trades: ${data.monitoring_status.daily_trades}</span>
+                        </div>
+                    </div>
+                    
+                    ${data.positions_with_rules.length > 0 ? `
+                        <div class="positions-with-rules">
+                            <h4>🎯 Positions with Active Rules</h4>
+                            ${data.positions_with_rules.map(pos => `
+                                <div class="position-rule-item">
+                                    <div class="position-key">${pos.position_key}</div>
+                                    <div class="rules-count">${pos.rules.length} rule(s)</div>
+                                    <div class="rule-types">
+                                        ${pos.rules.map(rule => rule.rule_type).join(', ')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${data.recent_alerts.length > 0 ? `
+                        <div class="recent-alerts">
+                            <h4>⚠️ Recent Alerts</h4>
+                            ${data.recent_alerts.map(alert => `
+                                <div class="alert-item ${alert.urgency}">
+                                    <span class="alert-position">${alert.position_key}</span>
+                                    <span class="alert-message">${alert.message}</span>
+                                    <span class="alert-time">${new Date(alert.timestamp).toLocaleString()}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            $('#rules-summary-content').html(summaryHtml);
+        }
+        
+        function loadPositionsList() {
+            // Load current positions for the rule selector
+            const accountNumber = $('#position-account-select').val();
+            
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => {
+                    const accountPositions = data.positions.filter(pos => 
+                        !pos.is_summary && pos.account_number === accountNumber
+                    );
+                    
+                    const positionSelect = $('#rule-position-select');
+                    positionSelect.empty();
+                    positionSelect.append('<option value="">Select a position...</option>');
+                    
+                    accountPositions.forEach(pos => {
+                        const positionKey = `${pos.account_number}:${pos.symbol_occ}`;
+                        const displayName = `${pos.symbol_occ} (${formatCurrency(pos.net_liq)})`;
+                        positionSelect.append(`<option value="${positionKey}">${displayName}</option>`);
+                    });
+                })
+                .catch(error => {
+                    console.error('❌ Error loading positions:', error);
+                });
+        }
+        
+        function addPositionRule() {
+            const positionKey = $('#rule-position-select').val();
+            const ruleType = $('#rule-type').val();
+            const triggerType = $('#trigger-type').val();
+            const triggerValue = parseFloat($('#trigger-value').val());
+            const action = $('#rule-action').val();
+            const quantityPct = parseFloat($('#quantity-pct').val());
+            const notes = $('#rule-notes').val();
+            
+            if (!positionKey) {
+                alert('Please select a position');
+                return;
+            }
+            
+            if (!triggerValue || triggerValue <= 0) {
+                alert('Please enter a valid trigger value');
+                return;
+            }
+            
+            const ruleData = {
+                position_key: positionKey,
+                rule_type: ruleType,
+                trigger_type: triggerType,
+                trigger_value: triggerValue,
+                action: action,
+                quantity_pct: quantityPct,
+                notes: notes
+            };
+            
+            fetch('/api/positions/add-rule', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(ruleData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    alert(`✅ Rule added successfully! Rule ID: ${data.rule_id}`);
+                    
+                    // Clear form
+                    $('#rule-position-select').val('');
+                    $('#trigger-value').val('');
+                    $('#rule-notes').val('');
+                    
+                    // Refresh summary
+                    loadPositionRulesSummary();
+                })
+                .catch(error => {
+                    console.error('❌ Add rule error:', error);
+                    alert(`❌ Error adding rule: ${error.message}`);
+                });
+        }
+        
+        function createSampleRules() {
+            const positionKey = $('#rule-position-select').val();
+            
+            if (!positionKey) {
+                alert('Please select a position first');
+                return;
+            }
+            
+            if (!confirm('This will create sample stop-loss and profit-taking rules. Continue?')) {
+                return;
+            }
+            
+            fetch('/api/positions/create-sample-rules', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({position_key: positionKey})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    alert(`✅ Created ${data.rules_created} sample rules for ${data.position_key}`);
+                    loadPositionRulesSummary();
+                })
+                .catch(error => {
+                    console.error('❌ Create sample rules error:', error);
+                    alert(`❌ Error creating sample rules: ${error.message}`);
+                });
+        }
+        
+        function monitorPositions() {
+            const accountNumber = $('#position-account-select').val();
+            
+            $('#monitoring-results-content').html('<div class="loading-spinner">Monitoring positions...</div>');
+            $('#monitoring-results-section').show();
+            
+            fetch(`/api/positions/monitor/${accountNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    displayMonitoringResults(data);
+                })
+                .catch(error => {
+                    console.error('❌ Position monitoring error:', error);
+                    $('#monitoring-results-content').html(`<div class="error">❌ Error: ${error.message}</div>`);
+                });
+        }
+        
+        function displayMonitoringResults(data) {
+            const resultsHtml = `
+                <div class="monitoring-results">
+                    <div class="monitoring-summary">
+                        <h4>📊 Monitoring Summary</h4>
+                        <div class="summary-item">
+                            <span>Total Positions: ${data.total_positions}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Positions with Rules: ${data.positions_with_rules}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Triggered Events: ${data.triggered_events.length}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>New Alerts: ${data.new_alerts.length}</span>
+                        </div>
+                    </div>
+                    
+                    ${data.triggered_events.length > 0 ? `
+                        <div class="triggered-events">
+                            <h4>🚨 Triggered Events</h4>
+                            ${data.triggered_events.map(event => `
+                                <div class="trigger-event critical">
+                                    <div class="event-header">
+                                        <span class="position">${event.position_key}</span>
+                                        <span class="action ${event.action_required.toLowerCase()}">${event.action_required}</span>
+                                    </div>
+                                    <div class="event-details">
+                                        <span>Trigger: ${event.trigger_type} = ${event.current_value.toFixed(2)} / ${event.trigger_value.toFixed(2)}</span>
+                                        <span>Confidence: ${(event.confidence * 100).toFixed(0)}%</span>
+                                    </div>
+                                    ${event.warnings.length > 0 ? `
+                                        <div class="event-warnings">
+                                            ${event.warnings.map(warning => `<div class="warning">${warning}</div>`).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${data.new_alerts.length > 0 ? `
+                        <div class="new-alerts">
+                            <h4>⚠️ Position Alerts</h4>
+                            ${data.new_alerts.map(alert => `
+                                <div class="position-alert ${alert.urgency}">
+                                    <span class="alert-position">${alert.position_key}</span>
+                                    <span class="alert-message">${alert.message}</span>
+                                    <span class="alert-urgency">${alert.urgency.toUpperCase()}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${data.triggered_events.length === 0 && data.new_alerts.length === 0 ? `
+                        <div class="no-events">
+                            <p>✅ No triggered events or alerts. All positions are within normal parameters.</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            $('#monitoring-results-content').html(resultsHtml);
+        }
+        
         // Initial data fetch and setup
         $(document).ready(function() {
             fetchData(); // Initial fetch
@@ -2256,6 +3019,8 @@
             setupScreenerListeners();
             setupRiskManagementListeners();
             setupAnalyticsListeners();
+            setupHedgingListeners();
+            setupPositionManagerListeners();
             setupAccountListeners();
             setupTableExpansion();
         });

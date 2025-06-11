@@ -27,6 +27,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logging.getLogger('tastytrade').setLevel(logging.WARNING)
 logging.getLogger('websockets').setLevel(logging.WARNING)
 
+# Enable debug logging for pricing issues
+price_logger = logging.getLogger('pricing')
+price_logger.setLevel(logging.INFO)
+
 class DeltaTracker:
     # --- Field Index Constants for Websocket Data ---
     GREEKS_SYMBOL_IDX = 1
@@ -36,8 +40,8 @@ class DeltaTracker:
 
     QUOTE_SYMBOL_IDX = 1
     QUOTE_BID_PRICE_IDX = 7
-    QUOTE_ASK_PRICE_IDX = 10
-    QUOTE_RECORD_SIZE = 11
+    QUOTE_ASK_PRICE_IDX = 11
+    QUOTE_RECORD_SIZE = 13
     # --- End of Constants ---
 
     def __init__(self):
@@ -221,9 +225,10 @@ class DeltaTracker:
                 await self.websocket.recv()
 
                 # Create symbol mapping and subscription lists
-                self.streamer_to_position = {}  # Map streamer symbol to position key
+                self.streamer_to_position = {}  # Map streamer symbol to list of position keys
                 option_subscriptions = []
                 underlying_symbols = set()
+                subscribed_symbols = set()  # Track symbols we've already subscribed to
                 
                 with self.positions_lock:
                     for key, pos in self.positions.items():
@@ -233,9 +238,17 @@ class DeltaTracker:
                             # Convert OCC symbol to streamer symbol
                             streamer_symbol = self._convert_occ_to_streamer(pos['symbol_occ'])
                             if streamer_symbol:
-                                self.streamer_to_position[streamer_symbol] = key
-                                option_subscriptions.append({"symbol": streamer_symbol, "type": "Greeks"})
-                                option_subscriptions.append({"symbol": streamer_symbol, "type": "Quote"})
+                                # Support multiple positions with the same streamer symbol
+                                if streamer_symbol not in self.streamer_to_position:
+                                    self.streamer_to_position[streamer_symbol] = []
+                                self.streamer_to_position[streamer_symbol].append(key)
+                                
+                                # Only subscribe once per unique streamer symbol
+                                if streamer_symbol not in subscribed_symbols:
+                                    option_subscriptions.append({"symbol": streamer_symbol, "type": "Greeks"})
+                                    option_subscriptions.append({"symbol": streamer_symbol, "type": "Quote"})
+                                    subscribed_symbols.add(streamer_symbol)
+                                
                                 logging.info(f"📈 Mapped {pos['symbol_occ']} -> {streamer_symbol}")
                             else:
                                 logging.warning(f"⚠️ Could not convert symbol: {pos['symbol_occ']}")
@@ -280,6 +293,7 @@ class DeltaTracker:
                 return
                 
             event_type = events[0]
+            logging.info(f"📡 Received {event_type} data with {len(events[1]) if len(events) > 1 else 0} elements")
             
             if event_type == 'Greeks':
                 greeks_data = events[1]
@@ -291,18 +305,19 @@ class DeltaTracker:
                         delta = greeks_data[i + self.GREEKS_DELTA_IDX]
                         
                         if symbol and delta is not None and isinstance(delta, (int, float)):
-                            # Use streamer symbol mapping to find position
-                            position_key = self.streamer_to_position.get(symbol)
-                            if position_key:
+                            # Use streamer symbol mapping to find all positions with this symbol
+                            position_keys = self.streamer_to_position.get(symbol, [])
+                            if position_keys:
                                 with self.positions_lock:
-                                    if position_key in self.positions:
-                                        pos = self.positions[position_key]
-                                        pos['delta'] = float(delta)
-                                        pos['position_delta'] = pos['quantity'] * float(delta) * 100
-                                        if price is not None and isinstance(price, (int, float)):
-                                            pos['price'] = float(price)
-                                            pos['net_liq'] = pos['quantity'] * float(price) * 100
-                                        logging.debug(f"📊 Updated {pos['symbol_occ']}: Δ={delta:.4f}, P=${price:.2f}")
+                                    for position_key in position_keys:
+                                        if position_key in self.positions:
+                                            pos = self.positions[position_key]
+                                            pos['delta'] = float(delta)
+                                            pos['position_delta'] = pos['quantity'] * float(delta) * 100
+                                            if price is not None and isinstance(price, (int, float)):
+                                                pos['price'] = float(price)
+                                                pos['net_liq'] = pos['quantity'] * float(price) * 100
+                                            logging.info(f"📊 Updated {pos['symbol_occ']} (Acct: {pos['account_number']}): Δ={delta:.4f}, P=${price:.2f}")
                     
                     i += self.GREEKS_RECORD_SIZE  # Move to next Greeks record
                     
@@ -319,25 +334,33 @@ class DeltaTracker:
                                 bid_price = quote_data[i + self.QUOTE_BID_PRICE_IDX]
                                 ask_price = quote_data[i + self.QUOTE_ASK_PRICE_IDX]
                                 
+                                # Debug: Log symbol and prices regardless of validity  
+                                if symbol and not symbol.startswith('.'):
+                                    # Log the full quote structure for debugging
+                                    quote_slice = quote_data[i:i+min(15, len(quote_data)-i)]
+                                    logging.info(f"📡 Quote debug: {symbol} structure={quote_slice}")
+                                
                                 if (isinstance(bid_price, (int, float)) and isinstance(ask_price, (int, float)) 
                                     and bid_price > 0 and ask_price > 0 and ask_price >= bid_price):
                                     
                                     price = (float(bid_price) + float(ask_price)) / 2
                                     
                                     if symbol and symbol.startswith('.'): # It's an option
-                                        # Use streamer symbol mapping
-                                        position_key = self.streamer_to_position.get(symbol)
-                                        if position_key:
+                                        # Use streamer symbol mapping to find all positions with this symbol
+                                        position_keys = self.streamer_to_position.get(symbol, [])
+                                        if position_keys:
                                             with self.positions_lock:
-                                                if position_key in self.positions:
-                                                    pos = self.positions[position_key]
-                                                    pos['price'] = price
-                                                    pos['net_liq'] = pos['quantity'] * price * 100
-                                                    logging.debug(f"📊 Updated option price {pos['symbol_occ']}: ${price:.2f}")
+                                                for position_key in position_keys:
+                                                    if position_key in self.positions:
+                                                        pos = self.positions[position_key]
+                                                        pos['price'] = price
+                                                        pos['net_liq'] = pos['quantity'] * price * 100
+                                                        logging.info(f"📊 Updated option price {pos['symbol_occ']} (Acct: {pos['account_number']}): ${price:.2f}")
                                     elif symbol: # It's an underlying
+                                        logging.info(f"📡 Processing underlying quote: {symbol}, price: {price}")
                                         with self.prices_lock:
                                             self.underlying_prices[symbol] = price
-                                            logging.debug(f"📊 Updated underlying {symbol}: ${price:.2f}")
+                                            logging.info(f"📊 Updated underlying {symbol}: ${price:.2f}")
                             except (IndexError, TypeError, ValueError):
                                 pass  # Skip malformed quote data
                         

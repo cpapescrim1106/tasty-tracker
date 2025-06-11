@@ -100,17 +100,25 @@ class ScreenerEngine:
                 items = data.get('data', {}).get('items', [])
                 if items:
                     quote = items[0]
+                    
+                    # Try to get volume from multiple possible fields
+                    volume = (quote.get('total-volume') or 
+                             quote.get('volume') or 
+                             quote.get('day-volume') or 
+                             quote.get('total_volume') or 0)
+                    
                     return {
                         'last_price': quote.get('last-price', 0.0) or 0.0,
                         'bid_price': quote.get('bid-price', 0.0) or 0.0,
                         'ask_price': quote.get('ask-price', 0.0) or 0.0,
-                        'volume': quote.get('volume', 0) or 0
+                        'volume': volume
                     }
             return None
         except Exception as e:
             self.logger.error(f"❌ Error fetching quote for {symbol}: {e}")
             return None
     
+
     def get_market_metrics(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Fetch market metrics for a specific symbol"""
         try:
@@ -144,28 +152,65 @@ class ScreenerEngine:
                 if items:
                     metrics = items[0]  # First (and should be only) result
                     
-                    # Extract key screening metrics
+                    # Extract key screening metrics and convert string values to float
+                    def safe_float(value, default=None):
+                        if value is None:
+                            return default
+                        try:
+                            return float(value)
+                        except (ValueError, TypeError):
+                            return default
+                    
                     formatted_metrics = {
                         'symbol': metrics.get('symbol', symbol),
-                        'implied_volatility_index': metrics.get('implied-volatility-index'),
-                        'implied_volatility_rank': metrics.get('implied-volatility-rank'),
-                        'implied_volatility_percentile': metrics.get('implied-volatility-percentile'),
-                        'liquidity': metrics.get('liquidity'),
-                        'liquidity_rank': metrics.get('liquidity-rank'),
+                        'implied_volatility_index': safe_float(metrics.get('implied-volatility-index')),
+                        'implied_volatility_rank': safe_float(metrics.get('implied-volatility-rank')),
+                        'implied_volatility_percentile': safe_float(metrics.get('implied-volatility-percentile')),
+                        'liquidity': safe_float(metrics.get('liquidity')),
+                        'liquidity_rank': safe_float(metrics.get('liquidity-rank')),
                         'liquidity_rating': metrics.get('liquidity-rating'),
-                        'volume': metrics.get('volume'),
-                        'average_volume': metrics.get('average-volume'),
-                        'last_price': metrics.get('market-data', {}).get('last-price') if metrics.get('market-data') else None
+                        'volume': safe_float(metrics.get('volume')),
+                        'average_volume': safe_float(metrics.get('average-volume')),
+                        'last_price': safe_float(metrics.get('market-data', {}).get('last-price')) if metrics.get('market-data') else None
                     }
                     
-                    # If last_price is missing, try to get it from quotes API
-                    if formatted_metrics['last_price'] is None:
+                    # Try to get real-time price from tracker's WebSocket feed first
+                    if formatted_metrics['last_price'] is None and self.tracker:
+                        with self.tracker.prices_lock:
+                            real_time_price = self.tracker.underlying_prices.get(symbol)
+                            if real_time_price and real_time_price > 0:
+                                formatted_metrics['last_price'] = real_time_price
+                                self.logger.debug(f"📊 Using real-time price for {symbol}: ${real_time_price:.2f}")
+                    
+                    # If still no price or volume, try quote API as fallback
+                    if formatted_metrics['last_price'] is None or formatted_metrics['volume'] is None:
                         quote_data = self.get_basic_quote(symbol)
                         if quote_data:
-                            formatted_metrics['last_price'] = quote_data['last_price']
-                            # Also update volume if it's missing
-                            if formatted_metrics['volume'] is None:
+                            # Use quote data for missing fields
+                            if formatted_metrics['last_price'] is None:
+                                formatted_metrics['last_price'] = quote_data['last_price']
+                            if formatted_metrics['volume'] is None and quote_data['volume'] > 0:
                                 formatted_metrics['volume'] = quote_data['volume']
+                    
+
+                    
+                    # Log data availability for debugging
+                    price_str = f"${formatted_metrics['last_price']:.2f}" if formatted_metrics['last_price'] else 'N/A'
+                    iv_perc_str = f"{formatted_metrics['implied_volatility_percentile']:.1f}%" if formatted_metrics['implied_volatility_percentile'] else 'N/A'
+                    iv_rank_str = f"{formatted_metrics['implied_volatility_rank']:.1f}%" if formatted_metrics['implied_volatility_rank'] is not None else 'N/A'
+                    vol_str = str(formatted_metrics['volume']) if formatted_metrics['volume'] else 'N/A'
+                    self.logger.debug(f"📊 {symbol} data: Price={price_str}, IV%={iv_perc_str}, IVRank={iv_rank_str}, Vol={vol_str}")
+                    
+                    # Convert IV percentile from decimal to percentage if needed
+                    if formatted_metrics['implied_volatility_percentile'] is not None:
+                        iv_perc = formatted_metrics['implied_volatility_percentile']
+                        if iv_perc <= 1.0:  # Convert from decimal to percentage
+                            formatted_metrics['implied_volatility_percentile'] = iv_perc * 100
+                    
+                    # Note: IV rank requires historical data and cannot be accurately estimated
+                    # Leave it as None if not provided by the API
+                    if formatted_metrics['implied_volatility_rank'] is None:
+                        self.logger.debug(f"⚠️ IV rank not available for {symbol} - requires historical data")
                     
                     # Cache the result
                     self.market_data_cache[cache_key] = formatted_metrics
@@ -212,13 +257,13 @@ class ScreenerEngine:
                 avg_volume = metrics.get('average_volume')
                 liquidity_rank = metrics.get('liquidity_rank')
                 
-                # Convert to float/int with null handling
+                # Convert to float/int with null handling - preserve nulls, don't convert to 0
                 try:
-                    iv_rank = float(iv_rank) if iv_rank is not None else 0.0
-                    last_price = float(last_price) if last_price is not None else 0.0
-                    volume = int(volume) if volume is not None else 0
-                    avg_volume = int(avg_volume) if avg_volume is not None else 0
-                    liquidity_rank = float(liquidity_rank) if liquidity_rank is not None else 0.0
+                    iv_rank = float(iv_rank) if iv_rank is not None else None
+                    last_price = float(last_price) if last_price is not None else None
+                    volume = int(volume) if volume is not None else None
+                    avg_volume = int(avg_volume) if avg_volume is not None else None
+                    liquidity_rank = float(liquidity_rank) if liquidity_rank is not None else None
                 except (ValueError, TypeError):
                     # Skip symbol if data conversion fails
                     self.logger.warning(f"⚠️ Data conversion failed for {symbol}, skipping")
@@ -229,20 +274,20 @@ class ScreenerEngine:
                 passes_criteria = True
                 
                 # IV rank filter - only apply if data is available
-                if metrics.get('implied_volatility_rank') is not None:
+                if iv_rank is not None:
                     if not (min_iv_rank <= iv_rank <= max_iv_rank):
                         passes_criteria = False
                 
                 # Price filter - only apply if data is available  
-                if metrics.get('last_price') is not None:
+                if last_price is not None:
                     if not (min_price <= last_price <= max_price):
                         passes_criteria = False
                 
                 # Volume filters - only apply if data is available
-                if metrics.get('volume') is not None and volume < min_volume:
+                if volume is not None and volume < min_volume:
                     passes_criteria = False
                     
-                if metrics.get('average_volume') is not None and avg_volume < min_avg_volume:
+                if avg_volume is not None and avg_volume < min_avg_volume:
                     passes_criteria = False
                 
                 # Liquidity rank filter - only apply if data is available
@@ -253,16 +298,16 @@ class ScreenerEngine:
                 # If symbol passes all available criteria
                 if passes_criteria:
                     
-                    # Add to results
+                    # Add to results - preserve None values for missing data
                     result = {
                         'symbol': symbol,
                         'last_price': last_price,
                         'iv_rank': iv_rank,
-                        'iv_percentile': metrics.get('implied_volatility_percentile', 0),
+                        'iv_percentile': metrics.get('implied_volatility_percentile'),
                         'volume': volume,
                         'avg_volume': avg_volume,
                         'liquidity_rank': liquidity_rank,
-                        'liquidity_rating': metrics.get('liquidity_rating', ''),
+                        'liquidity_rating': metrics.get('liquidity_rating'),
                         'passes_screen': True
                     }
                     results.append(result)
@@ -271,8 +316,8 @@ class ScreenerEngine:
                 self.logger.error(f"❌ Error screening {symbol}: {e}")
                 continue
         
-        # Sort by IV rank (descending) by default
-        results.sort(key=lambda x: x.get('iv_rank', 0), reverse=True)
+        # Sort by IV rank (descending) by default, handling None values
+        results.sort(key=lambda x: x.get('iv_rank') or 0, reverse=True)
         
         self.logger.info(f"✅ Screening complete: {len(results)} symbols passed criteria")
         return results
@@ -282,11 +327,13 @@ def create_screener_routes(app, tracker):
     
     screener = ScreenerEngine(tracker)
     
-    # Import strategy, order management, risk management, and portfolio analytics
+    # Import strategy, order management, risk management, portfolio analytics, hedge engine, and position manager
     from strategy_engine import StrategyEngine
     from order_manager import OrderManager
     from risk_manager import RiskManager, RiskLevel
     from portfolio_analytics import PortfolioAnalytics
+    from hedge_engine import HedgeEngine, RebalanceTarget
+    from position_manager import PositionManager
     
     # Create wrapper functions to get the client dynamically
     def get_strategy_engine():
@@ -300,6 +347,12 @@ def create_screener_routes(app, tracker):
     
     def get_portfolio_analytics():
         return PortfolioAnalytics(tracker)
+    
+    def get_hedge_engine():
+        return HedgeEngine(tracker)
+    
+    def get_position_manager():
+        return PositionManager(tracker)
     
     @app.route('/api/screener/watchlists')
     def get_watchlists():
@@ -782,6 +835,266 @@ def create_screener_routes(app, tracker):
             
         except Exception as e:
             logging.error(f"❌ Error in /api/analytics/scenarios: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/hedge/portfolio-delta/<account_number>')
+    def get_portfolio_delta(account_number):
+        """Get portfolio delta metrics for hedging analysis"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            hedge_engine = get_hedge_engine()
+            delta_metrics = hedge_engine.calculate_portfolio_delta(account_number)
+            
+            return jsonify(delta_metrics)
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/hedge/portfolio-delta: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/hedge/analyze', methods=['POST'])
+    def analyze_hedge_requirement():
+        """Analyze hedge requirement for portfolio"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            account_number = data.get('account_number')
+            target_delta = data.get('target_delta', 0.0)
+            delta_tolerance = data.get('delta_tolerance', 50.0)
+            max_hedge_cost_pct = data.get('max_hedge_cost_pct', 1.0)
+            hedge_symbols = data.get('hedge_symbols', None)
+            
+            if not account_number:
+                return jsonify({'error': 'Account number is required'}), 400
+            
+            # Create rebalance target
+            target = RebalanceTarget(
+                target_delta=target_delta,
+                delta_tolerance=delta_tolerance,
+                max_hedge_cost_pct=max_hedge_cost_pct,
+                hedge_symbols=hedge_symbols
+            )
+            
+            hedge_engine = get_hedge_engine()
+            recommendation = hedge_engine.analyze_hedge_requirement(account_number, target)
+            
+            return jsonify({
+                'account_number': recommendation.account_number,
+                'current_delta': recommendation.current_delta,
+                'target_delta': recommendation.target_delta,
+                'delta_imbalance': recommendation.delta_imbalance,
+                'hedge_required': recommendation.hedge_required,
+                'recommended_action': recommendation.recommended_action,
+                'hedge_symbol': recommendation.hedge_symbol,
+                'hedge_quantity': recommendation.hedge_quantity,
+                'hedge_cost': recommendation.hedge_cost,
+                'confidence': recommendation.confidence,
+                'warnings': recommendation.warnings,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/hedge/analyze: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/hedge/rebalance-summary/<account_number>')
+    def get_rebalance_summary(account_number):
+        """Get comprehensive portfolio rebalancing summary"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            hedge_engine = get_hedge_engine()
+            summary = hedge_engine.get_portfolio_rebalance_summary(account_number)
+            
+            return jsonify(summary)
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/hedge/rebalance-summary: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/hedge/execute', methods=['POST'])
+    def execute_hedge():
+        """Execute hedge recommendation (placeholder for future implementation)"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            account_number = data.get('account_number')
+            hedge_symbol = data.get('hedge_symbol')
+            quantity = data.get('quantity')
+            action = data.get('action')  # BUY/SELL
+            dry_run = data.get('dry_run', True)
+            
+            if not all([account_number, hedge_symbol, quantity, action]):
+                return jsonify({'error': 'Missing required parameters'}), 400
+            
+            # For now, just return a placeholder response
+            # In a full implementation, this would use the order manager
+            return jsonify({
+                'message': 'Hedge execution not yet implemented',
+                'dry_run': dry_run,
+                'account_number': account_number,
+                'hedge_symbol': hedge_symbol,
+                'quantity': quantity,
+                'action': action,
+                'status': 'PENDING_IMPLEMENTATION',
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/hedge/execute: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/positions/rules/<account_number>')
+    def get_position_rules(account_number):
+        """Get position management rules summary"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            position_manager = get_position_manager()
+            summary = position_manager.get_position_rules_summary(account_number)
+            
+            return jsonify(summary)
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/positions/rules: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/positions/monitor/<account_number>')
+    def monitor_positions(account_number):
+        """Monitor positions for trigger conditions"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            position_manager = get_position_manager()
+            monitoring_result = position_manager.monitor_all_positions()
+            
+            # Filter results by account
+            if account_number != 'all':
+                filtered_events = [
+                    event for event in monitoring_result.get('triggered_events', [])
+                    if event.position_key.startswith(f"{account_number}:")
+                ]
+                filtered_alerts = [
+                    alert for alert in monitoring_result.get('new_alerts', [])
+                    if alert.position_key.startswith(f"{account_number}:")
+                ]
+                monitoring_result['triggered_events'] = filtered_events
+                monitoring_result['new_alerts'] = filtered_alerts
+            
+            return jsonify(monitoring_result)
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/positions/monitor: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/positions/add-rule', methods=['POST'])
+    def add_position_rule():
+        """Add a new position management rule"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            position_key = data.get('position_key')
+            rule_config = {
+                'rule_type': data.get('rule_type'),
+                'trigger_type': data.get('trigger_type'),
+                'trigger_value': data.get('trigger_value'),
+                'action': data.get('action'),
+                'quantity_pct': data.get('quantity_pct', 100.0),
+                'notes': data.get('notes', '')
+            }
+            
+            if not position_key:
+                return jsonify({'error': 'Position key is required'}), 400
+            
+            if not all([rule_config['rule_type'], rule_config['trigger_type'], rule_config['trigger_value'], rule_config['action']]):
+                return jsonify({'error': 'Missing required rule parameters'}), 400
+            
+            position_manager = get_position_manager()
+            rule_id = position_manager.add_position_rule(position_key, rule_config)
+            
+            return jsonify({
+                'rule_id': rule_id,
+                'position_key': position_key,
+                'status': 'rule_added',
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/positions/add-rule: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/positions/create-sample-rules', methods=['POST'])
+    def create_sample_rules():
+        """Create sample rules for a position"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            position_key = data.get('position_key')
+            
+            if not position_key:
+                return jsonify({'error': 'Position key is required'}), 400
+            
+            position_manager = get_position_manager()
+            rule_ids = position_manager.create_sample_rules(position_key)
+            
+            return jsonify({
+                'rule_ids': rule_ids,
+                'position_key': position_key,
+                'rules_created': len(rule_ids),
+                'status': 'sample_rules_created',
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/positions/create-sample-rules: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/positions/check-triggers/<position_key>')
+    def check_position_triggers(position_key):
+        """Check trigger conditions for a specific position"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            position_manager = get_position_manager()
+            triggers = position_manager.check_position_triggers(position_key)
+            
+            # Convert trigger events to JSON-serializable format
+            trigger_data = []
+            for trigger in triggers:
+                trigger_data.append({
+                    'position_key': trigger.position_key,
+                    'rule_id': trigger.rule_id,
+                    'trigger_type': trigger.trigger_type,
+                    'current_value': trigger.current_value,
+                    'trigger_value': trigger.trigger_value,
+                    'action_required': trigger.action_required,
+                    'confidence': trigger.confidence,
+                    'timestamp': trigger.timestamp.isoformat(),
+                    'warnings': trigger.warnings
+                })
+            
+            return jsonify({
+                'position_key': position_key,
+                'triggers': trigger_data,
+                'triggers_found': len(trigger_data),
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/positions/check-triggers: {e}")
             return jsonify({'error': str(e)}), 500
 
     return screener
