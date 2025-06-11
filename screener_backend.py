@@ -81,42 +81,69 @@ class ScreenerEngine:
             self.logger.error(f"❌ Error fetching watchlists: {e}")
             return []
     
-    def get_basic_quote(self, symbol: str) -> Optional[Dict[str, float]]:
-        """Get basic quote data for a symbol as fallback"""
+    def get_market_data_by_type(self, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+        """Get market data by type for multiple symbols to get volume and other data"""
         try:
             headers = {
                 'Authorization': self.tasty_client.session_token,
                 'Content-Type': 'application/json'
             }
             
+            # Build equity parameter - TastyTrade expects comma-separated symbols
+            equity_symbols = ','.join(symbols)
+            
             response = requests.get(
-                f"{self.base_url}/market-data/quotes", 
-                params={'symbols': symbol},
+                f"{self.base_url}/market-data/by-type",
+                params={'equity': equity_symbols},
                 headers=headers
             )
             
             if response.status_code == 200:
                 data = response.json()
                 items = data.get('data', {}).get('items', [])
-                if items:
-                    quote = items[0]
-                    
-                    # Try to get volume from multiple possible fields
-                    volume = (quote.get('total-volume') or 
-                             quote.get('volume') or 
-                             quote.get('day-volume') or 
-                             quote.get('total_volume') or 0)
-                    
-                    return {
-                        'last_price': quote.get('last-price', 0.0) or 0.0,
-                        'bid_price': quote.get('bid-price', 0.0) or 0.0,
-                        'ask_price': quote.get('ask-price', 0.0) or 0.0,
-                        'volume': volume
-                    }
-            return None
+                
+                result = {}
+                for item in items:
+                    symbol = item.get('symbol')
+                    if symbol:
+                        # Parse volume as float and convert to int
+                        volume_str = item.get('volume')
+                        volume = None
+                        if volume_str:
+                            try:
+                                volume = int(float(volume_str))
+                            except (ValueError, TypeError):
+                                volume = None
+                        
+                        result[symbol] = {
+                            'last_price': self._safe_float(item.get('last')),
+                            'bid_price': self._safe_float(item.get('bid')),
+                            'ask_price': self._safe_float(item.get('ask')),
+                            'volume': volume,
+                            'open': self._safe_float(item.get('open')),
+                            'day_high': self._safe_float(item.get('day-high-price')),
+                            'day_low': self._safe_float(item.get('day-low-price')),
+                            'prev_close': self._safe_float(item.get('prev-close')),
+                            'beta': self._safe_float(item.get('beta'))
+                        }
+                
+                return result
+            else:
+                self.logger.error(f"❌ Failed to fetch market data by type: {response.status_code}")
+                return {}
+                
         except Exception as e:
-            self.logger.error(f"❌ Error fetching quote for {symbol}: {e}")
-            return None
+            self.logger.error(f"❌ Error fetching market data by type: {e}")
+            return {}
+    
+    def _safe_float(self, value, default=None):
+        """Safely convert value to float"""
+        if value is None:
+            return default
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
     
 
     def get_market_metrics(self, symbol: str) -> Optional[Dict[str, Any]]:
@@ -153,25 +180,18 @@ class ScreenerEngine:
                     metrics = items[0]  # First (and should be only) result
                     
                     # Extract key screening metrics and convert string values to float
-                    def safe_float(value, default=None):
-                        if value is None:
-                            return default
-                        try:
-                            return float(value)
-                        except (ValueError, TypeError):
-                            return default
-                    
                     formatted_metrics = {
                         'symbol': metrics.get('symbol', symbol),
-                        'implied_volatility_index': safe_float(metrics.get('implied-volatility-index')),
-                        'implied_volatility_rank': safe_float(metrics.get('implied-volatility-rank')),
-                        'implied_volatility_percentile': safe_float(metrics.get('implied-volatility-percentile')),
-                        'liquidity': safe_float(metrics.get('liquidity')),
-                        'liquidity_rank': safe_float(metrics.get('liquidity-rank')),
+                        'implied_volatility_index': self._safe_float(metrics.get('implied-volatility-index')),
+                        'implied_volatility_index_5_day_change': self._safe_float(metrics.get('implied-volatility-index-5-day-change')),
+                        'implied_volatility_rank': self._safe_float(metrics.get('implied-volatility-rank')),
+                        'implied_volatility_percentile': self._safe_float(metrics.get('implied-volatility-percentile')),
+                        'liquidity': self._safe_float(metrics.get('liquidity')),
+                        'liquidity_rank': self._safe_float(metrics.get('liquidity-rank')),
                         'liquidity_rating': metrics.get('liquidity-rating'),
-                        'volume': safe_float(metrics.get('volume')),
-                        'average_volume': safe_float(metrics.get('average-volume')),
-                        'last_price': safe_float(metrics.get('market-data', {}).get('last-price')) if metrics.get('market-data') else None
+                        'volume': None,  # Will be filled from market-data/by-type
+                        'average_volume': None,  # Not available in TastyTrade API
+                        'last_price': self._safe_float(metrics.get('market-data', {}).get('last-price')) if metrics.get('market-data') else None
                     }
                     
                     # Try to get real-time price from tracker's WebSocket feed first
@@ -182,15 +202,7 @@ class ScreenerEngine:
                                 formatted_metrics['last_price'] = real_time_price
                                 self.logger.debug(f"📊 Using real-time price for {symbol}: ${real_time_price:.2f}")
                     
-                    # If still no price or volume, try quote API as fallback
-                    if formatted_metrics['last_price'] is None or formatted_metrics['volume'] is None:
-                        quote_data = self.get_basic_quote(symbol)
-                        if quote_data:
-                            # Use quote data for missing fields
-                            if formatted_metrics['last_price'] is None:
-                                formatted_metrics['last_price'] = quote_data['last_price']
-                            if formatted_metrics['volume'] is None and quote_data['volume'] > 0:
-                                formatted_metrics['volume'] = quote_data['volume']
+
                     
 
                     
@@ -243,12 +255,32 @@ class ScreenerEngine:
         
         self.logger.info(f"🔍 Screening {len(symbols)} symbols with criteria: {criteria}")
         
+        # Get market data for all symbols at once for efficiency
+        market_data_batch = self.get_market_data_by_type(symbols)
+        
         for symbol in symbols:
             try:
                 metrics = self.get_market_metrics(symbol)
                 
                 if not metrics:
                     continue
+                
+                # Merge with batch market data if available
+                if symbol in market_data_batch:
+                    batch_data = market_data_batch[symbol]
+                    # Update metrics with batch market data
+                    if metrics['last_price'] is None:
+                        metrics['last_price'] = batch_data.get('last_price')
+                    if metrics['volume'] is None:
+                        metrics['volume'] = batch_data.get('volume')
+                    
+                    # Add additional fields
+                    metrics['bid_price'] = batch_data.get('bid_price')
+                    metrics['ask_price'] = batch_data.get('ask_price')
+                    metrics['day_high'] = batch_data.get('day_high')
+                    metrics['day_low'] = batch_data.get('day_low')
+                    metrics['prev_close'] = batch_data.get('prev_close')
+                    metrics['beta'] = batch_data.get('beta')
                 
                 # Apply filters with type conversion and null handling
                 iv_rank = metrics.get('implied_volatility_rank')
