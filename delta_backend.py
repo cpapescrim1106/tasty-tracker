@@ -18,7 +18,9 @@ import dotenv
 dotenv.load_dotenv()
 
 from tastytrade import Session, Account
-from tastytrade.market_data import get_streamer_symbol
+from tastytrade_sdk import Tastytrade
+from tastytrade_sdk.market_data.streamer_symbol_translation import StreamerSymbolTranslationsFactory
+import requests
 
 # --- Configuration & Setup ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -41,6 +43,8 @@ class DeltaTracker:
     def __init__(self):
         # Account and session details
         self.tasty_client = None
+        self.tasty_sdk = None
+        self.symbol_translations_factory = None
         self.dxlink_url = None
         self.api_quote_token = None
         self.target_accounts = ["5WX84566", "5WU39639"]
@@ -71,9 +75,15 @@ class DeltaTracker:
             return False
         try:
             logging.info("🔄 Establishing Tastytrade session...")
+            # Initialize old SDK for existing functionality
             self.tasty_client = Session(login, password)
             self.api_quote_token = self.tasty_client.streamer_token
             self.dxlink_url = self.tasty_client.dxlink_url
+            
+            # Initialize new SDK for symbol conversion
+            self.tasty_sdk = Tastytrade().login(login, password)
+            self.symbol_translations_factory = StreamerSymbolTranslationsFactory(self.tasty_sdk.api)
+            
             logging.info(f"✅ Session established.")
             return True
         except Exception as e:
@@ -145,8 +155,20 @@ class DeltaTracker:
     def _convert_occ_to_streamer(self, occ_symbol):
         """Convert OCC format to streamer symbol format using the SDK."""
         try:
-            # The SDK function handles the conversion reliably.
-            return get_streamer_symbol(occ_symbol)
+            if not self.symbol_translations_factory:
+                logging.error("Symbol translations factory not initialized")
+                return None
+            
+            # Create translations for this symbol
+            translations = self.symbol_translations_factory.create([occ_symbol])
+            streamer_symbol = translations.get_streamer_symbol(occ_symbol)
+            
+            if streamer_symbol:
+                logging.debug(f"✅ Converted {occ_symbol} -> {streamer_symbol}")
+                return streamer_symbol
+            else:
+                logging.warning(f"⚠️ No streamer symbol found for {occ_symbol}")
+                return None
         except Exception as e:
             logging.error(f"Error converting {occ_symbol}: {e}")
             return None
@@ -386,6 +408,7 @@ class DeltaTracker:
                     notional = pos_copy.get('notional', 0)
                     net_liq = pos_copy.get('net_liq', 0)
                     pos_copy['leverage'] = (notional / net_liq) if net_liq != 0 else 0
+                    pos_copy['symbol_root'] = symbol  # Add symbol_root for JavaScript grouping
                     flattened_list.append(pos_copy)
 
             net_liq_deployed = sum(p['net_liq'] for p in positions_copy)
@@ -416,6 +439,9 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 tracker = DeltaTracker()
 
+# Import and setup screener functionality
+from screener_backend import create_screener_routes
+
 @app.route('/')
 def index():
     return render_template('dashboard.html')
@@ -439,6 +465,10 @@ def run_async_tracker():
 
 if __name__ == '__main__':
     logging.info("🚀 Starting TastyTracker backend...")
+    
+    # Initialize screener routes after tracker is created
+    create_screener_routes(app, tracker)
+    
     threading.Thread(target=run_async_tracker, daemon=True).start()
     logging.info("🌐 Starting dashboard server on http://localhost:5001")
     app.run(host='0.0.0.0', port=5001, debug=False) 

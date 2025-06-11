@@ -286,6 +286,184 @@
             margin-left: 26px;
         }
         
+        /* Tab Navigation Styles */
+        .tab-navigation {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            gap: 10px;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+        
+        .tab-button:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #e2e8f0;
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Screener Specific Styles */
+        .screener-section {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .screener-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .form-group label {
+            font-weight: 500;
+            color: #f1f5f9;
+            font-size: 0.9rem;
+        }
+        
+        .form-group select,
+        .form-group input {
+            padding: 10px;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            background: #1e293b;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+        
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        
+        .screener-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #475569;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+        
+        .btn-secondary:hover {
+            border-color: #3b82f6;
+            color: #e2e8f0;
+        }
+        
+        .results-table {
+            border: 1px solid #475569;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #1e293b;
+            margin-bottom: 30px;
+        }
+        
+        .results-header {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 50px 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .result-row {
+            padding: 12px;
+            border-bottom: 1px solid #475569;
+            display: grid;
+            grid-template-columns: 50px 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        
+        .result-row:hover {
+            background: #334155;
+        }
+        
+        .result-row:last-child {
+            border-bottom: none;
+        }
+        
+        .trade-execution-panel {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
         @media (max-width: 1024px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -311,7 +489,15 @@
             <p id="lastUpdate" class="stat-label"></p>
         </div>
         
-        <div class="account-selector">
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class="tab-button active" data-tab="portfolio">📊 Portfolio</button>
+            <button class="tab-button" data-tab="screener">🔍 Screener</button>
+        </div>
+        
+        <!-- Portfolio Tab Content -->
+        <div id="portfolio-tab" class="tab-content active">
+            <div class="account-selector">
             <h3>📊 Account Selection</h3>
             <div class="account-checkboxes">
                 <div class="checkbox-group">
@@ -380,6 +566,123 @@
                 <h2 class="section-title">Net Liquidation Allocation</h2>
                 <div class="chart-container">
                     <canvas id="netLiqChart"></canvas>
+                </div>
+            </div>
+        </div>
+        </div>
+        
+        <!-- Screener Tab Content -->
+        <div id="screener-tab" class="tab-content">
+            <div class="screener-section">
+                <h2 class="section-title">🔍 Stock Screener</h2>
+                
+                <!-- Screener Form -->
+                <div class="screener-form">
+                    <div class="form-group">
+                        <label for="watchlist-select">Watchlist</label>
+                        <select id="watchlist-select">
+                            <option value="">Loading watchlists...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="min-iv-rank">Min IV Rank (%)</label>
+                        <input type="number" id="min-iv-rank" value="30" min="0" max="100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max-iv-rank">Max IV Rank (%)</label>
+                        <input type="number" id="max-iv-rank" value="80" min="0" max="100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="min-price">Min Price ($)</label>
+                        <input type="number" id="min-price" value="10" min="0" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max-price">Max Price ($)</label>
+                        <input type="number" id="max-price" value="200" min="0" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="min-volume">Min Volume</label>
+                        <input type="number" id="min-volume" value="100000" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="min-liquidity">Min Liquidity Rank</label>
+                        <input type="number" id="min-liquidity" value="3" min="0" max="5">
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="screener-actions">
+                    <button class="btn-primary" id="run-screen">Run Screen</button>
+                    <button class="btn-secondary" id="clear-results">Clear Results</button>
+                    <span id="screen-status"></span>
+                </div>
+                
+                <!-- Results Table -->
+                <div id="screener-results" style="display: none;">
+                    <div class="results-table">
+                        <div class="results-header">
+                            <div>Select</div>
+                            <div>Symbol</div>
+                            <div>Price</div>
+                            <div>IV Rank</div>
+                            <div>IV %ile</div>
+                            <div>Volume</div>
+                            <div>Avg Vol</div>
+                            <div>Liq Rank</div>
+                        </div>
+                        <div id="results-body">
+                            <!-- Results will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Trade Execution Panel -->
+            <div id="trade-execution" class="trade-execution-panel" style="display: none;">
+                <h2 class="section-title">⚡ Trade Execution</h2>
+                
+                <div class="screener-form">
+                    <div class="form-group">
+                        <label for="strategy-select">Strategy</label>
+                        <select id="strategy-select">
+                            <option value="put-credit-spread">Put Credit Spread ($5 wide)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="dte-select">Days to Expiration</label>
+                        <select id="dte-select">
+                            <option value="30">30 DTE</option>
+                            <option value="45" selected>45 DTE</option>
+                            <option value="60">60 DTE</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="target-premium">Target Premium ($)</label>
+                        <input type="number" id="target-premium" value="1.00" min="0.01" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quantity">Quantity per Trade</label>
+                        <input type="number" id="quantity" value="1" min="1">
+                    </div>
+                </div>
+                
+                <div class="screener-actions">
+                    <button class="btn-primary" id="create-bulk-trades">Create Trades for Selected</button>
+                    <button class="btn-secondary" id="preview-trades">Preview Trades</button>
+                    <span id="trade-status"></span>
+                </div>
+                
+                <div id="selected-stocks-summary" style="margin-top: 20px;">
+                    <p><strong>Selected Stocks:</strong> <span id="selected-count">0</span></p>
                 </div>
             </div>
         </div>
@@ -552,6 +855,15 @@
             const leverage = totalNetLiq !== 0 ? (totalNotional / totalNetLiq) : 0;
             $('#leverage-value').text(`${leverage.toFixed(2)}x`);
 
+            // Save current expansion state before clearing
+            $('.group-row.expanded').each(function() {
+                const symbol = $(this).data('symbol');
+                if (symbol) {
+                    expandedGroups.add(symbol);
+                    console.log('Saving expanded state for:', symbol);
+                }
+            });
+
             // Update positions table with old format
             const positionsBody = $('#positions-body');
             positionsBody.empty();
@@ -571,11 +883,16 @@
                 const groupDelta = positions.reduce((sum, pos) => sum + (pos.position_delta || 0), 0);
                 const groupQuantity = positions.filter(p => p.instrument_type === 'Equity').reduce((sum, pos) => sum + (pos.quantity || 0), 0);
                 
+                // Check if this group should be expanded
+                const isExpanded = expandedGroups.has(symbol);
+                const expandIcon = isExpanded ? '▼' : '▶';
+                const expandedClass = isExpanded ? ' expanded' : '';
+                
                 const groupRow = $(`
-                    <div class="group-row" data-symbol="${symbol}">
+                    <div class="group-row${expandedClass}" data-symbol="${symbol}">
                         <div class="group-header">
                             <div class="group-symbol">
-                                <span class="expand-icon">▶</span>
+                                <span class="expand-icon">${expandIcon}</span>
                                 <span>${symbol}</span>
                             </div>
                             <div class="metric">${groupQuantity || '-'}</div>
@@ -587,7 +904,7 @@
                             <div class="metric">-</div>
                         </div>
                     </div>
-                    <div class="position-details" id="details-${symbol}"></div>
+                    <div class="position-details${isExpanded ? ' expanded' : ''}" id="details-${symbol}" style="display: ${isExpanded ? 'block' : 'none'}"></div>
                 `);
                 positionsBody.append(groupRow);
 
@@ -636,6 +953,9 @@
             }
         }
         
+        // Store expansion state
+        let expandedGroups = new Set();
+        
         function updateDashboard(data) {
             const totals = data.totals;
 
@@ -653,6 +973,15 @@
 
             $('#leverage-value').text(`${(totals.portfolio_leverage || 0).toFixed(2)}x`);
 
+            // Save current expansion state before clearing
+            $('.group-row.expanded').each(function() {
+                const symbol = $(this).data('symbol');
+                if (symbol) {
+                    expandedGroups.add(symbol);
+                    console.log('Saving expanded state for:', symbol);
+                }
+            });
+
             // Update positions table
             const positionsBody = $('#positions-body');
             positionsBody.empty();
@@ -664,8 +993,10 @@
 
             // Group positions by symbol_root
             const groupedData = {};
+            
             data.positions.forEach(item => {
                 if (item.is_summary) {
+                    // This is a summary row
                     groupedData[item.symbol_root] = {
                         summary: item,
                         details: []
@@ -675,7 +1006,7 @@
             
             // Add detail positions to their respective groups
             data.positions.forEach(item => {
-                if (!item.is_summary && groupedData[item.symbol_root]) {
+                if (!item.is_summary && item.symbol_root && groupedData[item.symbol_root]) {
                     groupedData[item.symbol_root].details.push(item);
                 }
             });
@@ -685,12 +1016,20 @@
                 const group = groupedData[symbolRoot];
                 const item = group.summary;
                 
+                // Check if this group should be expanded
+                const isExpanded = expandedGroups.has(item.symbol_root);
+                const expandIcon = isExpanded ? '▼' : '▶';
+                const expandedClass = isExpanded ? ' expanded' : '';
+                if (isExpanded) {
+                    console.log('Restoring expanded state for:', item.symbol_root);
+                }
+                
                 // Create summary row
                 const groupRow = $(`
-                    <div class="group-row" data-symbol="${item.symbol_root}">
+                    <div class="group-row${expandedClass}" data-symbol="${item.symbol_root}">
                         <div class="group-header">
                             <div class="group-symbol">
-                                <span class="expand-icon">▶</span>
+                                <span class="expand-icon">${expandIcon}</span>
                                 <span>${item.symbol_root}</span>
                             </div>
                             <div class="metric">${item.quantity || '-'}</div>
@@ -705,8 +1044,8 @@
                 `);
                 positionsBody.append(groupRow);
                 
-                // Create details container
-                const detailsContainer = $(`<div class="position-details" id="details-${item.symbol_root}"></div>`);
+                // Create details container with proper initial state
+                const detailsContainer = $(`<div class="position-details${isExpanded ? ' expanded' : ''}" id="details-${item.symbol_root}" style="display: ${isExpanded ? 'block' : 'none'}"></div>`);
                 positionsBody.append(detailsContainer);
                 
                 // Add detail positions
@@ -811,6 +1150,15 @@
                 // Toggle expanded class
                 $(this).toggleClass('expanded');
                 
+                // Update the expandedGroups set
+                if ($(this).hasClass('expanded')) {
+                    expandedGroups.add(symbol);
+                    console.log('Adding to expanded groups:', symbol);
+                } else {
+                    expandedGroups.delete(symbol);
+                    console.log('Removing from expanded groups:', symbol);
+                }
+                
                 // Toggle details visibility
                 const details = $(detailsId);
                 if ($(this).hasClass('expanded')) {
@@ -823,13 +1171,186 @@
             });
         }
         
+        // Tab switching functionality
+        function setupTabSwitching() {
+            $('.tab-button').on('click', function() {
+                const targetTab = $(this).data('tab');
+                
+                // Update button states
+                $('.tab-button').removeClass('active');
+                $(this).addClass('active');
+                
+                // Show/hide tab content
+                $('.tab-content').removeClass('active').hide();
+                $(`#${targetTab}-tab`).addClass('active').show();
+            });
+        }
+        
+        // Screener functionality
+        let watchlistData = {};
+        let screenerResults = [];
+        let selectedStocks = new Set();
+        
+        function loadWatchlists() {
+            fetch('/api/screener/watchlists')
+                .then(response => response.json())
+                .then(data => {
+                    const select = $('#watchlist-select');
+                    select.empty();
+                    select.append('<option value="">Select a watchlist...</option>');
+                    
+                    if (data.watchlists && data.watchlists.length > 0) {
+                        data.watchlists.forEach(wl => {
+                            watchlistData[wl.name] = wl.symbols;
+                            select.append(`<option value="${wl.name}">${wl.name} (${wl.count} symbols)</option>`);
+                        });
+                        console.log('✅ Loaded watchlists:', data.watchlists.length);
+                    } else {
+                        select.append('<option value="">No watchlists found</option>');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error loading watchlists:', error);
+                    $('#watchlist-select').html('<option value="">Error loading watchlists</option>');
+                });
+        }
+        
+        function runScreener() {
+            const selectedWatchlist = $('#watchlist-select').val();
+            if (!selectedWatchlist || !watchlistData[selectedWatchlist]) {
+                alert('Please select a watchlist first');
+                return;
+            }
+            
+            const symbols = watchlistData[selectedWatchlist];
+            const criteria = {
+                min_iv_rank: parseFloat($('#min-iv-rank').val()) || 0,
+                max_iv_rank: parseFloat($('#max-iv-rank').val()) || 100,
+                min_price: parseFloat($('#min-price').val()) || 0,
+                max_price: parseFloat($('#max-price').val()) || 999999,
+                min_volume: parseInt($('#min-volume').val()) || 0,
+                min_liquidity_rank: parseFloat($('#min-liquidity').val()) || 0
+            };
+            
+            $('#screen-status').text('🔄 Screening in progress...');
+            $('#run-screen').prop('disabled', true);
+            
+            fetch('/api/screener/screen', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbols, criteria })
+            })
+            .then(response => response.json())
+            .then(data => {
+                screenerResults = data.results || [];
+                displayResults(screenerResults);
+                $('#screen-status').text(`✅ Found ${screenerResults.length} stocks out of ${data.total_screened} screened`);
+                $('#run-screen').prop('disabled', false);
+            })
+            .catch(error => {
+                console.error('❌ Screener error:', error);
+                $('#screen-status').text('❌ Error running screener');
+                $('#run-screen').prop('disabled', false);
+            });
+        }
+        
+        function displayResults(results) {
+            const tbody = $('#results-body');
+            tbody.empty();
+            
+            if (results.length === 0) {
+                tbody.html('<div style="padding: 20px; text-align: center; color: #94a3b8;">No stocks match the screening criteria</div>');
+                $('#screener-results').show();
+                return;
+            }
+            
+            results.forEach(stock => {
+                const row = $(`
+                    <div class="result-row">
+                        <div>
+                            <input type="checkbox" class="stock-checkbox" value="${stock.symbol}" data-stock='${JSON.stringify(stock)}'>
+                        </div>
+                        <div style="font-weight: 600;">${stock.symbol}</div>
+                        <div>${formatCurrency(stock.last_price, true, 2)}</div>
+                        <div>${(stock.iv_rank || 0).toFixed(1)}%</div>
+                        <div>${(stock.iv_percentile || 0).toFixed(1)}%</div>
+                        <div>${formatNumber(stock.volume || 0)}</div>
+                        <div>${formatNumber(stock.avg_volume || 0)}</div>
+                        <div>${stock.liquidity_rank || '-'}</div>
+                    </div>
+                `);
+                tbody.append(row);
+            });
+            
+            $('#screener-results').show();
+            $('#trade-execution').show();
+        }
+        
+        function updateSelectedStocksSummary() {
+            const count = $('.stock-checkbox:checked').length;
+            $('#selected-count').text(count);
+            
+            if (count > 0) {
+                $('#create-bulk-trades').prop('disabled', false);
+                $('#preview-trades').prop('disabled', false);
+            } else {
+                $('#create-bulk-trades').prop('disabled', true);
+                $('#preview-trades').prop('disabled', true);
+            }
+        }
+        
+        function setupScreenerListeners() {
+            $('#run-screen').on('click', runScreener);
+            
+            $('#clear-results').on('click', function() {
+                $('#screener-results').hide();
+                $('#trade-execution').hide();
+                $('#screen-status').text('');
+                selectedStocks.clear();
+            });
+            
+            $(document).on('change', '.stock-checkbox', function() {
+                const stock = JSON.parse($(this).attr('data-stock'));
+                if ($(this).is(':checked')) {
+                    selectedStocks.add(stock);
+                } else {
+                    selectedStocks.delete(stock);
+                }
+                updateSelectedStocksSummary();
+            });
+            
+            $('#create-bulk-trades').on('click', function() {
+                const selected = $('.stock-checkbox:checked');
+                if (selected.length === 0) {
+                    alert('Please select at least one stock');
+                    return;
+                }
+                
+                $('#trade-status').text('🔄 Creating trades... (Not implemented yet)');
+                // TODO: Implement trade creation
+            });
+        }
+        
+        // Initialize screener when tab is first shown
+        $(document).on('click', '[data-tab="screener"]', function() {
+            if ($('#watchlist-select option').length <= 1) {
+                loadWatchlists();
+            }
+        });
+        
         // Initial setup
+        setupTabSwitching();
+        setupScreenerListeners();
         setupAccountListeners();
         setupTableExpansion();
         fetchData();
         
-        // Auto-refresh every 2 seconds
-        setInterval(fetchData, 2000);
+        // Auto-refresh every 2 seconds (only for portfolio tab)
+        setInterval(() => {
+            if ($('#portfolio-tab').hasClass('active')) {
+                fetchData();
+            }
+        }, 2000);
     </script>
 </body>
 </html> 
