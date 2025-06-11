@@ -184,14 +184,20 @@ class ScreenerEngine:
                         'symbol': metrics.get('symbol', symbol),
                         'implied_volatility_index': self._safe_float(metrics.get('implied-volatility-index')),
                         'implied_volatility_index_5_day_change': self._safe_float(metrics.get('implied-volatility-index-5-day-change')),
-                        'implied_volatility_rank': self._safe_float(metrics.get('implied-volatility-rank')),
+                        'implied_volatility_rank': self._safe_float(metrics.get('tw-implied-volatility-index-rank')),  # Use TastyTrade's IV rank!
                         'implied_volatility_percentile': self._safe_float(metrics.get('implied-volatility-percentile')),
-                        'liquidity': self._safe_float(metrics.get('liquidity')),
+                        'liquidity': self._safe_float(metrics.get('liquidity-value')),  # CORRECTED FIELD NAME!
                         'liquidity_rank': self._safe_float(metrics.get('liquidity-rank')),
                         'liquidity_rating': metrics.get('liquidity-rating'),
                         'volume': None,  # Will be filled from market-data/by-type
                         'average_volume': None,  # Not available in TastyTrade API
-                        'last_price': self._safe_float(metrics.get('market-data', {}).get('last-price')) if metrics.get('market-data') else None
+                        'last_price': self._safe_float(metrics.get('market-data', {}).get('last-price')) if metrics.get('market-data') else None,
+                        # Add additional useful fields from the API response
+                        'beta': self._safe_float(metrics.get('beta')),
+                        'market_cap': self._safe_float(metrics.get('market-cap')),
+                        'historical_volatility_30_day': self._safe_float(metrics.get('historical-volatility-30-day')),
+                        'iv_hv_30_day_difference': self._safe_float(metrics.get('iv-hv-30-day-difference')),
+                        'price_earnings_ratio': self._safe_float(metrics.get('price-earnings-ratio'))
                     }
                     
                     # Try to get real-time price from tracker's WebSocket feed first
@@ -213,16 +219,22 @@ class ScreenerEngine:
                     vol_str = str(formatted_metrics['volume']) if formatted_metrics['volume'] else 'N/A'
                     self.logger.debug(f"📊 {symbol} data: Price={price_str}, IV%={iv_perc_str}, IVRank={iv_rank_str}, Vol={vol_str}")
                     
-                    # Convert IV percentile from decimal to percentage if needed
+                    # Convert IV percentile and IV rank from decimal to percentage if needed
                     if formatted_metrics['implied_volatility_percentile'] is not None:
                         iv_perc = formatted_metrics['implied_volatility_percentile']
                         if iv_perc <= 1.0:  # Convert from decimal to percentage
                             formatted_metrics['implied_volatility_percentile'] = iv_perc * 100
                     
-                    # Note: IV rank requires historical data and cannot be accurately estimated
-                    # Leave it as None if not provided by the API
-                    if formatted_metrics['implied_volatility_rank'] is None:
-                        self.logger.debug(f"⚠️ IV rank not available for {symbol} - requires historical data")
+                    if formatted_metrics['implied_volatility_rank'] is not None:
+                        iv_rank = formatted_metrics['implied_volatility_rank']
+                        if iv_rank <= 1.0:  # Convert from decimal to percentage
+                            formatted_metrics['implied_volatility_rank'] = iv_rank * 100
+                    
+                    # Log if IV rank is available
+                    if formatted_metrics['implied_volatility_rank'] is not None:
+                        self.logger.debug(f"✅ IV rank available for {symbol}: {formatted_metrics['implied_volatility_rank']:.1f}%")
+                    else:
+                        self.logger.debug(f"⚠️ IV rank not available for {symbol}")
                     
                     # Cache the result
                     self.market_data_cache[cache_key] = formatted_metrics
