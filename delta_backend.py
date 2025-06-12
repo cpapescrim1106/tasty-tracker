@@ -293,7 +293,6 @@ class DeltaTracker:
                 return
                 
             event_type = events[0]
-            logging.info(f"📡 Received {event_type} data with {len(events[1]) if len(events) > 1 else 0} elements")
             
             if event_type == 'Greeks':
                 greeks_data = events[1]
@@ -334,12 +333,6 @@ class DeltaTracker:
                                 bid_price = quote_data[i + self.QUOTE_BID_PRICE_IDX]
                                 ask_price = quote_data[i + self.QUOTE_ASK_PRICE_IDX]
                                 
-                                # Debug: Log symbol and prices regardless of validity  
-                                if symbol and not symbol.startswith('.'):
-                                    # Log the full quote structure for debugging
-                                    quote_slice = quote_data[i:i+min(15, len(quote_data)-i)]
-                                    logging.info(f"📡 Quote debug: {symbol} structure={quote_slice}")
-                                
                                 if (isinstance(bid_price, (int, float)) and isinstance(ask_price, (int, float)) 
                                     and bid_price > 0 and ask_price > 0 and ask_price >= bid_price):
                                     
@@ -355,12 +348,9 @@ class DeltaTracker:
                                                         pos = self.positions[position_key]
                                                         pos['price'] = price
                                                         pos['net_liq'] = pos['quantity'] * price * 100
-                                                        logging.info(f"📊 Updated option price {pos['symbol_occ']} (Acct: {pos['account_number']}): ${price:.2f}")
                                     elif symbol: # It's an underlying
-                                        logging.info(f"📡 Processing underlying quote: {symbol}, price: {price}")
                                         with self.prices_lock:
                                             self.underlying_prices[symbol] = price
-                                            logging.info(f"📊 Updated underlying {symbol}: ${price:.2f}")
                             except (IndexError, TypeError, ValueError):
                                 pass  # Skip malformed quote data
                         

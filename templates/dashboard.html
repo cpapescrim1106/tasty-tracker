@@ -660,10 +660,13 @@
                     
                     <div class="form-group">
                         <label for="dte-select">Days to Expiration</label>
-                        <select id="dte-select">
-                            <option value="30">30 DTE</option>
-                            <option value="45" selected>45 DTE</option>
-                            <option value="60">60 DTE</option>
+                        <select id="dte-select" class="form-control">
+                            <option value="0">0 DTE (Same Day - Weekly)</option>
+                            <option value="7">7 DTE (Weekly)</option>
+                            <option value="14">14 DTE (Weekly)</option>
+                            <option value="30">30 DTE (Monthly Preferred)</option>
+                            <option value="45" selected>45 DTE (Monthly Preferred)</option>
+                            <option value="60">60 DTE (Monthly Preferred)</option>
                         </select>
                     </div>
                     
@@ -1775,13 +1778,24 @@
                     const premium = s.net_premium || 0;
                     totalPremium += premium;
                     
+                    // Enhanced expiration display with monthly/weekly indicator
+                    const expDisplay = s.expiration_date_display || `${s.days_to_expiration || 0} DTE`;
+                    const expType = s.is_monthly ? 'MONTHLY' : 'WEEKLY';
+                    const expBadgeColor = s.is_monthly ? '#10b981' : '#f59e0b';
+                    
                     previewHtml += `
                         <div style="margin-bottom: 10px; padding: 10px; background: rgba(30, 41, 59, 0.5); border-radius: 8px;">
-                            <strong>${strategy.symbol}</strong> - 
-                            Premium: $${premium.toFixed(2)}, 
-                            Max Profit: $${(s.max_profit || 0).toFixed(2)}, 
-                            Max Loss: $${(s.max_loss || 0).toFixed(2)}, 
-                            DTE: ${s.days_to_expiration || 0}
+                            <div style="font-weight: 600; margin-bottom: 5px;">
+                                <strong>${strategy.symbol}</strong> ${s.strike_display || ''} Spread (${expDisplay})
+                                <span style="background: ${expBadgeColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 8px;">${expType}</span>
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 15px; font-size: 14px;">
+                                <span>Premium: <strong>$${premium.toFixed(2)}</strong></span>
+                                <span>Max Loss: <strong>$${(s.max_loss || 0).toFixed(2)}</strong></span>
+                                <span>DTE: <strong>${s.days_to_expiration || 0}</strong></span>
+                                <span>Distance: <strong>${(s.distance_to_short_strike_pct || 0).toFixed(1)}%</strong></span>
+                                <span>ROC: <strong>${(s.return_on_credit || 0).toFixed(1)}%</strong></span>
+                            </div>
                         </div>
                     `;
                 }
