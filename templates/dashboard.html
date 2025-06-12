@@ -479,6 +479,53 @@
                 text-align: left;
             }
         }
+
+        /* Trade Journal Status Messages */
+        .success-message {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            color: #6ee7b7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        /* Status badges for trade journal */
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .status-open {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid #fbbf24;
+        }
+
+        .status-closed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+
+        .status-partial {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid #f59e0b;
+        }
     </style>
 </head>
 <body>
@@ -497,6 +544,7 @@
             <button class="tab-button" data-tab="analytics">📈 Analytics</button>
             <button class="tab-button" data-tab="hedging">⚖️ Hedging</button>
             <button class="tab-button" data-tab="positions">🎯 Position Manager</button>
+            <button class="tab-button" data-tab="journal">📖 Trade Journal</button>
         </div>
         
         <!-- Portfolio Tab Content -->
@@ -651,6 +699,13 @@
                 <h2 class="section-title">⚡ Trade Execution</h2>
                 
                 <div class="screener-form">
+                    <div class="form-group">
+                        <label for="trade-account-select">Account</label>
+                        <select id="trade-account-select" class="form-control">
+                            <option value="">Select Account</option>
+                        </select>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="strategy-select">Strategy</label>
                         <select id="strategy-select">
@@ -1021,6 +1076,99 @@
                     <h3 class="section-title">🎯 Active Position Rules</h3>
                     <div id="active-rules-content">
                         <!-- Active rules will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trade Journal Tab Content -->
+        <div id="journal-tab" class="tab-content">
+            <div class="screener-container">
+                <h2 class="section-title">📖 Trade Journal & Performance Analytics</h2>
+                
+                <!-- Journal Controls -->
+                <div class="screener-section">
+                    <h3 class="section-title">🔄 Trade Processing Controls</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Account Number:</label>
+                            <select id="journal-account" class="form-control">
+                                <option value="5WX84566">Account 5WX84566</option>
+                                <option value="5WU39639">Account 5WU39639</option>
+                                <option value="">All Accounts</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Start Date:</label>
+                            <input type="date" id="journal-start-date" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>End Date:</label>
+                            <input type="date" id="journal-end-date" class="form-control">
+                        </div>
+                    </div>
+                    <div class="screener-actions">
+                        <button class="btn btn-primary" onclick="processAccountTrades()">🔄 Process Trades</button>
+                        <button class="btn btn-secondary" onclick="loadTrades()">📋 Load Trades</button>
+                        <button class="btn btn-accent" onclick="generateReport()">📊 Generate Report</button>
+                        <button class="btn btn-warning" onclick="exportTrades()">📤 Export CSV</button>
+                    </div>
+                </div>
+
+                <!-- Status Section -->
+                <div id="journal-status-section" class="screener-section">
+                    <h3 class="section-title">📡 System Status</h3>
+                    <div id="journal-status" class="loading-spinner">
+                        Loading trade journal system...
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div id="journal-summary" class="stats-grid" style="display: none;">
+                    <div class="stat-card">
+                        <div class="stat-value" id="summary-total-trades">-</div>
+                        <div class="stat-label">Total Trades</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="summary-win-rate">-</div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="summary-total-pnl">-</div>
+                        <div class="stat-label">Total P&L</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="summary-avg-pnl">-</div>
+                        <div class="stat-label">Avg P&L/Trade</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="summary-best-strategy">-</div>
+                        <div class="stat-label">Best Strategy</div>
+                    </div>
+                </div>
+
+                <!-- Trades Table -->
+                <div id="journal-trades" class="screener-section" style="display: none;">
+                    <h3 class="section-title">📋 Recent Trades</h3>
+                    <div class="table-container">
+                        <table class="screener-table">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Strategy</th>
+                                    <th>Entry Date</th>
+                                    <th>DTE</th>
+                                    <th>P&L</th>
+                                    <th>POP</th>
+                                    <th>Status</th>
+                                    <th>Days</th>
+                                    <th>ROC %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trades-container">
+                                <!-- Trades will be populated here -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1657,6 +1805,20 @@
         }
         
         function setupScreenerListeners() {
+            // Populate trade account selector
+            $('#trade-account-select').html(`
+                <option value="">Select Account</option>
+                <option value="5WX84566">Joint Tenant (5WX84566)</option>
+                <option value="5WU39639">Roth IRA (5WU39639)</option>
+            `);
+            
+            // Clear error message when account is selected
+            $('#trade-account-select').on('change', function() {
+                if ($(this).val()) {
+                    $('#trade-status').text('');
+                }
+            });
+            
             $('#run-screen').on('click', runScreener);
             
             $('#clear-results').on('click', function() {
@@ -1690,6 +1852,13 @@
                 const selected = $('.stock-checkbox:checked');
                 if (selected.length === 0) {
                     alert('Please select at least one stock');
+                    return;
+                }
+                
+                // Check if account is selected
+                const accountNumber = $('#trade-account-select').val();
+                if (!accountNumber) {
+                    $('#trade-status').text('❌ Please select an account');
                     return;
                 }
                 
@@ -1819,9 +1988,8 @@
             const quantity = parseInt($('#quantity').val()) || 1;
             const targetPremium = parseFloat($('#target-premium').val()) || 1.0;
             
-            // For now, we'll use the first available account
-            // In a real implementation, you might want to let users choose the account
-            const accountNumber = "5WX84566"; // This should be made configurable
+            // Get selected account
+            const accountNumber = $('#trade-account-select').val();
             
             const priceAdjustment = 0.0; // Could be made configurable
             
@@ -3022,6 +3190,266 @@
             $('#monitoring-results-content').html(resultsHtml);
         }
         
+        // Trade Journal Functions
+        let tradesData = [];
+
+        async function loadJournalData() {
+            try {
+                const response = await fetch('/api/trade-journal/status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="success-message">
+                            ✅ Trade Journal System Ready<br>
+                            Database: ${result.data.database_path}<br>
+                            Auto Capture: ${result.data.auto_capture_enabled ? 'Enabled' : 'Disabled'}
+                        </div>
+                    `;
+                    loadTrades();
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error-message">❌ Error: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error-message">❌ Connection Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function processAccountTrades() {
+            const account = document.getElementById('journal-account').value;
+            const startDate = document.getElementById('journal-start-date').value;
+            const endDate = document.getElementById('journal-end-date').value;
+            
+            if (!account) {
+                alert('Please select an account');
+                return;
+            }
+            
+            document.getElementById('journal-status').innerHTML = '<div class="loading-spinner">🔄 Processing trades...</div>';
+            
+            try {
+                const response = await fetch('/api/trade-journal/process', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        account_number: account,
+                        start_date: startDate || null,
+                        end_date: endDate || null,
+                        enhance_data: true
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="success-message">
+                            ✅ ${result.data.message}<br>
+                            Trades Processed: ${result.data.trades_processed}
+                        </div>
+                    `;
+                    loadTrades();
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error-message">❌ Error: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error-message">❌ Error processing trades: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function loadTrades() {
+            const account = document.getElementById('journal-account').value;
+            
+            try {
+                const params = new URLSearchParams();
+                if (account) params.append('account_number', account);
+                params.append('limit', '50');
+                
+                const response = await fetch(`/api/trade-journal/trades?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    tradesData = result.data;
+                    displayTrades(tradesData);
+                    updateSummary(tradesData);
+                    
+                    document.getElementById('journal-summary').style.display = 'grid';
+                    document.getElementById('journal-trades').style.display = 'block';
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error-message">❌ Error loading trades: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error-message">❌ Error loading trades: ${error.message}</div>
+                `;
+            }
+        }
+
+        function displayTrades(trades) {
+            const container = document.getElementById('trades-container');
+            
+            if (trades.length === 0) {
+                container.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 20px;">No trades found</td></tr>';
+                return;
+            }
+            
+            container.innerHTML = trades.map(trade => `
+                <tr>
+                    <td>${trade.underlying_symbol}</td>
+                    <td>${trade.strategy_type ? trade.strategy_type.replace('_', ' ') : '-'}</td>
+                    <td>${trade.entry_date ? new Date(trade.entry_date).toLocaleDateString() : '-'}</td>
+                    <td>${trade.dte_at_entry || '-'}</td>
+                    <td class="${trade.realized_pnl >= 0 ? 'positive' : 'negative'}">
+                        $${trade.realized_pnl ? trade.realized_pnl.toFixed(2) : '0.00'}
+                    </td>
+                    <td>${trade.pop_entry ? trade.pop_entry.toFixed(1) + '%' : '-'}</td>
+                    <td><span class="status-badge status-${trade.status}">${trade.status}</span></td>
+                    <td>${trade.days_held || '-'}</td>
+                    <td class="${trade.return_on_capital >= 0 ? 'positive' : 'negative'}">
+                        ${trade.return_on_capital ? trade.return_on_capital.toFixed(1) + '%' : '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateSummary(trades) {
+            const closedTrades = trades.filter(t => t.status === 'closed');
+            const winners = closedTrades.filter(t => t.winner);
+            const totalPnl = closedTrades.reduce((sum, t) => sum + (t.realized_pnl || 0), 0);
+            const avgPnl = closedTrades.length > 0 ? totalPnl / closedTrades.length : 0;
+            const winRate = closedTrades.length > 0 ? (winners.length / closedTrades.length) * 100 : 0;
+            
+            // Find best performing strategy
+            const strategyPerformance = {};
+            closedTrades.forEach(trade => {
+                const strategy = trade.strategy_type || 'unknown';
+                if (!strategyPerformance[strategy]) {
+                    strategyPerformance[strategy] = { count: 0, totalPnl: 0 };
+                }
+                strategyPerformance[strategy].count++;
+                strategyPerformance[strategy].totalPnl += trade.realized_pnl || 0;
+            });
+            
+            let bestStrategy = '-';
+            let bestPnl = -Infinity;
+            for (const [strategy, data] of Object.entries(strategyPerformance)) {
+                if (data.totalPnl > bestPnl && data.count >= 3) {
+                    bestPnl = data.totalPnl;
+                    bestStrategy = strategy.replace('_', ' ');
+                }
+            }
+            
+            document.getElementById('summary-total-trades').textContent = trades.length;
+            document.getElementById('summary-win-rate').textContent = winRate.toFixed(1) + '%';
+            document.getElementById('summary-total-pnl').textContent = '$' + totalPnl.toFixed(2);
+            document.getElementById('summary-avg-pnl').textContent = '$' + avgPnl.toFixed(2);
+            document.getElementById('summary-best-strategy').textContent = bestStrategy;
+            
+            // Apply colors
+            document.getElementById('summary-total-pnl').className = 'stat-value ' + (totalPnl >= 0 ? 'positive' : 'negative');
+            document.getElementById('summary-avg-pnl').className = 'stat-value ' + (avgPnl >= 0 ? 'positive' : 'negative');
+        }
+
+        async function generateReport() {
+            const account = document.getElementById('journal-account').value;
+            const startDate = document.getElementById('journal-start-date').value;
+            const endDate = document.getElementById('journal-end-date').value;
+            
+            document.getElementById('journal-status').innerHTML = '<div class="loading-spinner">📊 Generating report...</div>';
+            
+            try {
+                const params = new URLSearchParams();
+                if (account) params.append('account_number', account);
+                if (startDate) params.append('start_date', startDate);
+                if (endDate) params.append('end_date', endDate);
+                
+                const response = await fetch(`/api/trade-journal/report?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="success-message">
+                            ✅ Report generated successfully!<br>
+                            Check console for detailed report data
+                        </div>
+                    `;
+                    console.log('Trade Journal Report:', result.data);
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error-message">❌ Error generating report: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error-message">❌ Error generating report: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function exportTrades() {
+            const account = document.getElementById('journal-account').value;
+            
+            document.getElementById('journal-status').innerHTML = '<div class="loading-spinner">📤 Exporting trades...</div>';
+            
+            try {
+                const params = new URLSearchParams();
+                if (account) params.append('account_number', account);
+                
+                const response = await fetch(`/api/trade-journal/export?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Create and download CSV file
+                    const blob = new Blob([result.data.csv_content], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = result.data.filename;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="success-message">✅ Trades exported successfully!</div>
+                    `;
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error-message">❌ Error exporting trades: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error-message">❌ Error exporting trades: ${error.message}</div>
+                `;
+            }
+        }
+
+        function setupTradeJournalListeners() {
+            // Set default dates for trade journal
+            const today = new Date();
+            const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+            
+            document.getElementById('journal-start-date').value = oneMonthAgo.toISOString().split('T')[0];
+            document.getElementById('journal-end-date').value = today.toISOString().split('T')[0];
+            
+            // Load journal data when tab is first accessed
+            const journalTab = document.querySelector('[data-tab="journal"]');
+            if (journalTab) {
+                journalTab.addEventListener('click', function() {
+                    setTimeout(loadJournalData, 100);
+                });
+            }
+        }
+
         // Initial data fetch and setup
         $(document).ready(function() {
             fetchData(); // Initial fetch
@@ -3035,6 +3463,7 @@
             setupPositionManagerListeners();
             setupAccountListeners();
             setupTableExpansion();
+            setupTradeJournalListeners();
         });
     </script>
 </body>

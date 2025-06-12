@@ -455,6 +455,9 @@ tracker = DeltaTracker()
 # Import and setup screener functionality
 from screener_backend import create_screener_routes
 
+# Import trade journal functionality
+from trade_journal_routes import create_trade_journal_routes
+
 
 @app.route('/')
 def index():
@@ -482,6 +485,9 @@ if __name__ == '__main__':
     
     # Initialize screener routes after tracker is created
     create_screener_routes(app, tracker)
+    
+    # Initialize trade journal routes
+    create_trade_journal_routes(app)
     
     threading.Thread(target=run_async_tracker, daemon=True).start()
     logging.info("🌐 Starting dashboard server on http://localhost:5001")
