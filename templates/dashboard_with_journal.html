@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TastyTracker - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 15px;
+            padding: 5px;
+            margin-bottom: 30px;
+            gap: 5px;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab:hover {
+            color: #e2e8f0;
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+        .neutral { color: #6366f1; }
+        .short { color: #f59e0b; font-weight: 600; }
+        
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .positions-section {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .chart-section {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #f1f5f9;
+        }
+
+        /* Trade Journal Specific Styles */
+        .journal-controls {
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .control-group input, .control-group select {
+            padding: 8px 12px;
+            border: 1px solid #475569;
+            background: #334155;
+            color: #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #6b7280, #9ca3af);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #10b981, #059669);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #f59e0b, #d97706);
+        }
+
+        .trades-table {
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .table-header {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 80px;
+            gap: 15px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .trade-row {
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 80px;
+            gap: 15px;
+            border-bottom: 1px solid #475569;
+            align-items: center;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .trade-row:hover {
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        .trade-row:last-child {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .status-open { background: #fbbf24; color: #92400e; }
+        .status-closed { background: #10b981; color: #065f46; }
+        .status-partial { background: #f59e0b; color: #92400e; }
+
+        .performance-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .summary-card {
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .summary-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .summary-label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            color: #6ee7b7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+            }
+            
+            .journal-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .table-header, .trade-row {
+                grid-template-columns: repeat(4, 1fr);
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Additional styles for original dashboard elements */
+        .positions-table {
+            border: 1px solid #475569;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #1e293b;
+        }
+        
+        .group-row {
+            background: #334155;
+            border-bottom: 1px solid #475569;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .group-row:hover {
+            background: #475569;
+        }
+        
+        .group-header {
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            font-weight: 500;
+        }
+        
+        .position-row {
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: 8px 12px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+        
+        .expand-icon {
+            transition: transform 0.2s ease;
+            color: #94a3b8;
+        }
+        
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 TastyTracker</h1>
+            <p>Live Portfolio Analytics & Trade Journal</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('live-delta')">📊 Live Delta</button>
+            <button class="nav-tab" onclick="showTab('trade-journal')">📖 Trade Journal</button>
+            <button class="nav-tab" onclick="showTab('screener')">🔍 Screener</button>
+            <button class="nav-tab" onclick="showTab('analytics')">📈 Analytics</button>
+        </div>
+
+        <!-- Live Delta Tab (Original Dashboard) -->
+        <div id="live-delta" class="tab-content active">
+            <div class="stats-grid" id="stats-grid">
+                <!-- Stats cards will be populated by JavaScript -->
+            </div>
+
+            <div class="main-content">
+                <div class="positions-section">
+                    <h2 class="section-title">Live Positions</h2>
+                    <div class="positions-table">
+                        <div class="table-header">
+                            <div>Symbol</div>
+                            <div>Pos Δ</div>
+                            <div>Market Δ</div>
+                            <div>Δ Diff</div>
+                            <div>Price</div>
+                            <div>P&L</div>
+                            <div>Net Liq</div>
+                            <div>Update</div>
+                        </div>
+                        <div id="positions-container">
+                            <!-- Positions will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-section">
+                    <h2 class="section-title">Portfolio Delta Chart</h2>
+                    <canvas id="deltaChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trade Journal Tab -->
+        <div id="trade-journal" class="tab-content">
+            <div class="journal-controls">
+                <div class="control-group">
+                    <label>Account Number</label>
+                    <input type="text" id="journal-account" placeholder="Enter account number">
+                </div>
+                <div class="control-group">
+                    <label>Start Date</label>
+                    <input type="date" id="journal-start-date">
+                </div>
+                <div class="control-group">
+                    <label>End Date</label>
+                    <input type="date" id="journal-end-date">
+                </div>
+                <button class="btn" onclick="processAccountTrades()">🔄 Process Trades</button>
+                <button class="btn btn-secondary" onclick="loadTrades()">📋 Load Trades</button>
+                <button class="btn btn-success" onclick="generateReport()">📊 Generate Report</button>
+                <button class="btn btn-warning" onclick="exportTrades()">📤 Export CSV</button>
+            </div>
+
+            <div id="journal-status" class="loading">
+                Loading trade journal...
+            </div>
+
+            <div id="journal-summary" style="display: none;">
+                <div class="performance-summary">
+                    <div class="summary-card">
+                        <div class="summary-value" id="summary-total-trades">-</div>
+                        <div class="summary-label">Total Trades</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="summary-win-rate">-</div>
+                        <div class="summary-label">Win Rate</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="summary-total-pnl">-</div>
+                        <div class="summary-label">Total P&L</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="summary-avg-pnl">-</div>
+                        <div class="summary-label">Avg P&L/Trade</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="journal-trades" style="display: none;">
+                <h3 class="section-title">Recent Trades</h3>
+                <div class="trades-table">
+                    <div class="table-header">
+                        <div>Symbol</div>
+                        <div>Strategy</div>
+                        <div>Entry Date</div>
+                        <div>DTE</div>
+                        <div>P&L</div>
+                        <div>POP</div>
+                        <div>Status</div>
+                        <div>Days</div>
+                        <div>Notes</div>
+                    </div>
+                    <div id="trades-container">
+                        <!-- Trades will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screener Tab -->
+        <div id="screener" class="tab-content">
+            <div class="section-title">Options Screener</div>
+            <p style="text-align: center; color: #94a3b8; padding: 40px;">
+                Screener functionality coming soon...
+            </p>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics" class="tab-content">
+            <div class="section-title">Advanced Analytics</div>
+            <p style="text-align: center; color: #94a3b8; padding: 40px;">
+                Advanced analytics coming soon...
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Load data for the selected tab
+            if (tabName === 'trade-journal') {
+                loadJournalData();
+            } else if (tabName === 'live-delta') {
+                refreshData(); // Original dashboard refresh
+            }
+        }
+
+        // Trade Journal Functions
+        let tradesData = [];
+
+        async function loadJournalData() {
+            try {
+                const response = await fetch('/api/trade-journal/status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="success">
+                            ✅ Trade Journal System Ready<br>
+                            Database: ${result.data.database_path}<br>
+                            Auto Capture: ${result.data.auto_capture_enabled ? 'Enabled' : 'Disabled'}
+                        </div>
+                    `;
+                    loadTrades();
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error">❌ Error: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error">❌ Connection Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function processAccountTrades() {
+            const account = document.getElementById('journal-account').value;
+            const startDate = document.getElementById('journal-start-date').value;
+            const endDate = document.getElementById('journal-end-date').value;
+            
+            if (!account) {
+                alert('Please enter an account number');
+                return;
+            }
+            
+            document.getElementById('journal-status').innerHTML = '<div class="loading">🔄 Processing trades...</div>';
+            
+            try {
+                const response = await fetch('/api/trade-journal/process', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        account_number: account,
+                        start_date: startDate || null,
+                        end_date: endDate || null,
+                        enhance_data: true
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="success">
+                            ✅ ${result.data.message}<br>
+                            Trades Processed: ${result.data.trades_processed}
+                        </div>
+                    `;
+                    loadTrades();
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error">❌ Error: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error">❌ Error processing trades: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function loadTrades() {
+            const account = document.getElementById('journal-account').value;
+            
+            try {
+                const params = new URLSearchParams();
+                if (account) params.append('account_number', account);
+                params.append('limit', '50');
+                
+                const response = await fetch(`/api/trade-journal/trades?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    tradesData = result.data;
+                    displayTrades(tradesData);
+                    updateSummary(tradesData);
+                    
+                    document.getElementById('journal-summary').style.display = 'block';
+                    document.getElementById('journal-trades').style.display = 'block';
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error">❌ Error loading trades: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error">❌ Error loading trades: ${error.message}</div>
+                `;
+            }
+        }
+
+        function displayTrades(trades) {
+            const container = document.getElementById('trades-container');
+            
+            if (trades.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8;">No trades found</div>';
+                return;
+            }
+            
+            container.innerHTML = trades.map(trade => `
+                <div class="trade-row">
+                    <div>${trade.underlying_symbol}</div>
+                    <div>${trade.strategy_type.replace('_', ' ')}</div>
+                    <div>${trade.entry_date ? new Date(trade.entry_date).toLocaleDateString() : '-'}</div>
+                    <div>${trade.dte_at_entry || '-'}</div>
+                    <div class="${trade.realized_pnl >= 0 ? 'positive' : 'negative'}">
+                        $${trade.realized_pnl ? trade.realized_pnl.toFixed(2) : '0.00'}
+                    </div>
+                    <div>${trade.pop_entry ? trade.pop_entry.toFixed(1) + '%' : '-'}</div>
+                    <div><span class="status-badge status-${trade.status}">${trade.status}</span></div>
+                    <div>${trade.days_held || '-'}</div>
+                    <div>📝</div>
+                </div>
+            `).join('');
+        }
+
+        function updateSummary(trades) {
+            const closedTrades = trades.filter(t => t.status === 'closed');
+            const winners = closedTrades.filter(t => t.winner);
+            const totalPnl = closedTrades.reduce((sum, t) => sum + (t.realized_pnl || 0), 0);
+            const avgPnl = closedTrades.length > 0 ? totalPnl / closedTrades.length : 0;
+            const winRate = closedTrades.length > 0 ? (winners.length / closedTrades.length) * 100 : 0;
+            
+            document.getElementById('summary-total-trades').textContent = trades.length;
+            document.getElementById('summary-win-rate').textContent = winRate.toFixed(1) + '%';
+            document.getElementById('summary-total-pnl').textContent = '$' + totalPnl.toFixed(2);
+            document.getElementById('summary-avg-pnl').textContent = '$' + avgPnl.toFixed(2);
+            
+            // Apply colors
+            document.getElementById('summary-total-pnl').className = 'summary-value ' + (totalPnl >= 0 ? 'positive' : 'negative');
+            document.getElementById('summary-avg-pnl').className = 'summary-value ' + (avgPnl >= 0 ? 'positive' : 'negative');
+        }
+
+        async function generateReport() {
+            const account = document.getElementById('journal-account').value;
+            const startDate = document.getElementById('journal-start-date').value;
+            const endDate = document.getElementById('journal-end-date').value;
+            
+            document.getElementById('journal-status').innerHTML = '<div class="loading">📊 Generating report...</div>';
+            
+            try {
+                const params = new URLSearchParams();
+                if (account) params.append('account_number', account);
+                if (startDate) params.append('start_date', startDate);
+                if (endDate) params.append('end_date', endDate);
+                
+                const response = await fetch(`/api/trade-journal/report?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // For now, just show a success message. In the future, we can display the full report
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="success">
+                            ✅ Report generated successfully!<br>
+                            Check console for detailed report data
+                        </div>
+                    `;
+                    console.log('Trade Journal Report:', result.data);
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error">❌ Error generating report: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error">❌ Error generating report: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function exportTrades() {
+            const account = document.getElementById('journal-account').value;
+            
+            document.getElementById('journal-status').innerHTML = '<div class="loading">📤 Exporting trades...</div>';
+            
+            try {
+                const params = new URLSearchParams();
+                if (account) params.append('account_number', account);
+                
+                const response = await fetch(`/api/trade-journal/export?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Create and download CSV file
+                    const blob = new Blob([result.data.csv_content], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = result.data.filename;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="success">✅ Trades exported successfully!</div>
+                    `;
+                } else {
+                    document.getElementById('journal-status').innerHTML = `
+                        <div class="error">❌ Error exporting trades: ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('journal-status').innerHTML = `
+                    <div class="error">❌ Error exporting trades: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Original dashboard functions (keep existing functionality)
+        let chart;
+        let currentData = null;
+
+        function refreshData() {
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => {
+                    currentData = data;
+                    updateStatsCards(data);
+                    updatePositionsTable(data);
+                    updateChart(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        function updateStatsCards(data) {
+            const statsGrid = document.getElementById('stats-grid');
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value portfolio-delta ${data.portfolio_delta >= 0 ? 'positive' : 'negative'}">${data.portfolio_delta.toFixed(1)}</div>
+                    <div class="stat-label">Portfolio Delta</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value ${data.total_pnl >= 0 ? 'positive' : 'negative'}">$${data.total_pnl.toLocaleString()}</div>
+                    <div class="stat-label">Total P&L</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value ${data.net_liquidity >= 0 ? 'positive' : 'negative'}">$${data.net_liquidity.toLocaleString()}</div>
+                    <div class="stat-label">Net Liquidity</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value neutral">${data.position_count}</div>
+                    <div class="stat-label">Positions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value short">$${Math.abs(data.short_premium).toLocaleString()}</div>
+                    <div class="stat-label">Short Premium</div>
+                </div>
+            `;
+        }
+
+        function updatePositionsTable(data) {
+            const container = document.getElementById('positions-container');
+            container.innerHTML = '';
+            
+            for (const [groupKey, group] of Object.entries(data.grouped_positions)) {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'group-row';
+                groupDiv.onclick = () => toggleGroup(groupKey);
+                
+                groupDiv.innerHTML = `
+                    <div class="group-header">
+                        <div>
+                            <span class="expand-icon" id="icon-${groupKey}">▶</span>
+                            ${group.symbol} (${group.positions.length} positions)
+                        </div>
+                        <div class="${group.total_delta >= 0 ? 'positive' : 'negative'}">${group.total_delta.toFixed(1)}</div>
+                        <div class="${group.total_market_delta >= 0 ? 'positive' : 'negative'}">${group.total_market_delta.toFixed(1)}</div>
+                        <div class="${group.delta_diff >= 0 ? 'positive' : 'negative'}">${group.delta_diff.toFixed(1)}</div>
+                        <div>$${group.underlying_price.toFixed(2)}</div>
+                        <div class="${group.total_pnl >= 0 ? 'positive' : 'negative'}">$${group.total_pnl.toFixed(0)}</div>
+                        <div class="${group.total_net_liq >= 0 ? 'positive' : 'negative'}">$${group.total_net_liq.toFixed(0)}</div>
+                        <div>${group.last_update}</div>
+                    </div>
+                `;
+                
+                const positionsDiv = document.createElement('div');
+                positionsDiv.id = `positions-${groupKey}`;
+                positionsDiv.style.display = 'none';
+                
+                group.positions.forEach(position => {
+                    const positionRow = document.createElement('div');
+                    positionRow.className = 'position-row';
+                    positionRow.innerHTML = `
+                        <div style="padding-left: 30px;">${position.streamer_symbol}</div>
+                        <div class="${position.delta >= 0 ? 'positive' : 'negative'}">${position.delta.toFixed(2)}</div>
+                        <div class="${position.market_delta >= 0 ? 'positive' : 'negative'}">${position.market_delta.toFixed(2)}</div>
+                        <div class="${position.delta_diff >= 0 ? 'positive' : 'negative'}">${position.delta_diff.toFixed(2)}</div>
+                        <div>$${position.mark_price.toFixed(2)}</div>
+                        <div class="${position.pnl >= 0 ? 'positive' : 'negative'}">$${position.pnl.toFixed(0)}</div>
+                        <div class="${position.net_liq >= 0 ? 'positive' : 'negative'}">$${position.net_liq.toFixed(0)}</div>
+                        <div>${position.last_update}</div>
+                    `;
+                    positionsDiv.appendChild(positionRow);
+                });
+                
+                container.appendChild(groupDiv);
+                container.appendChild(positionsDiv);
+            }
+        }
+
+        function toggleGroup(groupKey) {
+            const positionsDiv = document.getElementById(`positions-${groupKey}`);
+            const icon = document.getElementById(`icon-${groupKey}`);
+            
+            if (positionsDiv.style.display === 'none') {
+                positionsDiv.style.display = 'block';
+                icon.textContent = '▼';
+                icon.classList.add('expanded');
+            } else {
+                positionsDiv.style.display = 'none';
+                icon.textContent = '▶';
+                icon.classList.remove('expanded');
+            }
+        }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('deltaChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.chart_data.map(point => new Date(point.timestamp).toLocaleTimeString()),
+                    datasets: [{
+                        label: 'Portfolio Delta',
+                        data: data.chart_data.map(point => point.portfolio_delta),
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#94a3b8'
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#94a3b8'
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshData();
+            setInterval(refreshData, 5000);
+            
+            // Set default dates for trade journal
+            const today = new Date();
+            const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+            
+            document.getElementById('journal-start-date').value = oneMonthAgo.toISOString().split('T')[0];
+            document.getElementById('journal-end-date').value = today.toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>

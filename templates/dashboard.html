@@ -499,6 +499,194 @@
             margin: 10px 0;
         }
 
+        /* Position Chains Styles */
+        .chains-grid {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .underlying-group {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .chain-summary {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        
+        .chains-list {
+            margin-bottom: 15px;
+        }
+        
+        .chain-item {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .chain-item.put_credit_spread {
+            border-left: 4px solid #10b981;
+        }
+        
+        .chain-item.call_credit_spread {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .chain-item.call_debit_spread,
+        .chain-item.put_debit_spread {
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .chain-item.iron_condor {
+            border-left: 4px solid #8b5cf6;
+        }
+        
+        .chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .chain-type {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .chain-id {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+        
+        .chain-metrics {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        
+        .chain-legs {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
+        .single-options-list {
+            border-top: 1px solid #475569;
+            padding-top: 10px;
+        }
+        
+        .single-option-item {
+            display: flex;
+            gap: 10px;
+            padding: 8px;
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+        }
+        
+        .option-type {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .rules-summary {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .chains-with-rules {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .chain-rules-item {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        
+        .chain-info {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .rules-info {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        
+        .templates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .template-group {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .strategy-title {
+            color: #60a5fa;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .strategy-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        
+        .strategy-descriptions {
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+        
+        .rule-desc {
+            margin-bottom: 3px;
+        }
+        
+        .no-chains {
+            text-align: center;
+            padding: 30px;
+            color: #6b7280;
+            font-style: italic;
+        }
+
         /* Status badges for trade journal */
         .status-badge {
             padding: 4px 8px;
@@ -999,6 +1187,41 @@
                         <option value="5WX84566">Account 5WX84566</option>
                         <option value="5WU39639">Account 5WU39639</option>
                     </select>
+                </div>
+
+                <!-- Position Chains Section -->
+                <div class="screener-section">
+                    <h3 class="section-title">🔗 Position Chains & Strategy Detection</h3>
+                    <div class="screener-actions">
+                        <button id="detect-chains-btn" class="btn btn-primary">🔍 Detect Position Chains</button>
+                        <button id="apply-strategy-rules-btn" class="btn btn-secondary">🎯 Apply Strategy Rules</button>
+                        <button id="view-templates-btn" class="btn btn-secondary">📋 View Rule Templates</button>
+                        <span id="chains-status"></span>
+                    </div>
+                    
+                    <!-- Position Chains Results -->
+                    <div id="position-chains-section" style="display: none; margin-top: 20px;">
+                        <h4 style="color: #60a5fa; margin-bottom: 15px;">📊 Detected Position Chains</h4>
+                        <div id="position-chains-content">
+                            <!-- Position chains will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Strategy Rules Application Results -->
+                    <div id="strategy-rules-section" style="display: none; margin-top: 20px;">
+                        <h4 style="color: #10b981; margin-bottom: 15px;">🎯 Applied Strategy Rules</h4>
+                        <div id="strategy-rules-content">
+                            <!-- Strategy rules results will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Rule Templates Display -->
+                    <div id="rule-templates-section" style="display: none; margin-top: 20px;">
+                        <h4 style="color: #8b5cf6; margin-bottom: 15px;">📋 Available Rule Templates</h4>
+                        <div id="rule-templates-content">
+                            <!-- Rule templates will be populated here -->
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Position Rules Summary -->
@@ -2902,6 +3125,9 @@
             // Load initial data
             loadPositionRulesSummary();
             loadPositionsList();
+            
+            // Initialize position chains functionality
+            initializePositionChains();
         }
         
         function loadPositionRulesSummary() {
@@ -3188,6 +3414,249 @@
             `;
             
             $('#monitoring-results-content').html(resultsHtml);
+        }
+        
+        // Position Chains Functions
+        function initializePositionChains() {
+            // Detect chains button
+            $('#detect-chains-btn').on('click', function() {
+                detectPositionChains();
+            });
+            
+            // Apply strategy rules button
+            $('#apply-strategy-rules-btn').on('click', function() {
+                applyStrategyRules();
+            });
+            
+            // View templates button
+            $('#view-templates-btn').on('click', function() {
+                viewRuleTemplates();
+            });
+        }
+        
+        function detectPositionChains() {
+            $('#chains-status').html('<span style="color: #fbbf24;">🔍 Detecting position chains...</span>');
+            
+            // Get account filter
+            const accountNumber = $('#position-account-select').val();
+            const params = accountNumber ? `?accounts=${accountNumber}` : '';
+            
+            fetch(`/api/position-chains${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || 'Failed to detect chains');
+                    }
+                    
+                    $('#chains-status').html('<span style="color: #10b981;">✅ Position chains detected</span>');
+                    displayPositionChains(data.chains);
+                })
+                .catch(error => {
+                    console.error('❌ Position chains error:', error);
+                    $('#chains-status').html(`<span style="color: #ef4444;">❌ Error: ${error.message}</span>`);
+                });
+        }
+        
+        function displayPositionChains(chains) {
+            let chainsHtml = '';
+            
+            if (Object.keys(chains).length === 0) {
+                chainsHtml = '<div class="no-chains">No position chains detected.</div>';
+            } else {
+                chainsHtml = '<div class="chains-grid">';
+                
+                for (const [underlying, chainData] of Object.entries(chains)) {
+                    chainsHtml += `
+                        <div class="underlying-group">
+                            <h5 style="color: #60a5fa; margin-bottom: 10px;">${underlying}</h5>
+                            <div class="chain-summary">
+                                <span>Detected Chains: ${chainData.chains.length}</span>
+                                <span>Single Options: ${chainData.single_options.length}</span>
+                                <span>Total Positions: ${chainData.total_positions}</span>
+                            </div>
+                    `;
+                    
+                    // Display chains
+                    if (chainData.chains.length > 0) {
+                        chainsHtml += '<div class="chains-list">';
+                        chainData.chains.forEach(chain => {
+                            const metrics = chain.metrics || {};
+                            chainsHtml += `
+                                <div class="chain-item ${chain.chain_type}">
+                                    <div class="chain-header">
+                                        <span class="chain-type">${chain.chain_type.replace('_', ' ').toUpperCase()}</span>
+                                        <span class="chain-id">${chain.description}</span>
+                                    </div>
+                                    <div class="chain-metrics">
+                                        ${metrics.net_premium ? `<span>Premium: $${metrics.net_premium.toFixed(2)}</span>` : ''}
+                                        ${metrics.max_profit ? `<span>Max Profit: $${metrics.max_profit.toFixed(2)}</span>` : ''}
+                                        ${metrics.max_loss ? `<span>Max Loss: $${metrics.max_loss.toFixed(2)}</span>` : ''}
+                                        ${metrics.days_to_expiration ? `<span>DTE: ${metrics.days_to_expiration}</span>` : ''}
+                                    </div>
+                                    <div class="chain-legs">
+                                        Legs: ${chain.legs.length}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        chainsHtml += '</div>';
+                    }
+                    
+                    // Display single options
+                    if (chainData.single_options.length > 0) {
+                        chainsHtml += '<div class="single-options-list">';
+                        chainsHtml += '<h6 style="color: #94a3b8; margin: 10px 0 5px 0;">Single Options:</h6>';
+                        chainData.single_options.forEach(option => {
+                            const metrics = option.metrics || {};
+                            chainsHtml += `
+                                <div class="single-option-item">
+                                    <span class="option-type">${option.chain_type.replace('_', ' ').toUpperCase()}</span>
+                                    <span class="option-desc">${option.description}</span>
+                                    ${metrics.net_liq ? `<span>P&L: $${metrics.net_liq.toFixed(2)}</span>` : ''}
+                                </div>
+                            `;
+                        });
+                        chainsHtml += '</div>';
+                    }
+                    
+                    chainsHtml += '</div>'; // Close underlying-group
+                }
+                
+                chainsHtml += '</div>'; // Close chains-grid
+            }
+            
+            $('#position-chains-content').html(chainsHtml);
+            $('#position-chains-section').show();
+        }
+        
+        function applyStrategyRules() {
+            $('#chains-status').html('<span style="color: #fbbf24;">🎯 Applying strategy rules...</span>');
+            
+            fetch('/api/position-chains/apply-rules', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || 'Failed to apply strategy rules');
+                    }
+                    
+                    $('#chains-status').html('<span style="color: #10b981;">✅ Strategy rules applied</span>');
+                    displayStrategyRulesResults(data.rules_applied);
+                })
+                .catch(error => {
+                    console.error('❌ Strategy rules error:', error);
+                    $('#chains-status').html(`<span style="color: #ef4444;">❌ Error: ${error.message}</span>`);
+                });
+        }
+        
+        function displayStrategyRulesResults(results) {
+            let resultsHtml = '';
+            
+            if (results.error) {
+                resultsHtml = `<div class="error">❌ Error: ${results.error}</div>`;
+            } else {
+                resultsHtml = `
+                    <div class="rules-summary">
+                        <div class="summary-stats">
+                            <span>Chains Processed: ${results.total_chains_processed}</span>
+                            <span>Rules Created: ${results.rules_created}</span>
+                            <span>Chains with Rules: ${results.chains_with_rules.length}</span>
+                        </div>
+                `;
+                
+                if (results.chains_with_rules.length > 0) {
+                    resultsHtml += '<div class="chains-with-rules">';
+                    results.chains_with_rules.forEach(chain => {
+                        resultsHtml += `
+                            <div class="chain-rules-item">
+                                <div class="chain-info">
+                                    <span class="chain-type">${chain.chain_type.replace('_', ' ').toUpperCase()}</span>
+                                    <span class="chain-desc">${chain.description}</span>
+                                </div>
+                                <div class="rules-info">
+                                    <span>Rules Applied: ${chain.rules_applied}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    resultsHtml += '</div>';
+                }
+                
+                if (results.errors && results.errors.length > 0) {
+                    resultsHtml += '<div class="rule-errors">';
+                    resultsHtml += '<h6 style="color: #ef4444;">Errors:</h6>';
+                    results.errors.forEach(error => {
+                        resultsHtml += `<div class="error-item">${error}</div>`;
+                    });
+                    resultsHtml += '</div>';
+                }
+                
+                resultsHtml += '</div>';
+            }
+            
+            $('#strategy-rules-content').html(resultsHtml);
+            $('#strategy-rules-section').show();
+            
+            // Refresh the position rules summary
+            loadPositionRulesSummary();
+        }
+        
+        function viewRuleTemplates() {
+            $('#chains-status').html('<span style="color: #fbbf24;">📋 Loading rule templates...</span>');
+            
+            fetch('/api/strategy-rules/templates')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || 'Failed to load templates');
+                    }
+                    
+                    $('#chains-status').html('<span style="color: #10b981;">✅ Rule templates loaded</span>');
+                    displayRuleTemplates(data.templates);
+                })
+                .catch(error => {
+                    console.error('❌ Rule templates error:', error);
+                    $('#chains-status').html(`<span style="color: #ef4444;">❌ Error: ${error.message}</span>`);
+                });
+        }
+        
+        function displayRuleTemplates(templates) {
+            let templatesHtml = '';
+            
+            if (templates.error) {
+                templatesHtml = `<div class="error">❌ Error: ${templates.error}</div>`;
+            } else {
+                templatesHtml = `
+                    <div class="templates-summary">
+                        <div class="summary-header">
+                            <span>Strategy Types: ${templates.total_strategy_types}</span>
+                        </div>
+                    </div>
+                    <div class="templates-grid">
+                `;
+                
+                for (const [strategyType, strategyInfo] of Object.entries(templates.strategies)) {
+                    templatesHtml += `
+                        <div class="template-group">
+                            <h6 class="strategy-title">${strategyType.replace(/_/g, ' ').toUpperCase()}</h6>
+                            <div class="strategy-stats">
+                                <span>Total Rules: ${strategyInfo.total_rules}</span>
+                                <span>Types: ${strategyInfo.rule_types.join(', ')}</span>
+                            </div>
+                            <div class="strategy-descriptions">
+                                ${strategyInfo.descriptions.map(desc => `<div class="rule-desc">• ${desc}</div>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                templatesHtml += '</div>';
+            }
+            
+            $('#rule-templates-content').html(templatesHtml);
+            $('#rule-templates-section').show();
         }
         
         // Trade Journal Functions

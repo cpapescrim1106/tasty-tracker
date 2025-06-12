@@ -12,6 +12,9 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
+# Import strategy rules engine
+from strategy_rules_templates import StrategyRulesEngine
+
 @dataclass
 class PositionRule:
     """Stop-loss and profit-taking rule configuration"""
@@ -90,6 +93,9 @@ class PositionManager:
         self.daily_trade_count = 0
         self.last_monitoring_check = datetime.now()
         self.position_history = {}
+        
+        # Strategy rules engine
+        self.rules_engine = StrategyRulesEngine()
     
     def add_position_rule(self, position_key: str, rule_config: Dict[str, Any]) -> str:
         """Add a new position management rule"""
@@ -448,3 +454,73 @@ class PositionManager:
         except Exception as e:
             self.logger.error(f"❌ Error creating sample rules: {e}")
             raise
+    
+    def apply_strategy_rules_to_chains(self, position_chains: Dict[str, Dict]) -> Dict[str, Any]:
+        """Apply automatic strategy rules to detected position chains"""
+        try:
+            results = {
+                'total_chains_processed': 0,
+                'rules_created': 0,
+                'chains_with_rules': [],
+                'errors': []
+            }
+            
+            for underlying, chain_data in position_chains.items():
+                chains = chain_data.get('chains', [])
+                
+                for chain in chains:
+                    try:
+                        results['total_chains_processed'] += 1
+                        
+                        # Convert chain object to dictionary for rules engine
+                        chain_dict = {
+                            'chain_id': chain.chain_id,
+                            'chain_type': chain.chain_type,
+                            'description': chain.description,
+                            'legs': chain.legs,
+                            'metrics': chain.metrics
+                        }
+                        
+                        # Apply strategy rules
+                        created_rules = self.rules_engine.apply_templates_to_chain(
+                            chain_dict, self
+                        )
+                        
+                        if created_rules:
+                            results['rules_created'] += len(created_rules)
+                            results['chains_with_rules'].append({
+                                'chain_id': chain.chain_id,
+                                'chain_type': chain.chain_type,
+                                'description': chain.description,
+                                'rules_applied': len(created_rules),
+                                'rule_ids': created_rules
+                            })
+                            
+                            self.logger.info(f"🎯 Applied {len(created_rules)} rules to {chain.description}")
+                        
+                    except Exception as e:
+                        error_msg = f"Error applying rules to chain {chain.chain_id}: {e}"
+                        results['errors'].append(error_msg)
+                        self.logger.error(f"❌ {error_msg}")
+            
+            # Log summary
+            self.logger.info(f"📊 Strategy rules applied: {results['rules_created']} rules "
+                           f"across {len(results['chains_with_rules'])} chains")
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error applying strategy rules to chains: {e}")
+            return {
+                'error': str(e),
+                'total_chains_processed': 0,
+                'rules_created': 0
+            }
+    
+    def get_strategy_rules_summary(self) -> Dict[str, Any]:
+        """Get summary of available strategy rule templates"""
+        try:
+            return self.rules_engine.get_template_summary()
+        except Exception as e:
+            self.logger.error(f"❌ Error getting strategy rules summary: {e}")
+            return {'error': str(e)}

@@ -42,6 +42,11 @@ class DeltaTracker:
     QUOTE_BID_PRICE_IDX = 7
     QUOTE_ASK_PRICE_IDX = 11
     QUOTE_RECORD_SIZE = 13
+    
+    TRADE_SYMBOL_IDX = 1
+    TRADE_PRICE_IDX = 7
+    TRADE_SIZE_IDX = 8
+    TRADE_RECORD_SIZE = 12
     # --- End of Constants ---
 
     def __init__(self):
@@ -65,6 +70,10 @@ class DeltaTracker:
         # Websocket and streaming state
         self.websocket = None
         self.running = False
+        
+        # Position chain detection and management
+        self.chain_detector = PositionChainDetector()
+        self.position_manager = PositionManager(self)
 
     def _get_login_credentials(self):
         login = os.getenv("TASTYTRADE_LOGIN")
@@ -144,11 +153,17 @@ class DeltaTracker:
                             'notional': 0, # will be calculated
                             'delta': 1.0 if pos.instrument_type == 'Equity' else 0,
                             'position_delta': quantity if pos.instrument_type == 'Equity' else 0,
-                            'net_liq': mark_price * quantity * (100 if pos.instrument_type == 'Equity Option' else 1)
+                            'net_liq': mark_price * quantity * (100 if pos.instrument_type == 'Equity Option' else 1),
+                            # Enhanced fields for position chain detection
+                            'created_at': pos.created_at.isoformat() if pos.created_at else None,
+                            'updated_at': pos.updated_at.isoformat() if pos.updated_at else None,
+                            'cost_effect': getattr(pos, 'cost_effect', None),
+                            'average_open_price': float(pos.average_open_price) if pos.average_open_price else None,
+                            'expires_at': pos.expires_at.isoformat() if pos.expires_at else None
                         }
 
-            # Set fallback underlying prices from CSV data
-            self._set_csv_underlying_prices()
+            # Fetch live underlying prices from TastyTrade API
+            self._fetch_underlying_prices_from_api()
 
             logging.info(f"✅ Position loading complete. Total loaded: {len(self.positions)}")
             return len(self.positions) > 0
@@ -177,32 +192,103 @@ class DeltaTracker:
             logging.error(f"Error converting {occ_symbol}: {e}")
             return None
 
-    def _set_csv_underlying_prices(self):
-        """Set underlying prices from CSV data as fallback since Quote feeds aren't working"""
-        csv_prices = {
-            'AMD': 123.68,
-            'HOOD': 71.69, 
-            'IBIT': 61.90,
-            'AMZN': 216.37,
-            'ASML': 787.68,
-            'GOOGL': 179.75,
-            'META': 698.65,
-            'PYPL': 74.85,
-            'QQQ': 532.85,
-            'SHOP': 109.14,
-            'SOFI': 14.30,
-            'TSLA': 317.05
-        }
+    def _fetch_underlying_prices_from_api(self):
+        """Fetch live underlying prices from TastyTrade API using last traded price (matches platform interface)
         
-        with self.prices_lock:
-            for symbol, price in csv_prices.items():
-                self.underlying_prices[symbol] = price
-                logging.info(f"📊 Set fallback price for {symbol}: ${price:.2f}")
-        
-        # Immediately recalculate notionals to update stock prices
-        self._recalculate_notionals()
-        
-        logging.info(f"✅ Set {len(csv_prices)} fallback underlying prices from CSV data")
+        Priority order: last price → mark price → (bid+ask)/2
+        Works during market hours and preserves last quoted price after-hours
+        """
+        try:
+            if not self.tasty_client:
+                logging.warning("⚠️ TastyTrade session not available for price fetching")
+                return
+            
+            # Get all unique underlying symbols from current positions
+            underlying_symbols = set()
+            with self.positions_lock:
+                for pos in self.positions.values():
+                    if pos.get('underlying_symbol'):
+                        underlying_symbols.add(pos['underlying_symbol'])
+            
+            if not underlying_symbols:
+                logging.info("📊 No underlying symbols found in positions")
+                return
+            
+            # Fetch market data using TastyTrade API
+            headers = {
+                'Authorization': self.tasty_client.session_token,
+                'Content-Type': 'application/json'
+            }
+            
+            # Build equity parameter - TastyTrade expects comma-separated symbols
+            equity_symbols = ','.join(underlying_symbols)
+            
+            import requests
+            response = requests.get(
+                f"https://api.tastyworks.com/market-data/by-type",
+                params={'equity': equity_symbols},
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get('data', {}).get('items', [])
+                
+                fetched_count = 0
+                with self.prices_lock:
+                    for item in items:
+                        symbol = item.get('symbol')
+                        mark_price = item.get('mark')
+                        last_price = item.get('last')
+                        bid_price = item.get('bid')
+                        ask_price = item.get('ask')
+                        
+                        # Priority: last price → mark price → (bid+ask)/2
+                        price_source = "unknown"
+                        final_price = None
+                        
+                        if last_price is not None:
+                            try:
+                                final_price = float(last_price)
+                                price_source = "last"
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        if final_price is None and mark_price is not None:
+                            try:
+                                final_price = float(mark_price)
+                                price_source = "mark"
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        if final_price is None and bid_price is not None and ask_price is not None:
+                            try:
+                                bid = float(bid_price)
+                                ask = float(ask_price)
+                                if bid > 0 and ask > 0 and ask >= bid:
+                                    final_price = (bid + ask) / 2
+                                    price_source = "mid"
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        if symbol and final_price is not None:
+                            self.underlying_prices[symbol] = final_price
+                            logging.info(f"📊 {price_source.upper()} price for {symbol}: ${final_price:.2f}")
+                            fetched_count += 1
+                        elif symbol:
+                            logging.warning(f"⚠️ No valid price data for {symbol}: mark={mark_price}, last={last_price}, bid={bid_price}, ask={ask_price}")
+                
+                # Recalculate notionals with new prices
+                self._recalculate_notionals()
+                
+                logging.info(f"✅ Fetched {fetched_count} underlying prices from TastyTrade API (prioritizing last prices)")
+                
+            else:
+                logging.error(f"❌ Failed to fetch market data: {response.status_code} - {response.text}")
+                
+        except Exception as e:
+            logging.error(f"❌ Error fetching underlying prices from API: {e}")
+            # No fallback - let positions show with 0 price if API fails
 
     async def _connect_and_subscribe(self):
         try:
@@ -253,8 +339,11 @@ class DeltaTracker:
                             else:
                                 logging.warning(f"⚠️ Could not convert symbol: {pos['symbol_occ']}")
                 
-                # Subscribe to underlying quotes
-                underlying_subscriptions = [{"symbol": s, "type": "Quote"} for s in underlying_symbols]
+                # Subscribe to underlying quotes and trades (for real-time last price)
+                underlying_subscriptions = []
+                for s in underlying_symbols:
+                    underlying_subscriptions.append({"symbol": s, "type": "Quote"})
+                    underlying_subscriptions.append({"symbol": s, "type": "Trade"})
                 
                 all_subscriptions = option_subscriptions + underlying_subscriptions
                 
@@ -357,6 +446,38 @@ class DeltaTracker:
                         i += self.QUOTE_RECORD_SIZE
                     else:
                         i += 1
+                        
+            elif event_type == 'Trade':
+                trade_data = events[1]
+                i = 0
+                while i < len(trade_data):
+                    if i + 1 < len(trade_data) and trade_data[i] == 'Trade':
+                        symbol = trade_data[i + self.TRADE_SYMBOL_IDX]
+                        
+                        # Trade structure - look for last trade price
+                        if i + self.TRADE_RECORD_SIZE <= len(trade_data):
+                            try:
+                                last_trade_price = trade_data[i + self.TRADE_PRICE_IDX]
+                                trade_size = trade_data[i + self.TRADE_SIZE_IDX]
+                                
+                                if (symbol and last_trade_price is not None and 
+                                    isinstance(last_trade_price, (int, float)) and last_trade_price > 0):
+                                    
+                                    # Update underlying prices with real-time last trade price
+                                    with self.prices_lock:
+                                        old_price = self.underlying_prices.get(symbol, 0)
+                                        self.underlying_prices[symbol] = float(last_trade_price)
+                                        
+                                        # Log significant price changes
+                                        if abs(float(last_trade_price) - old_price) > 0.01:  # Only log changes > 1 cent
+                                            logging.info(f"🔄 TRADE update {symbol}: ${float(last_trade_price):.2f} (size: {trade_size})")
+                                
+                            except (IndexError, TypeError, ValueError):
+                                pass  # Skip malformed trade data
+                        
+                        i += self.TRADE_RECORD_SIZE
+                    else:
+                        i += 1
             
             self._recalculate_notionals()
             
@@ -447,6 +568,10 @@ class DeltaTracker:
             logging.info("Attempting to reconnect in 10 seconds...")
             await asyncio.sleep(10)
 
+# Import position chain detector and manager
+from position_chain_detector import PositionChainDetector
+from position_manager import PositionManager
+
 # --- Flask App and Endpoints ---
 app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
@@ -474,6 +599,138 @@ def api_data():
     
     # Filter data by requested accounts
     return jsonify(tracker.get_dashboard_data(filter_accounts=requested_accounts))
+
+@app.route('/api/position-chains')
+def api_position_chains():
+    """Get positions grouped by detected chains"""
+    try:
+        # Get account filter from query parameters
+        requested_accounts = request.args.getlist('accounts')
+        
+        # Get current positions
+        dashboard_data = tracker.get_dashboard_data(filter_accounts=requested_accounts)
+        positions = dashboard_data.get('positions', [])
+        
+        # Convert positions list to dictionary format expected by chain detector
+        positions_dict = {}
+        for pos in positions:
+            if not pos.get('is_summary', False):  # Skip summary rows
+                # Create position key
+                account_num = pos.get('account_number', 'unknown')
+                symbol = pos.get('symbol_occ', pos.get('underlying_symbol', 'unknown'))
+                pos_key = f"{account_num}:{symbol}"
+                positions_dict[pos_key] = pos
+        
+        # Detect chains
+        detected_chains = tracker.chain_detector.detect_chains(positions_dict)
+        
+        return jsonify({
+            'success': True,
+            'total_underlyings': len(detected_chains),
+            'chains': detected_chains,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error getting position chains: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/position-chains/apply-rules', methods=['POST'])
+def api_apply_strategy_rules():
+    """Apply automatic strategy rules to position chains"""
+    try:
+        # Get current position chains
+        dashboard_data = tracker.get_dashboard_data()
+        positions = dashboard_data.get('positions', [])
+        
+        # Convert positions to dictionary format
+        positions_dict = {}
+        for pos in positions:
+            if not pos.get('is_summary', False):
+                account_num = pos.get('account_number', 'unknown')
+                symbol = pos.get('symbol_occ', pos.get('underlying_symbol', 'unknown'))
+                pos_key = f"{account_num}:{symbol}"
+                positions_dict[pos_key] = pos
+        
+        # Detect chains
+        detected_chains = tracker.chain_detector.detect_chains(positions_dict)
+        
+        # Apply strategy rules
+        results = tracker.position_manager.apply_strategy_rules_to_chains(detected_chains)
+        
+        return jsonify({
+            'success': True,
+            'rules_applied': results,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error applying strategy rules: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/position-manager/rules')
+def api_position_manager_rules():
+    """Get position manager rules summary"""
+    try:
+        account_filter = request.args.get('account')
+        summary = tracker.position_manager.get_position_rules_summary(account_filter)
+        
+        return jsonify({
+            'success': True,
+            'rules_summary': summary,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error getting position manager rules: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/strategy-rules/templates')
+def api_strategy_rules_templates():
+    """Get available strategy rule templates"""
+    try:
+        templates = tracker.position_manager.get_strategy_rules_summary()
+        
+        return jsonify({
+            'success': True,
+            'templates': templates,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error getting strategy rule templates: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/position-manager/monitor')
+def api_position_monitor():
+    """Run position monitoring and get alerts"""
+    try:
+        monitoring_results = tracker.position_manager.monitor_all_positions()
+        
+        return jsonify({
+            'success': True,
+            'monitoring': monitoring_results,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error monitoring positions: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 def run_async_tracker():
     loop = asyncio.new_event_loop()
