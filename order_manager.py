@@ -15,6 +15,18 @@ from enum import Enum
 
 # Tastytrade imports
 from tastytrade import Session
+from tastytrade.order import OrderAction
+
+class OrderJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder for order objects"""
+    def default(self, obj):
+        if isinstance(obj, Enum):
+            return obj.value
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if hasattr(obj, '__dict__'):
+            return obj.__dict__
+        return super().default(obj)
 
 class OrderStatus(Enum):
     """Order status enumeration"""
@@ -24,13 +36,6 @@ class OrderStatus(Enum):
     CANCELLED = "cancelled"
     REJECTED = "rejected"
     PARTIAL = "partial"
-
-class OrderAction(Enum):
-    """Order action enumeration"""
-    BUY_TO_OPEN = "Buy to Open"
-    SELL_TO_OPEN = "Sell to Open"
-    BUY_TO_CLOSE = "Buy to Close"
-    SELL_TO_CLOSE = "Sell to Close"
 
 @dataclass
 class OrderLeg:
@@ -76,6 +81,34 @@ class OrderManager:
         # Default order settings
         self.default_time_in_force = "Day"
         self.default_order_type = "Limit"
+    
+    def _order_to_dict(self, order: TradeOrder) -> Dict[str, Any]:
+        """Convert a TradeOrder object to a JSON-serializable dictionary"""
+        return {
+            'order_id': order.order_id,
+            'account_number': order.account_number,
+            'symbol': order.symbol,
+            'strategy_type': order.strategy_type,
+            'legs': [
+                {
+                    'symbol': leg.symbol,
+                    'quantity': leg.quantity,
+                    'action': leg.action.value if isinstance(leg.action, Enum) else leg.action,
+                    'order_type': leg.order_type,
+                    'price': leg.price
+                }
+                for leg in order.legs
+            ],
+            'order_type': order.order_type,
+            'price_type': order.price_type,
+            'price': order.price,
+            'quantity': order.quantity,
+            'time_in_force': order.time_in_force,
+            'status': order.status.value if isinstance(order.status, Enum) else order.status,
+            'created_at': order.created_at.isoformat() if order.created_at else None,
+            'filled_at': order.filled_at.isoformat() if order.filled_at else None,
+            'error_message': order.error_message
+        }
         
     def create_put_credit_spread_order(self, account_number: str, strategy_data: Dict[str, Any], 
                                      quantity: int = 1, price_adjustment: float = 0.0) -> TradeOrder:
@@ -195,6 +228,9 @@ class OrderManager:
             # Build order payload
             order_payload = self._build_order_payload(order, dry_run=True)
             
+            # Debug logging
+            self.logger.info(f"🔍 Dry run payload for {order.symbol}: {json.dumps(order_payload, indent=2)}")
+            
             response = requests.post(
                 f"{self.base_url}/accounts/{order.account_number}/orders/dry-run",
                 headers=headers,
@@ -214,6 +250,7 @@ class OrderManager:
                 error_data = response.json() if response.content else {}
                 error_msg = error_data.get('error', {}).get('message', f"HTTP {response.status_code}")
                 self.logger.error(f"❌ Dry run failed for {order.symbol}: {error_msg}")
+                self.logger.error(f"❌ Full error response: {json.dumps(error_data, indent=2)}")
                 return {
                     'success': False,
                     'message': f'Dry run failed: {error_msg}',
@@ -311,15 +348,8 @@ class OrderManager:
                 "quantity": str(leg.quantity)
             }
             
-            # Map action to Tastytrade format
-            if leg.action == OrderAction.BUY_TO_OPEN:
-                leg_data["action"] = "BTO"
-            elif leg.action == OrderAction.SELL_TO_OPEN:
-                leg_data["action"] = "STO"
-            elif leg.action == OrderAction.BUY_TO_CLOSE:
-                leg_data["action"] = "BTC"
-            elif leg.action == OrderAction.SELL_TO_CLOSE:
-                leg_data["action"] = "STC"
+            # Use the full action string value
+            leg_data["action"] = leg.action.value
             
             legs_payload.append(leg_data)
         
@@ -473,7 +503,7 @@ class OrderManager:
                     
                     order_result = {
                         'symbol': strategy.get('underlying_symbol'),
-                        'order': order,
+                        'order': self._order_to_dict(order),
                         'dry_run': dry_run_result,
                         'submission': submit_result
                     }
@@ -490,7 +520,7 @@ class OrderManager:
                     
                     order_result = {
                         'symbol': strategy.get('underlying_symbol'),
-                        'order': order,
+                        'order': self._order_to_dict(order),
                         'dry_run': dry_run_result,
                         'submission': {'success': False, 'message': 'Skipped due to dry run failure'}
                     }
