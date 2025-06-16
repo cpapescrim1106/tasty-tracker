@@ -8,11 +8,14 @@ import os
 import logging
 import requests
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from flask import jsonify, request
+from typing import Dict, List, Optional, Any, Tuple
+from flask import jsonify, request, render_template
 
 # Tastytrade imports
 from tastytrade import Session, Account
+
+# Local imports
+from sector_classifier import SectorClassifier
 
 class ScreenerEngine:
     """Main screener engine for fetching and analyzing market data"""
@@ -28,6 +31,61 @@ class ScreenerEngine:
         
         # Setup logging
         self.logger = logging.getLogger(__name__)
+        
+        # Initialize sector classifier
+        self.sector_classifier = SectorClassifier()
+        
+        # Portfolio management settings - per account limits
+        self.account_active_trading_limits = {
+            '5WX84566': 30000,  # $30K for account 566
+            '5WU39639': 0       # $0 for account 639 (no active trading)
+        }
+        
+        # Manual long-term position flags - stored as {account:symbol: is_long_term}
+        self.long_term_position_flags = self._load_long_term_flags()
+    
+    def _load_long_term_flags(self) -> Dict[str, bool]:
+        """Load manual long-term position flags from JSON file"""
+        try:
+            import os
+            flags_file = "long_term_flags.json"
+            if os.path.exists(flags_file):
+                with open(flags_file, 'r') as f:
+                    import json
+                    flags = json.load(f)
+                self.logger.info(f"📊 Loaded {len(flags)} long-term position flags")
+                return flags
+            else:
+                self.logger.info("📁 No long-term flags file found, starting fresh")
+                return {}
+        except Exception as e:
+            self.logger.error(f"❌ Failed to load long-term flags: {e}")
+            return {}
+    
+    def _save_long_term_flags(self) -> None:
+        """Save manual long-term position flags to JSON file"""
+        try:
+            import json
+            with open("long_term_flags.json", 'w') as f:
+                json.dump(self.long_term_position_flags, f, indent=2)
+            self.logger.debug(f"💾 Saved {len(self.long_term_position_flags)} long-term flags")
+        except Exception as e:
+            self.logger.error(f"❌ Failed to save long-term flags: {e}")
+    
+    def set_position_long_term_flag(self, account: str, symbol: str, is_long_term: bool) -> None:
+        """Set manual long-term flag for a position"""
+        position_key = f"{account}:{symbol}"
+        if is_long_term:
+            self.long_term_position_flags[position_key] = True
+        else:
+            self.long_term_position_flags.pop(position_key, None)
+        self._save_long_term_flags()
+        self.logger.info(f"🏷️ Set {position_key} long-term flag: {is_long_term}")
+    
+    def is_position_long_term(self, account: str, symbol: str) -> bool:
+        """Check if position is manually flagged as long-term"""
+        position_key = f"{account}:{symbol}"
+        return self.long_term_position_flags.get(position_key, False)
     
     @property
     def tasty_client(self):
@@ -80,6 +138,386 @@ class ScreenerEngine:
         except Exception as e:
             self.logger.error(f"❌ Error fetching watchlists: {e}")
             return []
+    
+    def get_sector_watchlists(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Get all watchlists starting with 'Sector' and categorize them"""
+        try:
+            all_watchlists = self.get_watchlists()
+            sector_watchlists = [w for w in all_watchlists if w['name'].startswith('Sector')]
+            
+            # Define non-equity sector names
+            non_equity_names = ['Commodities', 'Currencies', 'Bonds', 'Futures', 'Volatility', 'Crypto']
+            
+            # Categorize as equity vs non-equity
+            equity_sectors = []
+            non_equity_sectors = []
+            
+            for wl in sector_watchlists:
+                # Extract sector name (remove 'Sector ' prefix)
+                sector_name = wl['name'].replace('Sector ', '').strip()
+                
+                sector_data = {
+                    'name': sector_name,
+                    'symbols': wl['symbols'],
+                    'count': len(wl['symbols'])
+                }
+                
+                # Check if it's a non-equity sector
+                if any(ne in sector_name for ne in non_equity_names):
+                    non_equity_sectors.append(sector_data)
+                else:
+                    equity_sectors.append(sector_data)
+            
+            self.logger.info(f"📊 Found {len(equity_sectors)} equity sectors and {len(non_equity_sectors)} non-equity sectors")
+            return equity_sectors, non_equity_sectors
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error getting sector watchlists: {e}")
+            return [], []
+    
+    def calculate_sector_rankings(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Calculate IV_EDGE scores for each sector"""
+        try:
+            equity_sectors, non_equity_sectors = self.get_sector_watchlists()
+            
+            if not equity_sectors and not non_equity_sectors:
+                self.logger.warning("⚠️ No sector watchlists found")
+                return {'equity_sectors': [], 'non_equity_sectors': []}
+            
+            # Calculate scores for equity sectors
+            equity_rankings = []
+            for sector in equity_sectors:
+                score = self._calculate_sector_score(sector['symbols'], sector['name'])
+                if score is not None:
+                    equity_rankings.append({
+                        'name': sector['name'],
+                        'score': score,
+                        'symbol_count': sector['count']
+                    })
+            
+            # Calculate scores for non-equity sectors
+            non_equity_rankings = []
+            for sector in non_equity_sectors:
+                score = self._calculate_sector_score(sector['symbols'], sector['name'])
+                if score is not None:
+                    non_equity_rankings.append({
+                        'name': sector['name'],
+                        'score': score,
+                        'symbol_count': sector['count']
+                    })
+            
+            # Sort by score descending
+            equity_rankings.sort(key=lambda x: x['score'], reverse=True)
+            non_equity_rankings.sort(key=lambda x: x['score'], reverse=True)
+            
+            # Return top 6 equity and top 4 non-equity
+            result = {
+                'equity_sectors': equity_rankings[:6],
+                'non_equity_sectors': non_equity_rankings[:4],
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            self.logger.info(f"✅ Calculated sector rankings: {len(result['equity_sectors'])} equity, {len(result['non_equity_sectors'])} non-equity")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error calculating sector rankings: {e}")
+            return {'equity_sectors': [], 'non_equity_sectors': []}
+    
+    def _calculate_sector_score(self, symbols: List[str], sector_name: str) -> Optional[float]:
+        """
+        Calculate IV_EDGE score for a sector based on its constituent symbols
+        Formula: 30% IV Rank + 25% σ30 + 25% IV 5-day change + 20% SPY decorrelation
+        """
+        try:
+            if not symbols:
+                self.logger.warning(f"⚠️ No symbols for sector {sector_name}")
+                return None
+            
+            # Collect metrics for all symbols in sector
+            sector_metrics = []
+            
+            for symbol in symbols[:10]:  # Limit to top 10 symbols per sector for performance
+                metrics = self.get_market_metrics(symbol)
+                if metrics and metrics.get('implied_volatility_rank') is not None:
+                    sector_metrics.append(metrics)
+            
+            if not sector_metrics:
+                self.logger.warning(f"⚠️ No valid metrics for sector {sector_name}")
+                return None
+            
+            # Calculate average metrics for the sector
+            avg_iv_rank = sum(m.get('implied_volatility_rank', 0) for m in sector_metrics) / len(sector_metrics)
+            avg_hv_30 = sum(m.get('historical_volatility_30_day', 0) for m in sector_metrics) / len(sector_metrics)
+            avg_iv_5d_change = sum(m.get('implied_volatility_index_5_day_change', 0) for m in sector_metrics) / len(sector_metrics)
+            
+            # For SPY decorrelation, we'll use beta as a proxy (lower beta = higher decorrelation)
+            avg_beta = sum(abs(m.get('beta', 1.0)) for m in sector_metrics) / len(sector_metrics)
+            spy_decorrelation = max(0, 100 - (avg_beta * 50))  # Convert beta to decorrelation score
+            
+            # Calculate IV_EDGE score
+            iv_edge_score = (
+                0.30 * avg_iv_rank +           # 30% IV Rank
+                0.25 * avg_hv_30 +             # 25% σ30
+                0.25 * (avg_iv_5d_change * 10) +  # 25% IV 5-day change (amplified)
+                0.20 * spy_decorrelation        # 20% SPY decorrelation
+            )
+            
+            self.logger.info(f"📊 {sector_name} IV_EDGE Score: {iv_edge_score:.1f} "
+                           f"(IVR={avg_iv_rank:.1f}, σ30={avg_hv_30:.1f}, "
+                           f"IV5d={avg_iv_5d_change:.2f}, Decorr={spy_decorrelation:.1f})")
+            
+            return round(iv_edge_score, 1)
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error calculating score for sector {sector_name}: {e}")
+            return None
+    
+    def get_main_list_watchlist(self) -> Optional[Dict[str, Any]]:
+        """Get the 'Main List' watchlist from user's watchlists"""
+        try:
+            watchlists = self.get_watchlists()
+            for wl in watchlists:
+                if wl['name'] == 'Main List':
+                    self.logger.info(f"✅ Found Main List watchlist with {wl['count']} symbols")
+                    return wl
+            
+            # If Main List not found, try to find the largest watchlist
+            if watchlists:
+                largest_watchlist = max(watchlists, key=lambda x: x['count'])
+                self.logger.warning(f"⚠️ Main List not found, using largest watchlist: {largest_watchlist['name']} ({largest_watchlist['count']} symbols)")
+                return largest_watchlist
+            
+            self.logger.error("❌ No watchlists found")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error getting Main List watchlist: {e}")
+            return None
+    
+    def rank_main_list_underlyings(self) -> List[Dict[str, Any]]:
+        """Rank individual underlyings from Main List watchlist with concentration validation"""
+        try:
+            # Get Main List watchlist
+            main_list = self.get_main_list_watchlist()
+            if not main_list:
+                self.logger.error("❌ No Main List watchlist available")
+                return []
+            
+            symbols = main_list['symbols']
+            self.logger.info(f"🔄 Ranking {len(symbols)} symbols from Main List...")
+            
+            # Get current portfolio for concentration checking
+            current_portfolio = self._get_current_portfolio_breakdown()
+            
+            ranked_symbols = []
+            processed_count = 0
+            
+            for symbol in symbols:
+                try:
+                    # Get market metrics
+                    metrics = self.get_market_metrics(symbol)
+                    if not metrics:
+                        # If no metrics at all, still try to get sector info and show the symbol
+                        # This allows futures symbols that don't have IV data to still appear in rankings
+                        self.logger.warning(f"⚠️ No metrics available for {symbol}, showing with limited data")
+                        metrics = {
+                            'symbol': symbol,
+                            'last_price': None,
+                            'implied_volatility_rank': None,
+                            'implied_volatility_index': None,
+                            'implied_volatility_index_5_day_change': None,
+                            'price_error': 'No market metrics available',
+                            'data_source': 'no_data'
+                        }
+                    
+                    # Get sector information (auto-expanding cache)
+                    sector_info = self.sector_classifier.get_symbol_sector(symbol)
+                    
+                    # Calculate screening score with components
+                    score_data = self._calculate_screening_score(metrics)
+                    
+                    # Check concentration limits
+                    concentration_check = self._validate_concentration(symbol, sector_info, current_portfolio)
+                    
+                    symbol_data = {
+                        'symbol': symbol,
+                        'screening_score': score_data['score'],
+                        'sector': sector_info.get('sector', 'Unknown'),
+                        'industry': sector_info.get('industry', 'Unknown'),
+                        'last_price': metrics.get('last_price'),
+                        'iv_rank': score_data['iv_rank'],
+                        'iv_index': score_data['iv_index'],
+                        'iv_5d_change': score_data['iv_5d_change'],
+                        'trend_score': score_data['trend_score'],
+                        'volume': metrics.get('volume'),
+                        'liquidity_rank': metrics.get('liquidity_rank'),
+                        'can_add_position': concentration_check['can_add'],
+                        'concentration_warning': concentration_check.get('warning'),
+                        'current_sector_weight': concentration_check.get('current_sector_weight', 0),
+                        'current_equity_weight': concentration_check.get('current_equity_weight', 0)
+                    }
+                    
+                    ranked_symbols.append(symbol_data)
+                    processed_count += 1
+                    
+                except Exception as e:
+                    self.logger.error(f"❌ Error processing {symbol}: {e}")
+                    continue
+            
+            # Sort by screening score descending
+            ranked_symbols.sort(key=lambda x: x['screening_score'], reverse=True)
+            
+            self.logger.info(f"✅ Ranked {processed_count} underlyings from Main List")
+            return ranked_symbols
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error ranking Main List underlyings: {e}")
+            return []
+    
+    def _get_current_portfolio_breakdown(self) -> Dict[str, Any]:
+        """Get current portfolio breakdown for concentration checking (excluding long-term positions)"""
+        try:
+            if not self.tracker:
+                return {'sectors': {}, 'asset_types': {'equities': 0}}
+            
+            # Get current dashboard data
+            dashboard_data = self.tracker.get_dashboard_data()
+            positions = dashboard_data.get('positions', [])
+            
+            total_value = 0
+            active_value = 0
+            long_term_value = 0
+            sector_values = {}
+            equity_value = 0
+            
+            # Track per-account active values
+            account_active_values = {acc: 0 for acc in self.account_active_trading_limits.keys()}
+            
+            # Manual long-term flagging system - no automatic date comparison needed
+            
+            for pos in positions:
+                if pos.get('is_summary', False):
+                    continue
+                
+                position_value = abs(pos.get('net_liq', 0))
+                total_value += position_value
+                
+                # Check if position is manually flagged as long-term
+                account_num = pos.get('account_number', '')
+                symbol_occ = pos.get('symbol_occ', '')
+                is_long_term = self.is_position_long_term(account_num, symbol_occ)
+                
+                if is_long_term:
+                    long_term_value += position_value
+                    self.logger.debug(f"🏷️ Long-term flagged position: {symbol_occ} (${position_value:,.0f})")
+                
+                # Only count active positions for concentration limits
+                if not is_long_term:
+                    active_value += position_value
+                    
+                    # Track per-account active values
+                    account_num = pos.get('account_number', '')
+                    if account_num in account_active_values:
+                        account_active_values[account_num] += position_value
+                    
+                    # Check if equity
+                    if pos.get('instrument_type') == 'Equity':
+                        equity_value += position_value
+                    
+                    # Get sector for underlying
+                    underlying_symbol = pos.get('underlying_symbol', '')
+                    if underlying_symbol:
+                        sector_info = self.sector_classifier.get_symbol_sector(underlying_symbol)
+                        sector = sector_info.get('sector', 'Unknown')
+                        sector_values[sector] = sector_values.get(sector, 0) + position_value
+            
+            # Convert to percentages (based on active positions only)
+            if active_value > 0:
+                sector_percentages = {sector: (value / active_value) * 100 
+                                    for sector, value in sector_values.items()}
+                equity_percentage = (equity_value / active_value) * 100
+            else:
+                sector_percentages = {}
+                equity_percentage = 0
+            
+            # Calculate limits for primary account (566) 
+            primary_account = '5WX84566'
+            primary_active_value = account_active_values.get(primary_account, 0)
+            primary_limit = self.account_active_trading_limits.get(primary_account, 0)
+            primary_remaining = max(0, primary_limit - primary_active_value)
+            
+            return {
+                'sectors': sector_percentages,
+                'asset_types': {'equities': equity_percentage},
+                'total_value': total_value,
+                'active_value': active_value,
+                'long_term_value': long_term_value,
+                'account_active_values': account_active_values,
+                'account_active_limits': self.account_active_trading_limits,
+                'primary_account': primary_account,
+                'active_allocation_used': primary_active_value,
+                'active_allocation_limit': primary_limit,
+                'active_allocation_remaining': primary_remaining
+            }
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error getting portfolio breakdown: {e}")
+            return {
+                'sectors': {}, 
+                'asset_types': {'equities': 0},
+                'total_value': 0,
+                'active_value': 0,
+                'long_term_value': 0,
+                'account_active_values': {},
+                'account_active_limits': self.account_active_trading_limits,
+                'primary_account': '5WX84566',
+                'active_allocation_used': 0,
+                'active_allocation_limit': 0,
+                'active_allocation_remaining': 0
+            }
+    
+    def _validate_concentration(self, symbol: str, sector_info: Dict[str, Any], 
+                              current_portfolio: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate if adding this symbol would exceed concentration limits"""
+        try:
+            sector = sector_info.get('sector', 'Unknown')
+            current_sector_weight = current_portfolio['sectors'].get(sector, 0)
+            current_equity_weight = current_portfolio['asset_types'].get('equities', 0)
+            active_allocation_remaining = current_portfolio.get('active_allocation_remaining', float('inf'))
+            
+            # Concentration limits
+            MAX_SECTOR_PCT = 10.0
+            MAX_EQUITY_PCT = 60.0
+            
+            # Check limits
+            can_add_sector = current_sector_weight < MAX_SECTOR_PCT
+            can_add_equity = current_equity_weight < MAX_EQUITY_PCT
+            can_add_allocation = active_allocation_remaining > 1000  # Must have at least $1000 remaining
+            can_add = can_add_sector and can_add_equity and can_add_allocation
+            
+            # Generate warning if needed
+            warning = None
+            if not can_add_allocation:
+                warning = f"Active allocation limit reached (${active_allocation_remaining:.0f} remaining)"
+            elif not can_add_sector:
+                warning = f"Sector {sector} at {current_sector_weight:.1f}% (limit: {MAX_SECTOR_PCT}%)"
+            elif not can_add_equity:
+                warning = f"Equities at {current_equity_weight:.1f}% (limit: {MAX_EQUITY_PCT}%)"
+            
+            return {
+                'can_add': can_add,
+                'warning': warning,
+                'current_sector_weight': current_sector_weight,
+                'current_equity_weight': current_equity_weight,
+                'active_allocation_remaining': active_allocation_remaining,
+                'sector_limit': MAX_SECTOR_PCT,
+                'equity_limit': MAX_EQUITY_PCT
+            }
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error validating concentration for {symbol}: {e}")
+            return {'can_add': True, 'warning': f"Validation error: {e}"}
     
     def get_market_data_by_type(self, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
         """Get market data by type for multiple symbols to get volume and other data"""
@@ -145,6 +583,74 @@ class ScreenerEngine:
         except (ValueError, TypeError):
             return default
     
+    def _calculate_trend_score(self, metrics: Dict[str, Any]) -> float:
+        """Calculate TrendScore using available TastyTrade API data"""
+        try:
+            current_price = self._safe_float(metrics.get('last_price'), 0)
+            day_high = self._safe_float(metrics.get('day_high'), current_price)
+            day_low = self._safe_float(metrics.get('day_low'), current_price)
+            iv_index = self._safe_float(metrics.get('implied_volatility_index'), 0)
+            historical_vol_30d = self._safe_float(metrics.get('historical_volatility_30_day'), 0)
+            iv_5d_change = self._safe_float(metrics.get('implied_volatility_index_5_day_change'), 0)
+            
+            # Component 1: Intraday momentum (0-1 scale)
+            if day_high > day_low:
+                intraday_momentum = (current_price - day_low) / (day_high - day_low)
+            else:
+                intraday_momentum = 0.5  # Neutral if no range
+            
+            # Component 2: IV vs HV premium (-1 to +1 scale)
+            if historical_vol_30d > 0:
+                iv_premium = (iv_index - historical_vol_30d / 100) / (historical_vol_30d / 100)
+                iv_premium = max(-1, min(1, iv_premium))  # Clamp to [-1, 1]
+            else:
+                iv_premium = 0
+            
+            # Component 3: IV direction (-1 to +1)
+            iv_direction = 1 if iv_5d_change > 0 else (-1 if iv_5d_change < 0 else 0)
+            
+            # Weighted combination to get -1 to +1 scale
+            trend_score = (0.5 * (intraday_momentum * 2 - 1) +  # Convert 0-1 to -1 to +1
+                          0.3 * iv_premium +
+                          0.2 * iv_direction)
+            
+            return max(-1, min(1, trend_score))  # Ensure bounds
+        except Exception as e:
+            self.logger.warning(f"⚠️ Error calculating trend score: {e}")
+            return 0.0
+    
+    def _calculate_screening_score(self, metrics: Dict[str, Any]) -> Dict[str, float]:
+        """Calculate enhanced screening score with increased 5-day IV change weight
+        Returns dict with score and all components"""
+        try:
+            iv_rank = self._safe_float(metrics.get('implied_volatility_rank'), 0)
+            iv_index = self._safe_float(metrics.get('implied_volatility_index'), 0) * 100  # Convert to percentage
+            iv_5d_change = self._safe_float(metrics.get('implied_volatility_index_5_day_change'), 0) * 100  # Convert to percentage
+            trend_score = self._calculate_trend_score(metrics)
+            
+            # Enhanced scoring: 0.3 × IVR + 0.15 × IV Index + 0.35 × (5-Day IV Change × 10) + 0.2 × TrendScore
+            score = (0.3 * iv_rank +
+                    0.15 * iv_index +
+                    0.35 * (iv_5d_change * 10) +  # Amplify 5-day change impact
+                    0.2 * (trend_score + 1) * 50)  # Convert trend_score from [-1,1] to [0,100]
+            
+            return {
+                'score': max(0, min(100, score)),  # Clamp to [0, 100]
+                'iv_rank': iv_rank,
+                'iv_index': iv_index,
+                'iv_5d_change': iv_5d_change,
+                'trend_score': trend_score * 100  # Convert to percentage scale for display
+            }
+        except Exception as e:
+            self.logger.warning(f"⚠️ Error calculating screening score: {e}")
+            return {
+                'score': 0.0,
+                'iv_rank': 0.0,
+                'iv_index': 0.0,
+                'iv_5d_change': 0.0,
+                'trend_score': 0.0
+            }
+    
 
     def get_market_metrics(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Fetch market metrics for a specific symbol"""
@@ -184,7 +690,7 @@ class ScreenerEngine:
                         'symbol': metrics.get('symbol', symbol),
                         'implied_volatility_index': self._safe_float(metrics.get('implied-volatility-index')),
                         'implied_volatility_index_5_day_change': self._safe_float(metrics.get('implied-volatility-index-5-day-change')),
-                        'implied_volatility_rank': self._safe_float(metrics.get('tw-implied-volatility-index-rank')),  # Use TastyTrade's IV rank!
+                        'implied_volatility_rank': self._safe_float(metrics.get('implied-volatility-index-rank')),  # Use correct IV rank field!
                         'implied_volatility_percentile': self._safe_float(metrics.get('implied-volatility-percentile')),
                         'liquidity': self._safe_float(metrics.get('liquidity-value')),  # CORRECTED FIELD NAME!
                         'liquidity_rank': self._safe_float(metrics.get('liquidity-rank')),
@@ -200,24 +706,49 @@ class ScreenerEngine:
                         'price_earnings_ratio': self._safe_float(metrics.get('price-earnings-ratio'))
                     }
                     
-                    # Try to get real-time price from tracker's WebSocket feed first
-                    if formatted_metrics['last_price'] is None and self.tracker:
+                    # Try multiple price sources in order of preference
+                    price_sources_tried = []
+                    
+                    # Source 1: TastyTrade market-data from API response
+                    if formatted_metrics['last_price'] is not None:
+                        price_sources_tried.append('tastytrade_api')
+                        self.logger.debug(f"📊 Using TastyTrade API price for {symbol}: ${formatted_metrics['last_price']:.2f}")
+                    
+                    # Source 2: Real-time WebSocket feed
+                    elif self.tracker:
                         with self.tracker.prices_lock:
                             real_time_price = self.tracker.underlying_prices.get(symbol)
                             if real_time_price and real_time_price > 0:
                                 formatted_metrics['last_price'] = real_time_price
-                                self.logger.debug(f"📊 Using real-time price for {symbol}: ${real_time_price:.2f}")
+                                price_sources_tried.append('websocket_feed')
+                                self.logger.debug(f"📊 Using WebSocket price for {symbol}: ${real_time_price:.2f}")
                     
-
+                    # Source 3: Fallback to market-data/by-type API call
+                    if formatted_metrics['last_price'] is None:
+                        try:
+                            market_data = self.get_market_data_by_type([symbol])
+                            if symbol in market_data and market_data[symbol].get('last_price'):
+                                formatted_metrics['last_price'] = market_data[symbol]['last_price']
+                                price_sources_tried.append('market_data_by_type')
+                                self.logger.debug(f"📊 Using market-data/by-type price for {symbol}: ${formatted_metrics['last_price']:.2f}")
+                        except Exception as e:
+                            self.logger.warning(f"⚠️ Fallback price fetch failed for {symbol}: {e}")
+                            price_sources_tried.append('market_data_by_type_failed')
                     
-
+                    # Log price fetching result
+                    if formatted_metrics['last_price'] is not None:
+                        self.logger.debug(f"✅ Price found for {symbol}: ${formatted_metrics['last_price']:.2f} (sources tried: {', '.join(price_sources_tried)})")
+                    else:
+                        self.logger.warning(f"⚠️ No price data available for {symbol} (sources tried: {', '.join(price_sources_tried)})")
+                        # Store the error details in the metrics for better debugging
+                        formatted_metrics['price_error'] = f"No price from: {', '.join(price_sources_tried)}"
                     
-                    # Log data availability for debugging
+                    # Log comprehensive data availability for debugging
                     price_str = f"${formatted_metrics['last_price']:.2f}" if formatted_metrics['last_price'] else 'N/A'
                     iv_perc_str = f"{formatted_metrics['implied_volatility_percentile']:.1f}%" if formatted_metrics['implied_volatility_percentile'] else 'N/A'
                     iv_rank_str = f"{formatted_metrics['implied_volatility_rank']:.1f}%" if formatted_metrics['implied_volatility_rank'] is not None else 'N/A'
                     vol_str = str(formatted_metrics['volume']) if formatted_metrics['volume'] else 'N/A'
-                    self.logger.debug(f"📊 {symbol} data: Price={price_str}, IV%={iv_perc_str}, IVRank={iv_rank_str}, Vol={vol_str}")
+                    self.logger.debug(f"📊 {symbol} metrics: Price={price_str}, IV%={iv_perc_str}, IVRank={iv_rank_str}, Vol={vol_str}")
                     
                     # Convert IV percentile and IV rank from decimal to percentage if needed
                     if formatted_metrics['implied_volatility_percentile'] is not None:
@@ -242,10 +773,56 @@ class ScreenerEngine:
                     
                     return formatted_metrics
                 else:
-                    self.logger.warning(f"⚠️ No market metrics found for {symbol}")
+                    self.logger.warning(f"⚠️ No market metrics found for {symbol} in API response")
+                    # Try to get basic price data even if metrics aren't available
+                    try:
+                        market_data = self.get_market_data_by_type([symbol])
+                        if symbol in market_data and market_data[symbol].get('last_price'):
+                            basic_metrics = {
+                                'symbol': symbol,
+                                'last_price': market_data[symbol]['last_price'],
+                                'volume': market_data[symbol].get('volume'),
+                                'implied_volatility_rank': None,
+                                'implied_volatility_index': None,
+                                'implied_volatility_index_5_day_change': None,
+                                'price_error': 'Limited data - no market metrics available',
+                                'data_source': 'basic_market_data_only'
+                            }
+                            self.logger.info(f"📊 Got basic price data for {symbol}: ${basic_metrics['last_price']:.2f} (no full metrics)")
+                            return basic_metrics
+                    except Exception as e:
+                        self.logger.warning(f"⚠️ Could not get even basic price data for {symbol}: {e}")
                     return None
             else:
-                self.logger.error(f"❌ Failed to fetch market metrics for {symbol}: {response.status_code}")
+                error_msg = f"HTTP {response.status_code}"
+                try:
+                    error_detail = response.json().get('error', {}).get('message', 'Unknown API error')
+                    error_msg += f": {error_detail}"
+                except:
+                    error_msg += f": {response.text[:100]}..." if response.text else ""
+                
+                self.logger.error(f"❌ Failed to fetch market metrics for {symbol}: {error_msg}")
+                
+                # For HTTP errors, still try to get basic price data as fallback
+                if response.status_code in [404, 400]:  # Common errors for unsupported symbols
+                    try:
+                        market_data = self.get_market_data_by_type([symbol])
+                        if symbol in market_data and market_data[symbol].get('last_price'):
+                            basic_metrics = {
+                                'symbol': symbol,
+                                'last_price': market_data[symbol]['last_price'],
+                                'volume': market_data[symbol].get('volume'),
+                                'implied_volatility_rank': None,
+                                'implied_volatility_index': None,
+                                'implied_volatility_index_5_day_change': None,
+                                'price_error': f'Metrics API error: {error_msg}',
+                                'data_source': 'fallback_after_api_error'
+                            }
+                            self.logger.info(f"📊 Fallback price data for {symbol}: ${basic_metrics['last_price']:.2f} (after API error)")
+                            return basic_metrics
+                    except Exception as e:
+                        self.logger.warning(f"⚠️ Fallback price fetch also failed for {symbol}: {e}")
+                
                 return None
                 
         except Exception as e:
@@ -264,6 +841,8 @@ class ScreenerEngine:
         min_volume = criteria.get('min_volume', 0)
         min_avg_volume = criteria.get('min_avg_volume', 0)
         min_liquidity_rank = criteria.get('min_liquidity_rank', 0)
+        min_iv_index = criteria.get('min_iv_index', 0)  # New: minimum IV Index
+        expanding_vol_only = criteria.get('expanding_vol_only', False)  # New: 5-day IV change > 0
         
         self.logger.info(f"🔍 Screening {len(symbols)} symbols with criteria: {criteria}")
         
@@ -300,6 +879,8 @@ class ScreenerEngine:
                 volume = metrics.get('volume')
                 avg_volume = metrics.get('average_volume')
                 liquidity_rank = metrics.get('liquidity_rank')
+                iv_index = metrics.get('implied_volatility_index')
+                iv_5d_change = metrics.get('implied_volatility_index_5_day_change')
                 
                 # Convert to float/int with null handling - preserve nulls, don't convert to 0
                 try:
@@ -308,6 +889,8 @@ class ScreenerEngine:
                     volume = int(volume) if volume is not None else None
                     avg_volume = int(avg_volume) if avg_volume is not None else None
                     liquidity_rank = float(liquidity_rank) if liquidity_rank is not None else None
+                    iv_index = float(iv_index) if iv_index is not None else None
+                    iv_5d_change = float(iv_5d_change) if iv_5d_change is not None else None
                 except (ValueError, TypeError):
                     # Skip symbol if data conversion fails
                     self.logger.warning(f"⚠️ Data conversion failed for {symbol}, skipping")
@@ -339,19 +922,41 @@ class ScreenerEngine:
                     if liquidity_rank < min_liquidity_rank:
                         passes_criteria = False
                 
+                # New filters
+                # IV Index filter - only apply if data is available
+                if iv_index is not None:
+                    iv_index_pct = iv_index * 100  # Convert to percentage
+                    if iv_index_pct < min_iv_index:
+                        passes_criteria = False
+                
+                # Expanding volatility filter - only apply if requested and data available
+                if expanding_vol_only and iv_5d_change is not None:
+                    if iv_5d_change <= 0:
+                        passes_criteria = False
+                
                 # If symbol passes all available criteria
                 if passes_criteria:
+                    # Calculate enhanced scoring and trend analysis
+                    screening_score = self._calculate_screening_score(metrics)
+                    trend_score = self._calculate_trend_score(metrics)
+                    
+                    # Simple momentum indicator
+                    momentum_signal = "High" if trend_score > 0.3 else ("Low" if trend_score < -0.3 else "Neutral")
                     
                     # Add to results - preserve None values for missing data
                     result = {
                         'symbol': symbol,
                         'last_price': last_price,
                         'iv_rank': iv_rank,
-                        'iv_percentile': metrics.get('implied_volatility_percentile'),
+                        'iv_index': metrics.get('implied_volatility_index'),
+                        'iv_index_5d_change': metrics.get('implied_volatility_index_5_day_change'),
                         'volume': volume,
                         'avg_volume': avg_volume,
                         'liquidity_rank': liquidity_rank,
                         'liquidity_rating': metrics.get('liquidity_rating'),
+                        'screening_score': screening_score,
+                        'trend_score': trend_score,
+                        'momentum_signal': momentum_signal,
                         'passes_screen': True
                     }
                     results.append(result)
@@ -360,8 +965,8 @@ class ScreenerEngine:
                 self.logger.error(f"❌ Error screening {symbol}: {e}")
                 continue
         
-        # Sort by IV rank (descending) by default, handling None values
-        results.sort(key=lambda x: x.get('iv_rank') or 0, reverse=True)
+        # Sort by new screening score (descending) by default, handling None values
+        results.sort(key=lambda x: x.get('screening_score') or 0, reverse=True)
         
         self.logger.info(f"✅ Screening complete: {len(results)} symbols passed criteria")
         return results
@@ -423,6 +1028,166 @@ def create_screener_routes(app, tracker):
         except Exception as e:
             logging.error(f"❌ Error in /api/screener/watchlists: {e}")
             return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/screener/underlying-rankings')
+    def get_underlying_rankings():
+        """Get individual underlying rankings from Main List watchlist"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            # Get Main List rankings
+            rankings = screener.rank_main_list_underlyings()
+            
+            # Get portfolio limits info
+            portfolio_breakdown = screener._get_current_portfolio_breakdown()
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'rankings': rankings,
+                    'total_symbols': len(rankings),
+                    'source_watchlist': 'Main List',
+                    'eligible_symbols': len([r for r in rankings if r['can_add_position']]),
+                    'portfolio_limits': {
+                        'max_sector_pct': 10.0,
+                        'max_equity_pct': 60.0,
+                        'current_equity_pct': portfolio_breakdown['asset_types'].get('equities', 0),
+                        'equity_capacity_remaining': max(0, 60.0 - portfolio_breakdown['asset_types'].get('equities', 0)),
+                        'primary_account': portfolio_breakdown.get('primary_account', '5WX84566'),
+                        'max_active_trading_allocation': portfolio_breakdown.get('active_allocation_limit', 0),
+                        'active_allocation_used': portfolio_breakdown.get('active_allocation_used', 0),
+                        'active_allocation_remaining': portfolio_breakdown.get('active_allocation_remaining', 0),
+                        'long_term_value': portfolio_breakdown.get('long_term_value', 0),
+                        'active_value': portfolio_breakdown.get('active_value', 0),
+                        'account_breakdown': {
+                            'active_values': portfolio_breakdown.get('account_active_values', {}),
+                            'limits': portfolio_breakdown.get('account_active_limits', {})
+                        }
+                    },
+                    'sector_cache_stats': screener.sector_classifier.get_cache_stats(),
+                    'timestamp': datetime.now().isoformat()
+                }
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/screener/underlying-rankings: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/screener/sector-lookup/<symbol>')
+    def get_symbol_sector(symbol):
+        """Get sector information for a specific symbol"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            sector_info = screener.sector_classifier.get_symbol_sector(symbol.upper())
+            
+            return jsonify({
+                'success': True,
+                'symbol': symbol.upper(),
+                'sector_info': sector_info
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/screener/sector-lookup/{symbol}: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/screener/max-active-allocation', methods=['POST'])
+    def update_max_active_allocation():
+        """Update the maximum active trading allocation for primary account"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            max_allocation = data.get('max_allocation')
+            account = data.get('account', '5WX84566')  # Default to 566
+            
+            if max_allocation is None or max_allocation < 0:
+                return jsonify({'success': False, 'error': 'Invalid allocation amount'}), 400
+            
+            screener.account_active_trading_limits[account] = float(max_allocation)
+            
+            return jsonify({
+                'success': True,
+                'account': account,
+                'max_active_trading_allocation': screener.account_active_trading_limits[account],
+                'all_limits': screener.account_active_trading_limits
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/screener/max-active-allocation: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/screener/long-term-flags', methods=['POST'])
+    def update_long_term_flag():
+        """Update long-term flag for a position"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            account = data.get('account')
+            symbol = data.get('symbol')
+            is_long_term = data.get('is_long_term', False)
+            
+            if not account or not symbol:
+                return jsonify({'success': False, 'error': 'Account and symbol are required'}), 400
+            
+            screener.set_position_long_term_flag(account, symbol, is_long_term)
+            
+            return jsonify({
+                'success': True,
+                'account': account,
+                'symbol': symbol,
+                'is_long_term': is_long_term,
+                'position_key': f"{account}:{symbol}"
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/screener/long-term-flags: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/screener/long-term-flags')
+    def get_long_term_flags():
+        """Get all long-term position flags"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            return jsonify({
+                'success': True,
+                'flags': screener.long_term_position_flags,
+                'count': len(screener.long_term_position_flags)
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/screener/long-term-flags: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/screener/portfolio-allocation')
+    def get_portfolio_allocation():
+        """Get current portfolio allocation breakdown"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            breakdown = screener._get_current_portfolio_breakdown()
+            
+            return jsonify({
+                'success': True,
+                'allocation': breakdown,
+                'limits': {
+                    'max_sector_pct': 10.0,
+                    'max_equity_pct': 60.0
+                },
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/screener/portfolio-allocation: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/screener/market-metrics/<symbol>')
     def get_market_metrics(symbol):
@@ -1140,5 +1905,420 @@ def create_screener_routes(app, tracker):
         except Exception as e:
             logging.error(f"❌ Error in /api/positions/check-triggers: {e}")
             return jsonify({'error': str(e)}), 500
+    
+    # Smart Pricing Endpoints
+    
+    @app.route('/api/smart-pricing/status')
+    def get_smart_pricing_status():
+        """Get smart pricing service status"""
+        try:
+            if not tracker.price_adjustment_service:
+                return jsonify({'error': 'Smart pricing service not initialized'}), 503
+                
+            status = tracker.price_adjustment_service.get_tracking_status()
+            return jsonify(status)
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/smart-pricing/status: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/smart-pricing/working-orders/<account_number>')
+    def get_working_orders_for_adjustment(account_number):
+        """Get working orders that could benefit from price adjustment"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+                
+            order_manager = get_order_manager()
+            if not order_manager:
+                return jsonify({'error': 'Order manager not available'}), 503
+                
+            working_orders = order_manager.get_working_orders(account_number)
+            
+            # Filter orders that are good candidates for price adjustment
+            adjustment_candidates = []
+            for order in working_orders:
+                order_age_minutes = 0
+                if order.get('time-in-force') == 'Day':
+                    # Calculate order age (simplified)
+                    created_at = order.get('entered-time', '')
+                    if created_at:
+                        # This would need proper datetime parsing
+                        order_age_minutes = 30  # Placeholder
+                
+                adjustment_candidates.append({
+                    'order_id': order.get('id'),
+                    'symbol': order.get('underlying-symbol'),
+                    'price': order.get('price'),
+                    'quantity': order.get('quantity'),
+                    'status': order.get('status'),
+                    'age_minutes': order_age_minutes,
+                    'can_adjust': order_age_minutes >= 10  # Can adjust after 10 minutes
+                })
+            
+            return jsonify({
+                'working_orders': adjustment_candidates,
+                'total_orders': len(working_orders),
+                'adjustment_candidates': len([o for o in adjustment_candidates if o['can_adjust']]),
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/smart-pricing/working-orders: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/smart-pricing/track-order', methods=['POST'])
+    def track_order_for_adjustment():
+        """Add an order to smart pricing tracking"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+                
+            if not tracker.price_adjustment_service:
+                return jsonify({'error': 'Smart pricing service not available'}), 503
+                
+            data = request.get_json()
+            required_fields = ['order_id', 'account_number', 'symbol', 'initial_price', 'mid_price']
+            
+            if not all(field in data for field in required_fields):
+                return jsonify({'error': 'Missing required fields'}), 400
+                
+            tracker.price_adjustment_service.track_order(
+                order_id=data['order_id'],
+                account_number=data['account_number'],
+                symbol=data['symbol'],
+                strategy_type=data.get('strategy_type', 'directional'),
+                initial_price=float(data['initial_price']),
+                mid_price=float(data['mid_price']),
+                is_credit=data.get('is_credit', True)
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': f"Order {data['order_id']} added to smart pricing tracking",
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/smart-pricing/track-order: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    # Underlyings Management Routes
+    
+    @app.route('/underlyings')
+    def underlyings_page():
+        """Render the underlyings management page"""
+        return render_template('underlyings.html')
+    
+    @app.route('/api/underlyings')
+    def get_all_underlyings():
+        """Get all underlyings grouped by sector and industry"""
+        try:
+            # Get all symbols from sector cache
+            all_symbols = dict(screener.sector_classifier.sector_cache)
+            
+            # Group by sector and industry
+            sectors = {}
+            total_symbols = len(all_symbols)
+            
+            for symbol, data in all_symbols.items():
+                sector = data.get('sector', 'Unknown')
+                industry = data.get('industry', 'Unknown')
+                source = data.get('source', 'unknown')
+                last_updated = data.get('last_updated', '')
+                
+                if sector not in sectors:
+                    sectors[sector] = {
+                        'name': sector,
+                        'symbol_count': 0,
+                        'industries': {},
+                        'symbols': []
+                    }
+                
+                if industry not in sectors[sector]['industries']:
+                    sectors[sector]['industries'][industry] = {
+                        'name': industry,
+                        'symbol_count': 0,
+                        'symbols': []
+                    }
+                
+                symbol_info = {
+                    'symbol': symbol,
+                    'sector': sector,
+                    'industry': industry,
+                    'source': source,
+                    'last_updated': last_updated
+                }
+                
+                sectors[sector]['symbols'].append(symbol_info)
+                sectors[sector]['industries'][industry]['symbols'].append(symbol_info)
+                sectors[sector]['symbol_count'] += 1
+                sectors[sector]['industries'][industry]['symbol_count'] += 1
+            
+            # Convert to sorted lists
+            sector_list = []
+            for sector_name, sector_data in sorted(sectors.items()):
+                # Sort industries within sector
+                industries_list = []
+                for industry_name, industry_data in sorted(sector_data['industries'].items()):
+                    # Sort symbols within industry
+                    industry_data['symbols'].sort(key=lambda x: x['symbol'])
+                    industries_list.append(industry_data)
+                
+                sector_data['industries'] = industries_list
+                sector_data['symbols'].sort(key=lambda x: x['symbol'])
+                sector_list.append(sector_data)
+            
+            # Sort sectors by symbol count (descending)
+            sector_list.sort(key=lambda x: x['symbol_count'], reverse=True)
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'sectors': sector_list,
+                    'total_symbols': total_symbols,
+                    'total_sectors': len(sector_list),
+                    'cache_stats': screener.sector_classifier.get_cache_stats(),
+                    'timestamp': datetime.now().isoformat()
+                }
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in /api/underlyings: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/underlyings/<symbol>', methods=['PUT'])
+    def update_underlying_classification(symbol):
+        """Update sector/industry classification for a symbol"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            new_sector = data.get('sector', '').strip()
+            new_industry = data.get('industry', '').strip()
+            
+            if not new_sector or not new_industry:
+                return jsonify({'success': False, 'error': 'Sector and industry are required'}), 400
+            
+            symbol = symbol.upper().strip()
+            
+            # Update the classification
+            updated_data = {
+                'sector': new_sector,
+                'industry': new_industry,
+                'last_updated': datetime.now().isoformat(),
+                'source': 'manual_edit'
+            }
+            
+            screener.sector_classifier.sector_cache[symbol] = updated_data
+            screener.sector_classifier._save_cache()
+            
+            return jsonify({
+                'success': True,
+                'symbol': symbol,
+                'updated_data': updated_data,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error updating {symbol}: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/underlyings/bulk-update', methods=['POST'])
+    def bulk_update_underlyings():
+        """Bulk update sector/industry classifications"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            updates = data.get('updates', [])
+            
+            if not updates:
+                return jsonify({'success': False, 'error': 'No updates provided'}), 400
+            
+            updated_symbols = []
+            failed_symbols = []
+            
+            for update in updates:
+                try:
+                    symbol = update.get('symbol', '').upper().strip()
+                    new_sector = update.get('sector', '').strip()
+                    new_industry = update.get('industry', '').strip()
+                    
+                    # Require symbol and at least one field to be provided
+                    if not symbol or (not new_sector and not new_industry):
+                        failed_symbols.append({'symbol': symbol, 'error': 'Symbol and at least one field (sector or industry) required'})
+                        continue
+                    
+                    # Get existing data to preserve fields that aren't being updated
+                    existing_data = screener.sector_classifier.sector_cache.get(symbol, {})
+                    
+                    updated_data = {
+                        'sector': new_sector if new_sector else existing_data.get('sector', ''),
+                        'industry': new_industry if new_industry else existing_data.get('industry', ''),
+                        'last_updated': datetime.now().isoformat(),
+                        'source': 'bulk_edit'
+                    }
+                    
+                    screener.sector_classifier.sector_cache[symbol] = updated_data
+                    updated_symbols.append({'symbol': symbol, 'data': updated_data})
+                    
+                except Exception as e:
+                    failed_symbols.append({'symbol': symbol, 'error': str(e)})
+            
+            # Save cache after all updates
+            if updated_symbols:
+                screener.sector_classifier._save_cache()
+            
+            return jsonify({
+                'success': True,
+                'updated_count': len(updated_symbols),
+                'failed_count': len(failed_symbols),
+                'updated_symbols': updated_symbols,
+                'failed_symbols': failed_symbols,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error in bulk update: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/underlyings/add-symbol', methods=['POST'])
+    def add_new_symbol():
+        """Add a new symbol with custom sector/industry classification"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            data = request.get_json()
+            symbol = data.get('symbol', '').upper().strip()
+            sector = data.get('sector', '').strip()
+            industry = data.get('industry', '').strip()
+            
+            if not symbol or not sector or not industry:
+                return jsonify({'success': False, 'error': 'Symbol, sector, and industry are required'}), 400
+            
+            # Check if symbol already exists
+            if symbol in screener.sector_classifier.sector_cache:
+                return jsonify({'success': False, 'error': f'Symbol {symbol} already exists'}), 409
+            
+            # Add new symbol
+            new_data = {
+                'sector': sector,
+                'industry': industry,
+                'last_updated': datetime.now().isoformat(),
+                'source': 'manual_add'
+            }
+            
+            screener.sector_classifier.sector_cache[symbol] = new_data
+            screener.sector_classifier._save_cache()
+            
+            return jsonify({
+                'success': True,
+                'symbol': symbol,
+                'data': new_data,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error adding symbol: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/underlyings/delete-symbol/<symbol>', methods=['DELETE'])
+    def delete_symbol(symbol):
+        """Delete a symbol from the classification system"""
+        try:
+            if not tracker.tasty_client:
+                return jsonify({'error': 'Not authenticated'}), 401
+            
+            symbol = symbol.upper().strip()
+            
+            if symbol not in screener.sector_classifier.sector_cache:
+                return jsonify({'success': False, 'error': f'Symbol {symbol} not found'}), 404
+            
+            # Remove symbol
+            removed_data = screener.sector_classifier.sector_cache.pop(symbol, None)
+            screener.sector_classifier._save_cache()
+            
+            return jsonify({
+                'success': True,
+                'symbol': symbol,
+                'removed_data': removed_data,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            logging.error(f"❌ Error deleting symbol {symbol}: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/underlyings/export')
+    def export_underlyings():
+        """Export all underlyings as CSV"""
+        try:
+            import csv
+            import io
+            from flask import Response
+            
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Write header
+            writer.writerow(['Symbol', 'Sector', 'Industry', 'Source', 'Last Updated'])
+            
+            # Write data
+            for symbol, data in sorted(screener.sector_classifier.sector_cache.items()):
+                writer.writerow([
+                    symbol,
+                    data.get('sector', ''),
+                    data.get('industry', ''),
+                    data.get('source', ''),
+                    data.get('last_updated', '')
+                ])
+            
+            output.seek(0)
+            
+            return Response(
+                output.getvalue(),
+                mimetype='text/csv',
+                headers={'Content-Disposition': f'attachment; filename=underlyings_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'}
+            )
+            
+        except Exception as e:
+            logging.error(f"❌ Error exporting underlyings: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/get_long_term_flags')
+    def api_get_long_term_flags():
+        """Get all long-term position flags"""
+        try:
+            return jsonify({
+                'success': True,
+                'flags': screener.long_term_position_flags
+            })
+        except Exception as e:
+            logging.error(f"❌ Error getting long-term flags: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/set_long_term_flag', methods=['POST'])
+    def api_set_long_term_flag():
+        """Set long-term flag for a position"""
+        try:
+            data = request.get_json()
+            account = data.get('account')
+            symbol = data.get('symbol')
+            is_long_term = data.get('is_long_term', False)
+            
+            if not account or not symbol:
+                return jsonify({'success': False, 'error': 'Account and symbol are required'}), 400
+            
+            screener.set_position_long_term_flag(account, symbol, is_long_term)
+            
+            return jsonify({'success': True})
+            
+        except Exception as e:
+            logging.error(f"❌ Error setting long-term flag: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     return screener

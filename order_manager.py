@@ -37,6 +37,86 @@ class OrderStatus(Enum):
     REJECTED = "rejected"
     PARTIAL = "partial"
 
+class SmartPricingStrategy:
+    """Intelligent order pricing that improves fill rates while maintaining favorable pricing"""
+    
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        
+        # Pricing rules for different strategy types
+        self.pricing_rules = {
+            'directional': {
+                'initial_offset': 0.03,  # $0.03 from mid-price
+                'min_offset': 0.01,      # Minimum $0.01 from mid-price
+                'adjustment_interval': 600,  # 10 minutes in seconds
+                'adjustment_step': 0.01  # Move $0.01 closer each interval
+            },
+            'neutral': {
+                'initial_offset': 0.01,  # $0.01 from mid-price
+                'min_offset': 0.00,      # Can go to mid-price
+                'adjustment_interval': 600,  # 10 minutes
+                'adjustment_step': 0.01
+            }
+        }
+    
+    def calculate_initial_price(self, mid_price: float, strategy_type: str = 'directional', 
+                              is_credit: bool = True) -> float:
+        """Calculate initial order price with favorable offset from mid"""
+        rules = self.pricing_rules.get(strategy_type, self.pricing_rules['directional'])
+        offset = rules['initial_offset']
+        
+        if is_credit:
+            # For credit spreads, start below mid-price (more favorable to us)
+            initial_price = mid_price - offset
+        else:
+            # For debit spreads, start above mid-price (more favorable to us) 
+            initial_price = mid_price + offset
+            
+        return round(max(0.01, initial_price), 2)  # Minimum price of $0.01
+    
+    def calculate_next_price(self, current_price: float, mid_price: float, 
+                           strategy_type: str = 'directional', is_credit: bool = True,
+                           adjustment_count: int = 1) -> Optional[float]:
+        """Calculate next price adjustment toward mid-price"""
+        rules = self.pricing_rules.get(strategy_type, self.pricing_rules['directional'])
+        step = rules['adjustment_step']
+        min_offset = rules['min_offset']
+        
+        if is_credit:
+            # Move price up toward mid (less favorable but better fill probability)
+            next_price = current_price + step
+            # Don't go above mid-price minus minimum offset
+            max_price = mid_price - min_offset
+            if next_price > max_price:
+                next_price = max_price
+        else:
+            # Move price down toward mid (less favorable but better fill probability)
+            next_price = current_price - step
+            # Don't go below mid-price plus minimum offset
+            min_price = mid_price + min_offset
+            if next_price < min_price:
+                next_price = min_price
+        
+        # Round to nearest cent
+        next_price = round(next_price, 2)
+        
+        # Return None if we can't improve further
+        if abs(next_price - current_price) < 0.005:  # Less than half a cent difference
+            return None
+            
+        return next_price
+    
+    def should_adjust_price(self, order_created_at: datetime, last_adjustment: Optional[datetime] = None) -> bool:
+        """Check if enough time has passed for price adjustment"""
+        now = datetime.now()
+        
+        # Use last adjustment time if available, otherwise order creation time
+        reference_time = last_adjustment or order_created_at
+        
+        # Check if adjustment interval has passed
+        time_elapsed = (now - reference_time).total_seconds()
+        return time_elapsed >= self.pricing_rules['directional']['adjustment_interval']
+
 @dataclass
 class OrderLeg:
     """Represents a single leg of an order"""
@@ -77,6 +157,9 @@ class OrderManager:
         # Order tracking
         self.pending_orders = {}
         self.completed_orders = {}
+        
+        # Smart pricing strategy
+        self.smart_pricing = SmartPricingStrategy()
         
         # Default order settings
         self.default_time_in_force = "Day"
@@ -535,3 +618,143 @@ class OrderManager:
         
         self.logger.info(f"✅ Bulk order creation complete: {results['orders_submitted']}/{results['total_strategies']} submitted")
         return results
+    
+    # Smart Pricing Methods
+    
+    def update_working_order_price(self, order_id: str, account_number: str, new_price: float) -> Dict[str, Any]:
+        """Update price of working order using TastyTrade API"""
+        try:
+            headers = {
+                'Authorization': self.tasty_client.session_token,
+                'Content-Type': 'application/json'
+            }
+            
+            # Determine price effect based on price value
+            price_effect = "Credit" if new_price > 0 else "Debit"
+            
+            payload = {
+                "price": str(new_price),
+                "price-effect": price_effect
+            }
+            
+            self.logger.info(f"🔄 Updating order {order_id} price to ${new_price:.2f}")
+            
+            response = requests.put(
+                f"{self.base_url}/accounts/{account_number}/orders/{order_id}",
+                headers=headers,
+                json=payload
+            )
+            
+            if response.status_code == 200:
+                self.logger.info(f"✅ Order {order_id} price updated successfully")
+                return {
+                    'success': True,
+                    'order_id': order_id,
+                    'new_price': new_price,
+                    'response': response.json()
+                }
+            else:
+                error_msg = f"Failed to update order price: {response.status_code} - {response.text}"
+                self.logger.error(f"❌ {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'status_code': response.status_code
+                }
+                
+        except Exception as e:
+            error_msg = f"Error updating order price: {str(e)}"
+            self.logger.error(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg
+            }
+    
+    def get_working_orders(self, account_number: str) -> List[Dict[str, Any]]:
+        """Get all working (unfilled) orders for an account"""
+        try:
+            headers = {
+                'Authorization': self.tasty_client.session_token,
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.get(
+                f"{self.base_url}/accounts/{account_number}/orders",
+                headers=headers,
+                params={'status': 'Live'}  # Only get live/working orders
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                orders = data.get('data', {}).get('items', [])
+                
+                # Filter for orders that can be modified
+                working_orders = []
+                for order in orders:
+                    status = order.get('status', '').lower()
+                    if status in ['received', 'live', 'partially-filled']:
+                        working_orders.append(order)
+                
+                self.logger.info(f"📊 Found {len(working_orders)} working orders")
+                return working_orders
+            else:
+                self.logger.error(f"❌ Failed to fetch working orders: {response.status_code}")
+                return []
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error fetching working orders: {e}")
+            return []
+    
+    def calculate_mid_price_from_quotes(self, quotes: Dict[str, Any]) -> Optional[float]:
+        """Calculate mid-price from bid/ask quotes"""
+        try:
+            bid = float(quotes.get('bid-price', 0))
+            ask = float(quotes.get('ask-price', 0))
+            
+            if bid > 0 and ask > 0 and ask > bid:
+                mid_price = (bid + ask) / 2.0
+                return round(mid_price, 2)
+            
+            return None
+        except (ValueError, TypeError):
+            return None
+    
+    def create_order_with_smart_pricing(self, account_number: str, strategy_data: Dict[str, Any], 
+                                       quantity: int = 1, strategy_type: str = 'directional') -> TradeOrder:
+        """Create order using smart pricing strategy"""
+        try:
+            # Get current market mid-price (you'll need to implement quote fetching)
+            base_premium = strategy_data.get('net_premium', 0)
+            
+            # Use smart pricing to determine initial order price
+            initial_price = self.smart_pricing.calculate_initial_price(
+                mid_price=base_premium,
+                strategy_type=strategy_type,
+                is_credit=True  # Assuming credit spread for now
+            )
+            
+            # Create order with smart initial price
+            strategy_data_adjusted = strategy_data.copy()
+            strategy_data_adjusted['net_premium'] = initial_price
+            
+            # Use existing method but with smart pricing
+            order = self.create_put_credit_spread_order(
+                account_number=account_number,
+                strategy_data=strategy_data_adjusted,
+                quantity=quantity,
+                price_adjustment=0.0  # Already included in smart pricing
+            )
+            
+            # Track that this order uses smart pricing
+            order.smart_pricing_enabled = True
+            order.initial_smart_price = initial_price
+            order.original_mid_price = base_premium
+            
+            self.logger.info(f"📈 Created smart-priced order: Mid=${base_premium:.2f}, Initial=${initial_price:.2f}")
+            
+            return order
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error creating smart-priced order: {e}")
+            # Fallback to regular order creation
+            return self.create_put_credit_spread_order(account_number, strategy_data, quantity)

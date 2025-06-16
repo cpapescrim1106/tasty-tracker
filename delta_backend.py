@@ -74,6 +74,9 @@ class DeltaTracker:
         # Position chain detection and management
         self.chain_detector = PositionChainDetector()
         self.position_manager = PositionManager(self)
+        
+        # Order management service (will be initialized after tasty_client)
+        self.order_management_service = None
 
     def _get_login_credentials(self):
         login = os.getenv("TASTYTRADE_LOGIN")
@@ -98,10 +101,32 @@ class DeltaTracker:
             self.symbol_translations_factory = StreamerSymbolTranslationsFactory(self.tasty_sdk.api)
             
             logging.info(f"✅ Session established.")
+            
+            # Initialize order management service
+            self._initialize_order_management_service()
+            
             return True
         except Exception as e:
             logging.error(f"❌ Session error: {e}")
             return False
+
+    def _initialize_order_management_service(self):
+        """Initialize the order management and price adjustment service"""
+        try:
+            from order_manager import OrderManager
+            
+            # Create order manager instance
+            order_manager = OrderManager(self.tasty_client)
+            
+            # Initialize order management service
+            self.order_management_service = OrderPriceAdjustmentService(order_manager)
+            
+            # Start the background service
+            self.order_management_service.start()
+            
+            logging.info("🎯 Order management service initialized and started")
+        except Exception as e:
+            logging.error(f"❌ Failed to initialize order management service: {e}")
 
     def _update_account_balances_sync(self):
         if not self.tasty_client:
@@ -571,6 +596,7 @@ class DeltaTracker:
 # Import position chain detector and manager
 from position_chain_detector import PositionChainDetector
 from position_manager import PositionManager
+from order_price_adjustment_service import OrderPriceAdjustmentService
 
 # --- Flask App and Endpoints ---
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -582,6 +608,9 @@ from screener_backend import create_screener_routes
 
 # Import trade journal functionality
 from trade_journal_routes import create_trade_journal_routes
+
+# Import rebalancing functionality
+from rebalancing_routes import create_rebalancing_routes
 
 
 @app.route('/')
@@ -745,6 +774,9 @@ if __name__ == '__main__':
     
     # Initialize trade journal routes
     create_trade_journal_routes(app)
+    
+    # Initialize rebalancing routes
+    create_rebalancing_routes(app, tracker)
     
     threading.Thread(target=run_async_tracker, daemon=True).start()
     logging.info("🌐 Starting dashboard server on http://localhost:5001")
