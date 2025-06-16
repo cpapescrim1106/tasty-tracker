@@ -1,0 +1,2462 @@
+{
+  "AAPL": {
+    "sector": "Technology",
+    "industry": "Communications Equipment",
+    "last_updated": "2025-06-16T15:18:52.531111",
+    "source": "broker"
+  },
+  "MSFT": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.542422",
+    "source": "broker"
+  },
+  "GOOGL": {
+    "sector": "Services",
+    "industry": "Business Services",
+    "last_updated": "2025-06-16T15:18:52.537749",
+    "source": "broker"
+  },
+  "AMZN": {
+    "sector": "Services",
+    "industry": "Retail (Specialty)",
+    "last_updated": "2025-06-16T15:18:52.532104",
+    "source": "broker"
+  },
+  "TSLA": {
+    "sector": "Consumer Cyclical",
+    "industry": "Auto & Truck Manufacturers",
+    "last_updated": "2025-06-16T15:18:52.549537",
+    "source": "broker"
+  },
+  "META": {
+    "sector": "Services",
+    "industry": "Business Services",
+    "last_updated": "2025-06-16T15:18:52.541814",
+    "source": "broker"
+  },
+  "NVDA": {
+    "sector": "Technology",
+    "industry": "Computer Hardware",
+    "last_updated": "2025-06-16T15:18:52.543585",
+    "source": "broker"
+  },
+  "AMD": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T00:22:15.737981",
+    "source": "minimal_cache"
+  },
+  "INTC": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T00:22:15.737982",
+    "source": "minimal_cache"
+  },
+  "JPM": {
+    "sector": "Financial",
+    "industry": "Investment Services",
+    "last_updated": "2025-06-16T15:18:52.539993",
+    "source": "broker"
+  },
+  "BAC": {
+    "sector": "Financial",
+    "industry": "Money Center Banks",
+    "last_updated": "2025-06-16T15:18:52.532713",
+    "source": "broker"
+  },
+  "V": {
+    "sector": "Financials",
+    "industry": "Credit Services",
+    "last_updated": "2025-06-16T00:22:15.737985",
+    "source": "minimal_cache"
+  },
+  "MA": {
+    "sector": "Financials",
+    "industry": "Credit Services",
+    "last_updated": "2025-06-16T00:22:15.737986",
+    "source": "minimal_cache"
+  },
+  "SPY": {
+    "sector": "Broad Market",
+    "industry": "Index Fund",
+    "last_updated": "2025-06-16T00:22:15.737987",
+    "source": "minimal_cache"
+  },
+  "QQQ": {
+    "sector": "Technology",
+    "industry": "Index Fund",
+    "last_updated": "2025-06-16T00:22:15.737988",
+    "source": "minimal_cache"
+  },
+  "IWM": {
+    "sector": "Broad Market",
+    "industry": "Index Fund",
+    "last_updated": "2025-06-16T00:22:15.737988",
+    "source": "minimal_cache"
+  },
+  "XLE": {
+    "sector": "Energy",
+    "industry": "Index Fund",
+    "last_updated": "2025-06-16T00:22:15.737989",
+    "source": "minimal_cache"
+  },
+  "XLF": {
+    "sector": "Financials",
+    "industry": "Index Fund",
+    "last_updated": "2025-06-16T00:22:15.737990",
+    "source": "minimal_cache"
+  },
+  "XLK": {
+    "sector": "Technology",
+    "industry": "Index Fund",
+    "last_updated": "2025-06-16T00:22:15.737991",
+    "source": "minimal_cache"
+  },
+  "XLV": {
+    "sector": "Healthcare",
+    "industry": "Index Fund",
+    "last_updated": "2025-06-16T00:22:15.737992",
+    "source": "minimal_cache"
+  },
+  "FTNT": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.537133",
+    "source": "broker"
+  },
+  "S": {
+    "sector": "Technology",
+    "industry": "Software - Infrastructure",
+    "last_updated": "2025-06-16T00:43:14.095382",
+    "source": "yfinance"
+  },
+  "CHKP": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.534159",
+    "source": "broker"
+  },
+  "CYBR": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.535152",
+    "source": "broker"
+  },
+  "TENB": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.548939",
+    "source": "broker"
+  },
+  "QLYS": {
+    "sector": "Technology",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.545415",
+    "source": "broker"
+  },
+  "RPD": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.546370",
+    "source": "broker"
+  },
+  "VRNS": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.550967",
+    "source": "broker"
+  },
+  "WFC": {
+    "sector": "Financial",
+    "industry": "Money Center Banks",
+    "last_updated": "2025-06-16T15:18:52.551444",
+    "source": "broker"
+  },
+  "C": {
+    "sector": "Financial",
+    "industry": "Investment Services",
+    "last_updated": "2025-06-16T15:18:52.533704",
+    "source": "broker"
+  },
+  "GS": {
+    "sector": "Financial",
+    "industry": "Investment Services",
+    "last_updated": "2025-06-16T15:18:52.537800",
+    "source": "broker"
+  },
+  "MS": {
+    "sector": "Financial",
+    "industry": "Investment Services",
+    "last_updated": "2025-06-16T15:18:52.542355",
+    "source": "broker"
+  },
+  "SCHW": {
+    "sector": "Financial",
+    "industry": "Investment Services",
+    "last_updated": "2025-06-16T15:18:52.547027",
+    "source": "broker"
+  },
+  "ASML": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T15:18:52.532393",
+    "source": "broker"
+  },
+  "HOOD": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.538395",
+    "source": "broker"
+  },
+  "PYPL": {
+    "sector": "Financial Services",
+    "industry": "Credit Services",
+    "last_updated": "2025-06-16T08:17:26.580519",
+    "source": "yfinance"
+  },
+  "SHOP": {
+    "sector": "Technology",
+    "industry": "Software - Application",
+    "last_updated": "2025-06-16T08:17:26.840835",
+    "source": "yfinance"
+  },
+  "SOFI": {
+    "sector": "Financial",
+    "industry": "Consumer Financial Services",
+    "last_updated": "2025-06-16T15:18:52.547781",
+    "source": "broker"
+  },
+  "COIN": {
+    "sector": "Crypto",
+    "industry": "Consumer Financial Services",
+    "last_updated": "2025-06-16T15:18:52.534565",
+    "source": "broker"
+  },
+  "MARA": {
+    "sector": "Crypto",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.541393",
+    "source": "broker"
+  },
+  "RIOT": {
+    "sector": "Crypto",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.545854",
+    "source": "broker"
+  },
+  "BTBT": {
+    "sector": "Crypto",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.533501",
+    "source": "broker"
+  },
+  "HUT": {
+    "sector": "Crypto",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.538548",
+    "source": "broker"
+  },
+  "MSTR": {
+    "sector": "Crypto",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.542476",
+    "source": "broker"
+  },
+  "WULF": {
+    "sector": "Crypto",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.551591",
+    "source": "broker"
+  },
+  "CLSK": {
+    "sector": "Crypto",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.534382",
+    "source": "broker"
+  },
+  "HIVE": {
+    "sector": "Crypto",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.538146",
+    "source": "broker"
+  },
+  "CIFR": {
+    "sector": "Crypto",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.534267",
+    "source": "broker"
+  },
+  "XOM": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Operations",
+    "last_updated": "2025-06-16T15:18:52.552398",
+    "source": "broker"
+  },
+  "CVX": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Operations",
+    "last_updated": "2025-06-16T15:18:52.535102",
+    "source": "broker"
+  },
+  "HAL": {
+    "sector": "Energy",
+    "industry": "Oil Well Services & Equipment",
+    "last_updated": "2025-06-16T15:18:52.537942",
+    "source": "broker"
+  },
+  "BP": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Operations",
+    "last_updated": "2025-06-16T15:18:52.533393",
+    "source": "broker"
+  },
+  "RIG": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Drilling",
+    "last_updated": "2025-06-16T08:18:07.527212",
+    "source": "yfinance"
+  },
+  "DVN": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Operations",
+    "last_updated": "2025-06-16T15:18:52.535902",
+    "source": "broker"
+  },
+  "COP": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Operations",
+    "last_updated": "2025-06-16T15:18:52.534615",
+    "source": "broker"
+  },
+  "VLO": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Operations",
+    "last_updated": "2025-06-16T15:18:52.550749",
+    "source": "broker"
+  },
+  "UI": {
+    "sector": "Technology",
+    "industry": "Communications Equipment",
+    "last_updated": "2025-06-16T15:18:52.550076",
+    "source": "broker"
+  },
+  "PATH": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.544282",
+    "source": "broker"
+  },
+  "SOUN": {
+    "sector": "Technology",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.547846",
+    "source": "broker"
+  },
+  "SERV": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.547188",
+    "source": "broker"
+  },
+  "ACHR": {
+    "sector": "Capital Goods",
+    "industry": "Aerospace & Defense",
+    "last_updated": "2025-06-16T15:18:52.531371",
+    "source": "broker"
+  },
+  "JOBY": {
+    "sector": "Capital Goods",
+    "industry": "Aerospace & Defense",
+    "last_updated": "2025-06-16T15:18:52.539936",
+    "source": "broker"
+  },
+  "NBIS": {
+    "sector": "Technology",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.542745",
+    "source": "broker"
+  },
+  "BIIB": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.532870",
+    "source": "broker"
+  },
+  "VRTX": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.551096",
+    "source": "broker"
+  },
+  "REGN": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.545625",
+    "source": "broker"
+  },
+  "MRNA": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.542288",
+    "source": "broker"
+  },
+  "AMGN": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.531996",
+    "source": "broker"
+  },
+  "RXRX": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.546635",
+    "source": "broker"
+  },
+  "NBIX": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.542811",
+    "source": "broker"
+  },
+  "EXEL": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.536791",
+    "source": "broker"
+  },
+  "IONS": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.539218",
+    "source": "broker"
+  },
+  "INCY": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.538957",
+    "source": "broker"
+  },
+  "BMRN": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.533184",
+    "source": "broker"
+  },
+  "HD": {
+    "sector": "Services",
+    "industry": "Retail (Home Improvement)",
+    "last_updated": "2025-06-16T15:18:52.538043",
+    "source": "broker"
+  },
+  "MCD": {
+    "sector": "Services",
+    "industry": "Restaurants",
+    "last_updated": "2025-06-16T15:18:52.541461",
+    "source": "broker"
+  },
+  "SBUX": {
+    "sector": "Services",
+    "industry": "Restaurants",
+    "last_updated": "2025-06-16T15:18:52.546771",
+    "source": "broker"
+  },
+  "NKE": {
+    "sector": "Consumer Cyclical",
+    "industry": "Footwear",
+    "last_updated": "2025-06-16T15:18:52.543269",
+    "source": "broker"
+  },
+  "TJX": {
+    "sector": "Services",
+    "industry": "Retail (Apparel)",
+    "last_updated": "2025-06-16T15:18:52.549124",
+    "source": "broker"
+  },
+  "BKNG": {
+    "sector": "Services",
+    "industry": "Personal Services",
+    "last_updated": "2025-06-16T15:18:52.533080",
+    "source": "broker"
+  },
+  "ROST": {
+    "sector": "Services",
+    "industry": "Retail (Apparel)",
+    "last_updated": "2025-06-16T15:18:52.546284",
+    "source": "broker"
+  },
+  "F": {
+    "sector": "Consumer Cyclical",
+    "industry": "Auto & Truck Manufacturers",
+    "last_updated": "2025-06-16T15:18:52.536891",
+    "source": "broker"
+  },
+  "GM": {
+    "sector": "Consumer Cyclical",
+    "industry": "Auto & Truck Manufacturers",
+    "last_updated": "2025-06-16T15:18:52.537696",
+    "source": "broker"
+  },
+  "PG": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Personal & Household Prods.",
+    "last_updated": "2025-06-16T15:18:52.544613",
+    "source": "broker"
+  },
+  "WMT": {
+    "sector": "Services",
+    "industry": "Retail (Grocery)",
+    "last_updated": "2025-06-16T15:18:52.551496",
+    "source": "broker"
+  },
+  "MO": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Tobacco",
+    "last_updated": "2025-06-16T15:18:52.542113",
+    "source": "broker"
+  },
+  "KMB": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Personal & Household Prods.",
+    "last_updated": "2025-06-16T15:18:52.540229",
+    "source": "broker"
+  },
+  "GIS": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.537582",
+    "source": "broker"
+  },
+  "SYY": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.548594",
+    "source": "broker"
+  },
+  "KR": {
+    "sector": "Services",
+    "industry": "Retail (Grocery)",
+    "last_updated": "2025-06-16T15:18:52.540373",
+    "source": "broker"
+  },
+  "STZ": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Beverages (Alcoholic)",
+    "last_updated": "2025-06-16T15:18:52.548522",
+    "source": "broker"
+  },
+  "MDLZ": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.541610",
+    "source": "broker"
+  },
+  "MELI": {
+    "sector": "International & Emerging Markets",
+    "industry": "China",
+    "last_updated": "2025-06-16T14:21:18.938388",
+    "source": "bulk_edit"
+  },
+  "PANW": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.544229",
+    "source": "broker"
+  },
+  "CRWD": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.534856",
+    "source": "broker"
+  },
+  "USB": {
+    "sector": "Financial",
+    "industry": "Money Center Banks",
+    "last_updated": "2025-06-16T15:18:52.550385",
+    "source": "broker"
+  },
+  "BK": {
+    "sector": "Financial",
+    "industry": "Investment Services",
+    "last_updated": "2025-06-16T15:18:52.533028",
+    "source": "broker"
+  },
+  "AXP": {
+    "sector": "Financial",
+    "industry": "Consumer Financial Services",
+    "last_updated": "2025-06-16T15:18:52.532552",
+    "source": "broker"
+  },
+  "COF": {
+    "sector": "Financial",
+    "industry": "Consumer Financial Services",
+    "last_updated": "2025-06-16T15:18:52.534513",
+    "source": "broker"
+  },
+  "BLK": {
+    "sector": "Financial",
+    "industry": "Misc. Financial Services",
+    "last_updated": "2025-06-16T15:18:52.533132",
+    "source": "broker"
+  },
+  "TFC": {
+    "sector": "Financial",
+    "industry": "Money Center Banks",
+    "last_updated": "2025-06-16T15:18:52.548999",
+    "source": "broker"
+  },
+  "PGR": {
+    "sector": "Financial",
+    "industry": "Insurance (Prop. & Casualty)",
+    "last_updated": "2025-06-16T15:18:52.544698",
+    "source": "broker"
+  },
+  "CB": {
+    "sector": "Financial Services",
+    "industry": "Insurance - Property & Casualty",
+    "last_updated": "2025-06-16T08:19:08.987220",
+    "source": "yfinance"
+  },
+  "UNH": {
+    "sector": "Financial",
+    "industry": "Insurance (Accident & Health)",
+    "last_updated": "2025-06-16T15:18:52.550268",
+    "source": "broker"
+  },
+  "JNJ": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.539856",
+    "source": "broker"
+  },
+  "PFE": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.544530",
+    "source": "broker"
+  },
+  "ABBV": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.531184",
+    "source": "broker"
+  },
+  "LLY": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.540739",
+    "source": "broker"
+  },
+  "TMO": {
+    "sector": "Healthcare",
+    "industry": "Medical Equipment & Supplies",
+    "last_updated": "2025-06-16T15:18:52.549296",
+    "source": "broker"
+  },
+  "DHR": {
+    "sector": "Technology",
+    "industry": "Scientific & Technical Instr.",
+    "last_updated": "2025-06-16T15:18:52.535539",
+    "source": "broker"
+  },
+  "ABT": {
+    "sector": "Healthcare",
+    "industry": "Medical Equipment & Supplies",
+    "last_updated": "2025-06-16T15:18:52.531295",
+    "source": "broker"
+  },
+  "MDT": {
+    "sector": "Healthcare",
+    "industry": "Medical Equipment & Supplies",
+    "last_updated": "2025-06-16T15:18:52.541675",
+    "source": "broker"
+  },
+  "BMY": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.533237",
+    "source": "broker"
+  },
+  "ISRG": {
+    "sector": "Healthcare",
+    "industry": "Medical Equipment & Supplies",
+    "last_updated": "2025-06-16T15:18:52.539269",
+    "source": "broker"
+  },
+  "CVS": {
+    "sector": "Services",
+    "industry": "Retail (Drugs)",
+    "last_updated": "2025-06-16T15:18:52.535051",
+    "source": "broker"
+  },
+  "CI": {
+    "sector": "Healthcare",
+    "industry": "Healthcare Facilities",
+    "last_updated": "2025-06-16T15:18:52.534211",
+    "source": "broker"
+  },
+  "HCA": {
+    "sector": "Healthcare",
+    "industry": "Healthcare Facilities",
+    "last_updated": "2025-06-16T15:18:52.537993",
+    "source": "broker"
+  },
+  "HIMS": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.538095",
+    "source": "broker"
+  },
+  "LEN": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.540521",
+    "source": "broker"
+  },
+  "DHI": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.535471",
+    "source": "broker"
+  },
+  "PHM": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.544757",
+    "source": "broker"
+  },
+  "TOL": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.549390",
+    "source": "broker"
+  },
+  "MTH": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.542619",
+    "source": "broker"
+  },
+  "KBH": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.540143",
+    "source": "broker"
+  },
+  "BZH": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.533651",
+    "source": "broker"
+  },
+  "TPH": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.549452",
+    "source": "broker"
+  },
+  "MHO": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.541899",
+    "source": "broker"
+  },
+  "LGIH": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.540591",
+    "source": "broker"
+  },
+  "HOV": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.538446",
+    "source": "broker"
+  },
+  "CAT": {
+    "sector": "Capital Goods",
+    "industry": "Constr. & Agric. Machinery",
+    "last_updated": "2025-06-16T15:18:52.533812",
+    "source": "broker"
+  },
+  "GE": {
+    "sector": "Capital Goods",
+    "industry": "Aerospace & Defense",
+    "last_updated": "2025-06-16T15:18:52.537480",
+    "source": "broker"
+  },
+  "DE": {
+    "sector": "Capital Goods",
+    "industry": "Constr. & Agric. Machinery",
+    "last_updated": "2025-06-16T15:18:52.535401",
+    "source": "broker"
+  },
+  "MMM": {
+    "sector": "Capital Goods",
+    "industry": "Constr. - Supplies & Fixtures",
+    "last_updated": "2025-06-16T15:18:52.542035",
+    "source": "broker"
+  },
+  "UNP": {
+    "sector": "Transportation",
+    "industry": "Railroads",
+    "last_updated": "2025-06-16T15:18:52.550331",
+    "source": "broker"
+  },
+  "LMT": {
+    "sector": "Capital Goods",
+    "industry": "Aerospace & Defense",
+    "last_updated": "2025-06-16T15:18:52.540838",
+    "source": "broker"
+  },
+  "RTX": {
+    "sector": "Capital Goods",
+    "industry": "Aerospace & Defense",
+    "last_updated": "2025-06-16T15:18:52.546512",
+    "source": "broker"
+  },
+  "HON": {
+    "sector": "Capital Goods",
+    "industry": "Aerospace & Defense",
+    "last_updated": "2025-06-16T15:18:52.538346",
+    "source": "broker"
+  },
+  "NOC": {
+    "sector": "Capital Goods",
+    "industry": "Aerospace & Defense",
+    "last_updated": "2025-06-16T15:18:52.543331",
+    "source": "broker"
+  },
+  "FDX": {
+    "sector": "Transportation",
+    "industry": "Air Courier",
+    "last_updated": "2025-06-16T15:18:52.536992",
+    "source": "broker"
+  },
+  "EMR": {
+    "sector": "Technology",
+    "industry": "Scientific & Technical Instr.",
+    "last_updated": "2025-06-16T15:18:52.536330",
+    "source": "broker"
+  },
+  "ETN": {
+    "sector": "Technology",
+    "industry": "Electronic Instr. & Controls",
+    "last_updated": "2025-06-16T15:18:52.536484",
+    "source": "broker"
+  },
+  "PCAR": {
+    "sector": "Consumer Cyclical",
+    "industry": "Auto & Truck Manufacturers",
+    "last_updated": "2025-06-16T15:18:52.544335",
+    "source": "broker"
+  },
+  "ECL": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.536036",
+    "source": "broker"
+  },
+  "LIN": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.540666",
+    "source": "broker"
+  },
+  "APD": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.532236",
+    "source": "broker"
+  },
+  "SHW": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.547297",
+    "source": "broker"
+  },
+  "DD": {
+    "sector": "Basic Materials",
+    "industry": "Specialty Chemicals",
+    "last_updated": "2025-06-16T08:19:52.092048",
+    "source": "yfinance"
+  },
+  "VMC": {
+    "sector": "Capital Goods",
+    "industry": "Construction - Raw Materials",
+    "last_updated": "2025-06-16T15:18:52.550826",
+    "source": "broker"
+  },
+  "MLM": {
+    "sector": "Capital Goods",
+    "industry": "Construction - Raw Materials",
+    "last_updated": "2025-06-16T15:18:52.541964",
+    "source": "broker"
+  },
+  "ALB": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.531787",
+    "source": "broker"
+  },
+  "PPC": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.545056",
+    "source": "broker"
+  },
+  "LYB": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.541133",
+    "source": "broker"
+  },
+  "CE": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.534012",
+    "source": "broker"
+  },
+  "IFF": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.538903",
+    "source": "broker"
+  },
+  "WYNN": {
+    "sector": "Services",
+    "industry": "Casinos & Gaming",
+    "last_updated": "2025-06-16T15:18:52.551656",
+    "source": "broker"
+  },
+  "AMT": {
+    "sector": "Services",
+    "industry": "Rental & Leasing",
+    "last_updated": "2025-06-16T15:18:52.532050",
+    "source": "broker"
+  },
+  "CCI": {
+    "sector": "Services",
+    "industry": "Rental & Leasing",
+    "last_updated": "2025-06-16T15:18:52.533908",
+    "source": "broker"
+  },
+  "EQIX": {
+    "sector": "Technology",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.536382",
+    "source": "broker"
+  },
+  "PSA": {
+    "sector": "Transportation",
+    "industry": "Misc. Transportation",
+    "last_updated": "2025-06-16T15:18:52.545179",
+    "source": "broker"
+  },
+  "SPG": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.548109",
+    "source": "broker"
+  },
+  "DLR": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.535687",
+    "source": "broker"
+  },
+  "VRT": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T14:48:14.245390",
+    "source": "manual_edit"
+  },
+  "AVB": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.532448",
+    "source": "broker"
+  },
+  "EQR": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.536433",
+    "source": "broker"
+  },
+  "MAA": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.541272",
+    "source": "broker"
+  },
+  "ARE": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.532295",
+    "source": "broker"
+  },
+  "WELL": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.551391",
+    "source": "broker"
+  },
+  "NOW": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.543398",
+    "source": "broker"
+  },
+  "DOCU": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.535746",
+    "source": "broker"
+  },
+  "DDOG": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.535349",
+    "source": "broker"
+  },
+  "SNOW": {
+    "sector": "Technology",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.547635",
+    "source": "broker"
+  },
+  "ZM": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.552519",
+    "source": "broker"
+  },
+  "MDB": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.541541",
+    "source": "broker"
+  },
+  "BILL": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.532975",
+    "source": "broker"
+  },
+  "NET": {
+    "sector": "Services",
+    "industry": "Business Services",
+    "last_updated": "2025-06-16T15:18:52.543215",
+    "source": "broker"
+  },
+  "U": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.549883",
+    "source": "broker"
+  },
+  "OKTA": {
+    "sector": "Technology",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.543877",
+    "source": "broker"
+  },
+  "TWLO": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.549745",
+    "source": "broker"
+  },
+  "OKLO": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.543816",
+    "source": "broker"
+  },
+  "PLTR": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.544931",
+    "source": "broker"
+  },
+  "QCOM": {
+    "sector": "Technology",
+    "industry": "Communications Equipment",
+    "last_updated": "2025-06-16T15:18:52.545362",
+    "source": "broker"
+  },
+  "AMAT": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T15:18:52.531894",
+    "source": "broker"
+  },
+  "LRCX": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T15:18:52.540979",
+    "source": "broker"
+  },
+  "MU": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T08:20:22.932314",
+    "source": "yfinance"
+  },
+  "NXPI": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T08:20:23.742067",
+    "source": "yfinance"
+  },
+  "ON": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T08:20:24.568453",
+    "source": "yfinance"
+  },
+  "TSM": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T08:20:29.727118",
+    "source": "yfinance"
+  },
+  "AVGO": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T08:20:30.515416",
+    "source": "yfinance"
+  },
+  "ADBE": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.531440",
+    "source": "broker"
+  },
+  "CSCO": {
+    "sector": "Technology",
+    "industry": "Communications Equipment",
+    "last_updated": "2025-06-16T15:18:52.534943",
+    "source": "broker"
+  },
+  "ORCL": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.543986",
+    "source": "broker"
+  },
+  "IBM": {
+    "sector": "Technology",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.538680",
+    "source": "broker"
+  },
+  "TXN": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T08:20:35.132261",
+    "source": "yfinance"
+  },
+  "CCL": {
+    "sector": "Transportation",
+    "industry": "Water Transportation",
+    "last_updated": "2025-06-16T15:18:52.533960",
+    "source": "broker"
+  },
+  "NCLH": {
+    "sector": "Transportation",
+    "industry": "Water Transportation",
+    "last_updated": "2025-06-16T15:18:52.542929",
+    "source": "broker"
+  },
+  "RCL": {
+    "sector": "Transportation",
+    "industry": "Water Transportation",
+    "last_updated": "2025-06-16T15:18:52.545550",
+    "source": "broker"
+  },
+  "HLT": {
+    "sector": "Services",
+    "industry": "Hotels & Motels",
+    "last_updated": "2025-06-16T15:18:52.538246",
+    "source": "broker"
+  },
+  "H": {
+    "sector": "Services",
+    "industry": "Hotels & Motels",
+    "last_updated": "2025-06-16T15:18:52.537851",
+    "source": "broker"
+  },
+  "EXPE": {
+    "sector": "Services",
+    "industry": "Personal Services",
+    "last_updated": "2025-06-16T15:18:52.536841",
+    "source": "broker"
+  },
+  "ABNB": {
+    "sector": "Services",
+    "industry": "Business Services",
+    "last_updated": "2025-06-16T15:18:52.531240",
+    "source": "broker"
+  },
+  "DIS": {
+    "sector": "Travel and Leisure",
+    "industry": "Broadcasting & Cable TV",
+    "last_updated": "2025-06-16T14:32:15.172124",
+    "source": "manual_edit"
+  },
+  "LYV": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.541203",
+    "source": "broker"
+  },
+  "DAL": {
+    "sector": "Transportation",
+    "industry": "Airline",
+    "last_updated": "2025-06-16T15:18:52.535255",
+    "source": "broker"
+  },
+  "AAL": {
+    "sector": "Transportation",
+    "industry": "Airline",
+    "last_updated": "2025-06-16T15:18:52.531050",
+    "source": "broker"
+  },
+  "UAL": {
+    "sector": "Transportation",
+    "industry": "Airline",
+    "last_updated": "2025-06-16T15:18:52.549972",
+    "source": "broker"
+  },
+  "LUV": {
+    "sector": "Transportation",
+    "industry": "Airline",
+    "last_updated": "2025-06-16T15:18:52.541065",
+    "source": "broker"
+  },
+  "NEE": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.543079",
+    "source": "broker"
+  },
+  "DUK": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.535822",
+    "source": "broker"
+  },
+  "SO": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.547701",
+    "source": "broker"
+  },
+  "AEP": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.531648",
+    "source": "broker"
+  },
+  "EXC": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.536738",
+    "source": "broker"
+  },
+  "SRE": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.548452",
+    "source": "broker"
+  },
+  "D": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.535202",
+    "source": "broker"
+  },
+  "PEG": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.544471",
+    "source": "broker"
+  },
+  "WEC": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.551330",
+    "source": "broker"
+  },
+  "ED": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.536087",
+    "source": "broker"
+  },
+  "XEL": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.551859",
+    "source": "broker"
+  },
+  "EIX": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.536274",
+    "source": "broker"
+  },
+  "ADM": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.531495",
+    "source": "broker"
+  },
+  "BG": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.532766",
+    "source": "broker"
+  },
+  "MOS": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.542167",
+    "source": "broker"
+  },
+  "CF": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.534106",
+    "source": "broker"
+  },
+  "NTR": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Personal & Household Prods.",
+    "last_updated": "2025-06-16T15:18:52.543463",
+    "source": "broker"
+  },
+  "FMC": {
+    "sector": "Basic Materials",
+    "industry": "Chemical Manufacturing",
+    "last_updated": "2025-06-16T15:18:52.537082",
+    "source": "broker"
+  },
+  "BHP": {
+    "sector": "Basic Materials",
+    "industry": "Metal Mining",
+    "last_updated": "2025-06-16T15:18:52.532817",
+    "source": "broker"
+  },
+  "FCX": {
+    "sector": "Basic Materials",
+    "industry": "Metal Mining",
+    "last_updated": "2025-06-16T15:18:52.536941",
+    "source": "broker"
+  },
+  "SCCO": {
+    "sector": "Basic Materials",
+    "industry": "Copper",
+    "last_updated": "2025-06-16T08:21:28.376237",
+    "source": "yfinance"
+  },
+  "TECK": {
+    "sector": "Basic Materials",
+    "industry": "Other Industrial Metals & Mining",
+    "last_updated": "2025-06-16T08:21:29.239909",
+    "source": "yfinance"
+  },
+  "AA": {
+    "sector": "Basic Materials",
+    "industry": "Metal Mining",
+    "last_updated": "2025-06-16T15:18:52.530983",
+    "source": "broker"
+  },
+  "CMC": {
+    "sector": "Capital Goods",
+    "industry": "Constr. - Supplies & Fixtures",
+    "last_updated": "2025-06-16T15:18:52.534460",
+    "source": "broker"
+  },
+  "X": {
+    "sector": "Basic Materials",
+    "industry": "Iron & Steel",
+    "last_updated": "2025-06-16T15:18:52.551717",
+    "source": "broker"
+  },
+  "NUE": {
+    "sector": "Basic Materials",
+    "industry": "Iron & Steel",
+    "last_updated": "2025-06-16T15:18:52.543522",
+    "source": "broker"
+  },
+  "CLF": {
+    "sector": "Basic Materials",
+    "industry": "Metal Mining",
+    "last_updated": "2025-06-16T15:18:52.534317",
+    "source": "broker"
+  },
+  "MT": {
+    "sector": "Basic Materials",
+    "industry": "Iron & Steel",
+    "last_updated": "2025-06-16T15:18:52.542554",
+    "source": "broker"
+  },
+  "QBTS": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.545308",
+    "source": "broker"
+  },
+  "BABA": {
+    "sector": "International & Emerging Markets",
+    "industry": "China",
+    "last_updated": "2025-06-16T14:21:18.938375",
+    "source": "bulk_edit"
+  },
+  "JD": {
+    "sector": "International & Emerging Markets",
+    "industry": "China",
+    "last_updated": "2025-06-16T14:21:18.938382",
+    "source": "bulk_edit"
+  },
+  "PDD": {
+    "sector": "International & Emerging Markets",
+    "industry": "China",
+    "last_updated": "2025-06-16T14:21:18.938395",
+    "source": "bulk_edit"
+  },
+  "BILI": {
+    "sector": "International & Emerging Markets",
+    "industry": "China",
+    "last_updated": "2025-06-16T14:21:18.938317",
+    "source": "bulk_edit"
+  },
+  "TSN": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Fish/Livestock",
+    "last_updated": "2025-06-16T15:18:52.549669",
+    "source": "broker"
+  },
+  "HRL": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Fish/Livestock",
+    "last_updated": "2025-06-16T15:18:52.538497",
+    "source": "broker"
+  },
+  "BRFS": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Fish/Livestock",
+    "last_updated": "2025-06-16T15:18:52.533448",
+    "source": "broker"
+  },
+  "OTLY": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.544037",
+    "source": "broker"
+  },
+  "BYND": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.533597",
+    "source": "broker"
+  },
+  "CALM": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Fish/Livestock",
+    "last_updated": "2025-06-16T15:18:52.533759",
+    "source": "broker"
+  },
+  "ANDE": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Crops",
+    "last_updated": "2025-06-16T15:18:52.532156",
+    "source": "broker"
+  },
+  "NEM": {
+    "sector": "Basic Materials",
+    "industry": "Gold & Silver",
+    "last_updated": "2025-06-16T15:18:52.543156",
+    "source": "broker"
+  },
+  "AG": {
+    "sector": "Basic Materials",
+    "industry": "Silver",
+    "last_updated": "2025-06-16T08:22:02.017516",
+    "source": "yfinance"
+  },
+  "AEM": {
+    "sector": "Basic Materials",
+    "industry": "Gold",
+    "last_updated": "2025-06-16T08:22:02.618887",
+    "source": "yfinance"
+  },
+  "WPM": {
+    "sector": "Basic Materials",
+    "industry": "Gold",
+    "last_updated": "2025-06-16T08:22:03.239358",
+    "source": "yfinance"
+  },
+  "HL": {
+    "sector": "Basic Materials",
+    "industry": "Gold & Silver",
+    "last_updated": "2025-06-16T15:18:52.538196",
+    "source": "broker"
+  },
+  "PAAS": {
+    "sector": "Basic Materials",
+    "industry": "Gold",
+    "last_updated": "2025-06-16T08:22:04.660528",
+    "source": "yfinance"
+  },
+  "TEM": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.548869",
+    "source": "broker"
+  },
+  "VG": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Operations",
+    "last_updated": "2025-06-16T15:18:52.550578",
+    "source": "broker"
+  },
+  "OXY": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Operations",
+    "last_updated": "2025-06-16T15:18:52.544106",
+    "source": "broker"
+  },
+  "SLB": {
+    "sector": "Energy",
+    "industry": "Oil Well Services & Equipment",
+    "last_updated": "2025-06-16T15:18:52.547421",
+    "source": "broker"
+  },
+  "GILD": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.537532",
+    "source": "broker"
+  },
+  "ALNY": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.531841",
+    "source": "broker"
+  },
+  "LOW": {
+    "sector": "Services",
+    "industry": "Retail (Home Improvement)",
+    "last_updated": "2025-06-16T15:18:52.540904",
+    "source": "broker"
+  },
+  "MAR": {
+    "sector": "Services",
+    "industry": "Hotels & Motels",
+    "last_updated": "2025-06-16T15:18:52.541339",
+    "source": "broker"
+  },
+  "EBAY": {
+    "sector": "Services",
+    "industry": "Retail (Specialty)",
+    "last_updated": "2025-06-16T15:18:52.535980",
+    "source": "broker"
+  },
+  "ULTA": {
+    "sector": "Services",
+    "industry": "Retail (Specialty)",
+    "last_updated": "2025-06-16T15:18:52.550147",
+    "source": "broker"
+  },
+  "KO": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Beverages (Nonalcoholic)",
+    "last_updated": "2025-06-16T15:18:52.540302",
+    "source": "broker"
+  },
+  "COST": {
+    "sector": "Services",
+    "industry": "Retail (Specialty)",
+    "last_updated": "2025-06-16T15:18:52.534708",
+    "source": "broker"
+  },
+  "PM": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Tobacco",
+    "last_updated": "2025-06-16T15:18:52.544994",
+    "source": "broker"
+  },
+  "MRK": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology & Drugs",
+    "last_updated": "2025-06-16T15:18:52.542234",
+    "source": "broker"
+  },
+  "HOMB": {
+    "sector": "Financial",
+    "industry": "Money Center Banks",
+    "last_updated": "2025-06-16T15:18:52.538296",
+    "source": "broker"
+  },
+  "BA": {
+    "sector": "Capital Goods",
+    "industry": "Aerospace & Defense",
+    "last_updated": "2025-06-16T15:18:52.532605",
+    "source": "broker"
+  },
+  "CSX": {
+    "sector": "Transportation",
+    "industry": "Railroads",
+    "last_updated": "2025-06-16T15:18:52.534999",
+    "source": "broker"
+  },
+  "PLD": {
+    "sector": "Real Estate",
+    "industry": "REIT - Industrial",
+    "last_updated": "2025-06-16T08:22:32.987071",
+    "source": "yfinance"
+  },
+  "O": {
+    "sector": "Services",
+    "industry": "Real Estate Operations",
+    "last_updated": "2025-06-16T15:18:52.543758",
+    "source": "broker"
+  },
+  "CRM": {
+    "sector": "Technology",
+    "industry": "Software & Programming",
+    "last_updated": "2025-06-16T15:18:52.534802",
+    "source": "broker"
+  },
+  "AEE": {
+    "sector": "Utilities",
+    "industry": "Electric Utilities",
+    "last_updated": "2025-06-16T15:18:52.531552",
+    "source": "broker"
+  },
+  "INGR": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Food Processing",
+    "last_updated": "2025-06-16T15:18:52.539049",
+    "source": "broker"
+  },
+  "RIO": {
+    "sector": "Basic Materials",
+    "industry": "Other Industrial Metals & Mining",
+    "last_updated": "2025-06-16T08:22:48.762087",
+    "source": "yfinance"
+  },
+  "IONQ": {
+    "sector": "Technology",
+    "industry": "Computer Services",
+    "last_updated": "2025-06-16T15:18:52.539155",
+    "source": "broker"
+  },
+  "RGTI": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "last_updated": "2025-06-16T15:18:52.545690",
+    "source": "broker"
+  },
+  "SOXL": {
+    "sector": "Technology",
+    "industry": "Semiconductors (Leveraged ETF)",
+    "last_updated": "2025-06-16T15:11:17.176412",
+    "source": "manual_mapping"
+  },
+  "IBIT": {
+    "sector": "Crypto",
+    "industry": "Bitcoin Trust",
+    "last_updated": "2025-06-16T15:11:17.176529",
+    "source": "manual_mapping"
+  },
+  "FXI": {
+    "sector": "International & Emerging Markets",
+    "industry": "China",
+    "last_updated": "2025-06-16T14:21:47.538258",
+    "source": "manual_edit"
+  },
+  "TLT": {
+    "sector": "Fixed Income",
+    "industry": "Treasury Bond ETF",
+    "last_updated": "2025-06-16T15:11:17.176510",
+    "source": "manual_mapping"
+  },
+  "EEM": {
+    "sector": "International & Emerging Markets",
+    "industry": "Emerging Markets ETF",
+    "last_updated": "2025-06-16T15:11:17.176453",
+    "source": "manual_mapping"
+  },
+  "EWZ": {
+    "sector": "International & Emerging Markets",
+    "industry": "Brazil ETF",
+    "last_updated": "2025-06-16T15:11:17.176458",
+    "source": "manual_mapping"
+  },
+  "GDX": {
+    "sector": "Basic Materials",
+    "industry": "Gold Miners ETF",
+    "last_updated": "2025-06-16T15:11:17.176497",
+    "source": "manual_mapping"
+  },
+  "SPXU": {
+    "sector": "Broad Market",
+    "industry": "Large Cap Index (Inverse ETF)",
+    "last_updated": "2025-06-16T15:11:17.176429",
+    "source": "manual_mapping"
+  },
+  "SLV": {
+    "sector": "Basic Materials",
+    "industry": "Silver ETF",
+    "last_updated": "2025-06-16T15:11:17.176495",
+    "source": "manual_mapping"
+  },
+  "XLI": {
+    "sector": "Industrials",
+    "industry": "Sector ETF",
+    "last_updated": "2025-06-16T15:11:17.176472",
+    "source": "manual_mapping"
+  },
+  "XLU": {
+    "sector": "Utilities",
+    "industry": "Sector ETF",
+    "last_updated": "2025-06-16T15:11:17.176474",
+    "source": "manual_mapping"
+  },
+  "TNA": {
+    "sector": "Broad Market",
+    "industry": "Small Cap Index (Leveraged ETF)",
+    "last_updated": "2025-06-16T15:11:17.176426",
+    "source": "manual_mapping"
+  },
+  "GLD": {
+    "sector": "Basic Materials",
+    "industry": "Gold ETF",
+    "last_updated": "2025-06-16T15:11:17.176492",
+    "source": "manual_mapping"
+  },
+  "RSP": {
+    "sector": "Broad Market",
+    "industry": "Large Cap Equal Weight ETF",
+    "last_updated": "2025-06-16T15:11:17.176431",
+    "source": "manual_mapping"
+  },
+  "EFA": {
+    "sector": "International & Emerging Markets",
+    "industry": "EAFE Developed Markets ETF",
+    "last_updated": "2025-06-16T15:11:17.176460",
+    "source": "manual_mapping"
+  },
+  "XBI": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology ETF",
+    "last_updated": "2025-06-16T15:11:17.176487",
+    "source": "manual_mapping"
+  },
+  "KRE": {
+    "sector": "Financial Services",
+    "industry": "Regional Banks ETF",
+    "last_updated": "2025-06-16T15:11:32.127773",
+    "source": "manual_mapping"
+  },
+  "VEA": {
+    "sector": "International Markets",
+    "industry": "Developed Markets ETF",
+    "last_updated": "2025-06-16T15:11:17.176450",
+    "source": "manual_mapping"
+  },
+  "TMF": {
+    "sector": "Fixed Income",
+    "industry": "20+ Year Bonds Leveraged ETF",
+    "last_updated": "2025-06-16T15:11:32.127787",
+    "source": "manual_mapping"
+  },
+  "BND": {
+    "sector": "Fixed Income",
+    "industry": "Bond ETF",
+    "last_updated": "2025-06-16T15:11:17.176512",
+    "source": "manual_mapping"
+  },
+  "UNG": {
+    "sector": "Energy",
+    "industry": "Natural Gas ETF",
+    "last_updated": "2025-06-16T15:11:32.127746",
+    "source": "manual_mapping"
+  },
+  "VOO": {
+    "sector": "Broad Market",
+    "industry": "S&P 500 Index ETF",
+    "last_updated": "2025-06-16T15:11:17.176437",
+    "source": "manual_mapping"
+  },
+  "SMH": {
+    "sector": "Technology",
+    "industry": "Semiconductors ETF",
+    "last_updated": "2025-06-16T15:11:32.127730",
+    "source": "manual_mapping"
+  },
+  "VWO": {
+    "sector": "International & Emerging Markets",
+    "industry": "Emerging Markets ETF",
+    "last_updated": "2025-06-16T15:11:17.176469",
+    "source": "manual_mapping"
+  },
+  "IEMG": {
+    "sector": "International & Emerging Markets",
+    "industry": "Emerging Markets ETF",
+    "last_updated": "2025-06-16T15:11:32.127763",
+    "source": "manual_mapping"
+  },
+  "XLC": {
+    "sector": "Communication Services",
+    "industry": "Sector ETF",
+    "last_updated": "2025-06-16T15:11:17.176482",
+    "source": "manual_mapping"
+  },
+  "XLRE": {
+    "sector": "Real Estate",
+    "industry": "Sector ETF",
+    "last_updated": "2025-06-16T15:11:17.176477",
+    "source": "manual_mapping"
+  },
+  "IEF": {
+    "sector": "Fixed Income",
+    "industry": "Treasury Bond ETF",
+    "last_updated": "2025-06-16T15:11:17.176526",
+    "source": "manual_mapping"
+  },
+  "SOXX": {
+    "sector": "Technology",
+    "industry": "Semiconductors ETF",
+    "last_updated": "2025-06-16T15:11:32.127720",
+    "source": "manual_mapping"
+  },
+  "INDA": {
+    "sector": "International & Emerging Markets",
+    "industry": "India ETF",
+    "last_updated": "2025-06-16T15:11:32.127760",
+    "source": "manual_mapping"
+  },
+  "SPLG": {
+    "sector": "Broad Market",
+    "industry": "Large Cap S&P 500 ETF",
+    "last_updated": "2025-06-16T15:11:32.127782",
+    "source": "manual_mapping"
+  },
+  "XLB": {
+    "sector": "Basic Materials",
+    "industry": "Sector ETF",
+    "last_updated": "2025-06-16T15:11:17.176479",
+    "source": "manual_mapping"
+  },
+  "AGG": {
+    "sector": "Fixed Income",
+    "industry": "Bond ETF",
+    "last_updated": "2025-06-16T15:11:17.176508",
+    "source": "manual_mapping"
+  },
+  "GDXJ": {
+    "sector": "Basic Materials",
+    "industry": "Gold Miners Junior ETF",
+    "last_updated": "2025-06-16T15:11:32.127738",
+    "source": "manual_mapping"
+  },
+  "DIA": {
+    "sector": "Broad Market",
+    "industry": "Dow Jones Industrial Average ETF",
+    "last_updated": "2025-06-16T15:11:17.176434",
+    "source": "manual_mapping"
+  },
+  "VTI": {
+    "sector": "Broad Market",
+    "industry": "Total Market Index ETF",
+    "last_updated": "2025-06-16T15:11:17.176440",
+    "source": "manual_mapping"
+  },
+  "IBB": {
+    "sector": "Healthcare",
+    "industry": "Biotechnology ETF",
+    "last_updated": "2025-06-16T15:11:32.127735",
+    "source": "manual_mapping"
+  },
+  "SPXL": {
+    "sector": "Broad Market",
+    "industry": "Large Cap Index (Leveraged ETF)",
+    "last_updated": "2025-06-16T15:11:17.176447",
+    "source": "manual_mapping"
+  },
+  "ITB": {
+    "sector": "Consumer Discretionary",
+    "industry": "Home Construction ETF",
+    "last_updated": "2025-06-16T15:11:32.127771",
+    "source": "manual_mapping"
+  },
+  "VGSH": {
+    "sector": "Fixed Income",
+    "industry": "Short-Term Treasury ETF",
+    "last_updated": "2025-06-16T15:11:17.176521",
+    "source": "manual_mapping"
+  },
+  "/ESU5": {
+    "sector": "Equity Index Futures",
+    "industry": "Stock Index Futures",
+    "last_updated": "2025-06-16T15:10:15.656085",
+    "source": "manual_mapping"
+  },
+  "EWJ": {
+    "sector": "International & Emerging Markets",
+    "industry": "Japan ETF",
+    "last_updated": "2025-06-16T15:11:17.176463",
+    "source": "manual_mapping"
+  },
+  "/ZNU5": {
+    "sector": "Fixed Income Futures",
+    "industry": "Treasury Futures",
+    "last_updated": "2025-06-16T15:10:15.656180",
+    "source": "manual_mapping"
+  },
+  "VGLT": {
+    "sector": "Fixed Income",
+    "industry": "Treasury Bond ETF",
+    "last_updated": "2025-06-16T15:11:17.176518",
+    "source": "manual_mapping"
+  },
+  "EWU": {
+    "sector": "International & Emerging Markets",
+    "industry": "United Kingdom ETF",
+    "last_updated": "2025-06-16T15:11:17.176465",
+    "source": "manual_mapping"
+  },
+  "XLY": {
+    "sector": "Consumer Discretionary",
+    "industry": "Sector ETF",
+    "last_updated": "2025-06-16T15:11:17.176484",
+    "source": "manual_mapping"
+  },
+  "UUP": {
+    "sector": "Currency",
+    "industry": "US Dollar Index ETF",
+    "last_updated": "2025-06-16T15:11:17.176532",
+    "source": "manual_mapping"
+  },
+  "SHY": {
+    "sector": "Fixed Income",
+    "industry": "Short-Term Treasury ETF",
+    "last_updated": "2025-06-16T15:11:17.176524",
+    "source": "manual_mapping"
+  },
+  "/ZFU5": {
+    "sector": "Fixed Income Futures",
+    "industry": "Treasury Futures",
+    "last_updated": "2025-06-16T15:10:15.656186",
+    "source": "manual_mapping"
+  },
+  "XHB": {
+    "sector": "Consumer Discretionary",
+    "industry": "Home Builders ETF",
+    "last_updated": "2025-06-16T15:11:17.176490",
+    "source": "manual_mapping"
+  },
+  "SPDW": {
+    "sector": "International & Emerging Markets",
+    "industry": "Developed Markets ETF",
+    "last_updated": "2025-06-16T15:11:32.127755",
+    "source": "manual_mapping"
+  },
+  "/MNQU5": {
+    "sector": "Equity Index Futures",
+    "industry": "Stock Index Futures",
+    "last_updated": "2025-06-16T15:10:15.656099",
+    "source": "manual_mapping"
+  },
+  "/MESU5": {
+    "sector": "Equity Index Futures",
+    "industry": "Stock Index Futures",
+    "last_updated": "2025-06-16T15:10:15.656097",
+    "source": "manual_mapping"
+  },
+  "KBE": {
+    "sector": "Financial Services",
+    "industry": "Regional Banks ETF",
+    "last_updated": "2025-06-16T15:11:32.127775",
+    "source": "manual_mapping"
+  },
+  "/CLQ5": {
+    "sector": "Energy Futures",
+    "industry": "Crude Oil Futures",
+    "last_updated": "2025-06-16T15:10:15.656249",
+    "source": "manual_mapping"
+  },
+  "/ZTU5": {
+    "sector": "Fixed Income Futures",
+    "industry": "Treasury Futures",
+    "last_updated": "2025-06-16T15:10:15.656190",
+    "source": "manual_mapping"
+  },
+  "SCHE": {
+    "sector": "International & Emerging Markets",
+    "industry": "Emerging Markets ETF",
+    "last_updated": "2025-06-16T15:11:32.127757",
+    "source": "manual_mapping"
+  },
+  "WEAT": {
+    "sector": "Consumer Defensive",
+    "industry": "Wheat ETF",
+    "last_updated": "2025-06-16T15:11:17.176500",
+    "source": "manual_mapping"
+  },
+  "PPLT": {
+    "sector": "Basic Materials",
+    "industry": "Platinum ETF",
+    "last_updated": "2025-06-16T15:11:32.127741",
+    "source": "manual_mapping"
+  },
+  "/NQU5": {
+    "sector": "Equity Index Futures",
+    "industry": "Stock Index Futures",
+    "last_updated": "2025-06-16T15:10:15.656101",
+    "source": "manual_mapping"
+  },
+  "/ZBU5": {
+    "sector": "Fixed Income Futures",
+    "industry": "Treasury Futures",
+    "last_updated": "2025-06-16T15:10:15.656193",
+    "source": "manual_mapping"
+  },
+  "/GCQ5": {
+    "sector": "Precious Metals Futures",
+    "industry": "Precious Metals Futures",
+    "last_updated": "2025-06-16T15:10:25.147623",
+    "source": "manual_mapping"
+  },
+  "BOTZ": {
+    "sector": "Technology",
+    "industry": "Robotics & AI ETF",
+    "last_updated": "2025-06-16T15:11:17.176554",
+    "source": "manual_mapping"
+  },
+  "/RTYU5": {
+    "sector": "Equity Index Futures",
+    "industry": "Stock Index Futures",
+    "last_updated": "2025-06-16T15:10:15.656104",
+    "source": "manual_mapping"
+  },
+  "/6EU5": {
+    "sector": "Currency Futures",
+    "industry": "Currency Futures",
+    "last_updated": "2025-06-16T15:10:25.147896",
+    "source": "manual_mapping"
+  },
+  "IYZ": {
+    "sector": "Communication Services",
+    "industry": "Telecom ETF",
+    "last_updated": "2025-06-16T15:11:32.127780",
+    "source": "manual_mapping"
+  },
+  "/6JU5": {
+    "sector": "Currency Futures",
+    "industry": "Currency Futures",
+    "last_updated": "2025-06-16T15:10:25.147901",
+    "source": "manual_mapping"
+  },
+  "EDV": {
+    "sector": "Fixed Income",
+    "industry": "Treasury Bond ETF",
+    "last_updated": "2025-06-16T15:11:17.176515",
+    "source": "manual_mapping"
+  },
+  "/ZCN5": {
+    "sector": "Grains Futures",
+    "industry": "Grains Futures",
+    "last_updated": "2025-06-16T15:10:25.147760",
+    "source": "manual_mapping"
+  },
+  "/ZSN5": {
+    "sector": "Grains Futures",
+    "industry": "Grains Futures",
+    "last_updated": "2025-06-16T15:10:25.147769",
+    "source": "manual_mapping"
+  },
+  "SOYB": {
+    "sector": "Consumer Defensive",
+    "industry": "Soybeans ETF",
+    "last_updated": "2025-06-16T15:11:32.127769",
+    "source": "manual_mapping"
+  },
+  "/6AU5": {
+    "sector": "Currency Futures",
+    "industry": "Currency Futures",
+    "last_updated": "2025-06-16T15:10:25.147906",
+    "source": "manual_mapping"
+  },
+  "FXY": {
+    "sector": "Currency",
+    "industry": "Japanese Yen ETF",
+    "last_updated": "2025-06-16T15:11:17.176537",
+    "source": "manual_mapping"
+  },
+  "ARKQ": {
+    "sector": "Technology",
+    "industry": "Automation & Robotics ETF",
+    "last_updated": "2025-06-16T15:11:17.176550",
+    "source": "manual_mapping"
+  },
+  "IYT": {
+    "sector": "Industrials",
+    "industry": "Transportation ETF",
+    "last_updated": "2025-06-16T15:11:32.127778",
+    "source": "manual_mapping"
+  },
+  "BUG": {
+    "sector": "Technology",
+    "industry": "Cybersecurity",
+    "last_updated": "2025-06-16T14:47:02.866795",
+    "source": "bulk_edit"
+  },
+  "FXE": {
+    "sector": "Currency",
+    "industry": "Euro ETF",
+    "last_updated": "2025-06-16T15:11:17.176535",
+    "source": "manual_mapping"
+  },
+  "/ZWN5": {
+    "sector": "Grains Futures",
+    "industry": "Grains Futures",
+    "last_updated": "2025-06-16T15:10:25.147765",
+    "source": "manual_mapping"
+  },
+  "/6BU5": {
+    "sector": "Currency Futures",
+    "industry": "Currency Futures",
+    "last_updated": "2025-06-16T15:10:25.147910",
+    "source": "manual_mapping"
+  },
+  "/SIN5": {
+    "sector": "Precious Metals Futures",
+    "industry": "Precious Metals Futures",
+    "last_updated": "2025-06-16T15:10:25.147634",
+    "source": "manual_mapping"
+  },
+  "IEO": {
+    "sector": "Energy",
+    "industry": "Oil & Gas Exploration ETF",
+    "last_updated": "2025-06-16T15:11:32.127765",
+    "source": "manual_mapping"
+  },
+  "/6CU5": {
+    "sector": "Currency Futures",
+    "industry": "Currency Futures",
+    "last_updated": "2025-06-16T15:10:25.147913",
+    "source": "manual_mapping"
+  },
+  "TBT": {
+    "sector": "Fixed Income",
+    "industry": "20+ Year Bonds Inverse ETF",
+    "last_updated": "2025-06-16T15:11:32.127785",
+    "source": "manual_mapping"
+  },
+  "/PLN5": {
+    "sector": "Precious Metals Futures",
+    "industry": "Precious Metals Futures",
+    "last_updated": "2025-06-16T15:10:25.147637",
+    "source": "manual_mapping"
+  },
+  "HACK": {
+    "sector": "Technology",
+    "industry": "Cybersecurity",
+    "last_updated": "2025-06-16T14:47:02.866848",
+    "source": "bulk_edit"
+  },
+  "CPER": {
+    "sector": "Basic Materials",
+    "industry": "Copper ETF",
+    "last_updated": "2025-06-16T15:11:17.176505",
+    "source": "manual_mapping"
+  },
+  "/M2KU5": {
+    "sector": "Equity Index Futures",
+    "industry": "Stock Index Futures",
+    "last_updated": "2025-06-16T15:10:15.656106",
+    "source": "manual_mapping"
+  },
+  "FXF": {
+    "sector": "Currency",
+    "industry": "Swiss Franc ETF",
+    "last_updated": "2025-06-16T15:11:32.127752",
+    "source": "manual_mapping"
+  },
+  "/HGN5": {
+    "sector": "Industrial Metals Futures",
+    "industry": "Copper Futures",
+    "last_updated": "2025-06-16T15:10:25.147696",
+    "source": "manual_mapping"
+  },
+  "PICK": {
+    "sector": "Basic Materials",
+    "industry": "Metals & Mining ETF",
+    "last_updated": "2025-06-16T15:11:32.127743",
+    "source": "manual_mapping"
+  },
+  "USDU": {
+    "sector": "Currency",
+    "industry": "US Dollar Index ETF",
+    "last_updated": "2025-06-16T15:11:32.127749",
+    "source": "manual_mapping"
+  },
+  "CORN": {
+    "sector": "Consumer Defensive",
+    "industry": "Corn ETF",
+    "last_updated": "2025-06-16T15:11:17.176503",
+    "source": "manual_mapping"
+  },
+  "/LEQ5": {
+    "sector": "Livestock Futures",
+    "industry": "Livestock Futures",
+    "last_updated": "2025-06-16T15:10:25.147845",
+    "source": "manual_mapping"
+  },
+  "ROBO": {
+    "sector": "Technology",
+    "industry": "Robotics & AI ETF",
+    "last_updated": "2025-06-16T15:11:17.176562",
+    "source": "manual_mapping"
+  },
+  "EUO": {
+    "sector": "Currency",
+    "industry": "Euro Inverse ETF",
+    "last_updated": "2025-06-16T15:11:17.176544",
+    "source": "manual_mapping"
+  },
+  "/HEN5": {
+    "sector": "Livestock Futures",
+    "industry": "Livestock Futures",
+    "last_updated": "2025-06-16T15:10:25.147849",
+    "source": "manual_mapping"
+  },
+  "PSCE": {
+    "sector": "Energy",
+    "industry": "Small Cap Energy ETF",
+    "last_updated": "2025-06-16T15:11:17.176566",
+    "source": "manual_mapping"
+  },
+  "TANH": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Personal & Household Prods.",
+    "last_updated": "2025-06-16T15:18:52.548683",
+    "source": "broker"
+  },
+  "/ETHM5": {
+    "sector": "Crypto Futures",
+    "industry": "Crypto Futures",
+    "last_updated": "2025-06-16T15:10:25.147956",
+    "source": "manual_mapping"
+  },
+  "FEX": {
+    "sector": "Currency",
+    "industry": "Currency ETF",
+    "last_updated": "2025-06-16T15:11:17.176547",
+    "source": "manual_mapping"
+  },
+  "NVR": {
+    "sector": "Capital Goods",
+    "industry": "Construction Services",
+    "last_updated": "2025-06-16T15:18:52.543645",
+    "source": "broker"
+  },
+  "/BTCM5": {
+    "sector": "Crypto Futures",
+    "industry": "Crypto Futures",
+    "last_updated": "2025-06-16T15:10:25.147959",
+    "source": "manual_mapping"
+  },
+  "FXB": {
+    "sector": "Currency",
+    "industry": "British Pound ETF",
+    "last_updated": "2025-06-16T15:11:17.176540",
+    "source": "manual_mapping"
+  },
+  "CEW": {
+    "sector": "Currency",
+    "industry": "Emerging Currencies ETF",
+    "last_updated": "2025-06-16T15:11:17.176542",
+    "source": "manual_mapping"
+  },
+  "SEB": {
+    "sector": "Consumer/Non-Cyclical",
+    "industry": "Crops",
+    "last_updated": "2025-06-16T15:18:52.547128",
+    "source": "broker"
+  },
+  "TILL": {
+    "sector": "Consumer Defensive",
+    "industry": "AgTech & Food Innovation ETF",
+    "last_updated": "2025-06-16T15:11:17.176570",
+    "source": "manual_mapping"
+  },
+  "APPL": {
+    "sector": "Technology",
+    "industry": "Consumer Electronics",
+    "last_updated": "2025-06-16T15:11:17.176603",
+    "source": "manual_mapping"
+  },
+  "SPX": {
+    "sector": "Broad Market",
+    "industry": "S&P 500 Index",
+    "last_updated": "2025-06-16T15:11:17.176583",
+    "source": "manual_mapping"
+  },
+  "NDX": {
+    "sector": "Broad Market",
+    "industry": "Nasdaq-100 Index",
+    "last_updated": "2025-06-16T15:11:17.176587",
+    "source": "manual_mapping"
+  },
+  "RUT": {
+    "sector": "Broad Market",
+    "industry": "Russell 2000 Index",
+    "last_updated": "2025-06-16T15:11:17.176591",
+    "source": "manual_mapping"
+  },
+  "XSP": {
+    "sector": "Broad Market",
+    "industry": "Mini S&P 500 Index ETF",
+    "last_updated": "2025-06-16T15:11:17.176444",
+    "source": "manual_mapping"
+  },
+  "CLQ5": {
+    "sector": "Energy",
+    "industry": "Crude Oil Futures",
+    "last_updated": "2025-06-16T14:22:35.706120",
+    "source": "manual_edit"
+  },
+  "/ZB": {
+    "sector": "Financial",
+    "industry": "30-Year Treasury Bond Futures",
+    "last_updated": "2025-06-16T15:50:13.058951",
+    "source": "futures_mapping"
+  },
+  "/ZN": {
+    "sector": "Financial",
+    "industry": "10-Year Treasury Note Futures",
+    "last_updated": "2025-06-16T15:50:13.811253",
+    "source": "futures_mapping"
+  },
+  "/ZT": {
+    "sector": "Financial",
+    "industry": "2-Year Treasury Note Futures",
+    "last_updated": "2025-06-16T15:50:21.784487",
+    "source": "futures_mapping"
+  },
+  "/ZF": {
+    "sector": "Financial",
+    "industry": "5-Year Treasury Note Futures",
+    "last_updated": "2025-06-16T15:50:22.499466",
+    "source": "futures_mapping"
+  },
+  "/BTC": {
+    "sector": "Cryptocurrency",
+    "industry": "Bitcoin Futures",
+    "last_updated": "2025-06-16T15:50:25.342516",
+    "source": "futures_mapping"
+  },
+  "/6E": {
+    "sector": "Currency",
+    "industry": "Euro Futures",
+    "last_updated": "2025-06-16T15:50:32.065830",
+    "source": "futures_mapping"
+  },
+  "/6A": {
+    "sector": "Currency",
+    "industry": "Australian Dollar Futures",
+    "last_updated": "2025-06-16T15:50:32.763734",
+    "source": "futures_mapping"
+  },
+  "/6B": {
+    "sector": "Currency",
+    "industry": "British Pound Futures",
+    "last_updated": "2025-06-16T15:50:33.889080",
+    "source": "futures_mapping"
+  },
+  "/6C": {
+    "sector": "Currency",
+    "industry": "Canadian Dollar Futures",
+    "last_updated": "2025-06-16T15:50:34.582466",
+    "source": "futures_mapping"
+  },
+  "/6J": {
+    "sector": "Currency",
+    "industry": "Japanese Yen Futures",
+    "last_updated": "2025-06-16T15:50:35.617539",
+    "source": "futures_mapping"
+  },
+  "/CL": {
+    "sector": "Energy",
+    "industry": "Crude Oil Futures",
+    "last_updated": "2025-06-16T15:50:45.895257",
+    "source": "futures_mapping"
+  },
+  "/ES": {
+    "sector": "Equity Index",
+    "industry": "E-mini S&P 500 Futures",
+    "last_updated": "2025-06-16T15:54:23.987447",
+    "source": "futures_mapping"
+  },
+  "/MES": {
+    "sector": "Futures",
+    "industry": "MES Futures",
+    "last_updated": "2025-06-16T15:54:24.761904",
+    "source": "futures_default"
+  },
+  "/NQ": {
+    "sector": "Equity Index",
+    "industry": "E-mini NASDAQ 100 Futures",
+    "last_updated": "2025-06-16T15:54:25.443461",
+    "source": "futures_mapping"
+  },
+  "/MNQ": {
+    "sector": "Futures",
+    "industry": "MNQ Futures",
+    "last_updated": "2025-06-16T15:54:26.266346",
+    "source": "futures_default"
+  },
+  "/RTY": {
+    "sector": "Equity Index",
+    "industry": "E-mini Russell 2000 Futures",
+    "last_updated": "2025-06-16T15:54:26.965956",
+    "source": "futures_mapping"
+  },
+  "/ZC": {
+    "sector": "Agricultural",
+    "industry": "Corn Futures",
+    "last_updated": "2025-06-16T15:54:41.226787",
+    "source": "futures_mapping"
+  },
+  "/ZW": {
+    "sector": "Agricultural",
+    "industry": "Wheat Futures",
+    "last_updated": "2025-06-16T15:54:42.167991",
+    "source": "futures_mapping"
+  },
+  "/ZS": {
+    "sector": "Agricultural",
+    "industry": "Soybean Futures",
+    "last_updated": "2025-06-16T15:54:43.203230",
+    "source": "futures_mapping"
+  },
+  "/GC": {
+    "sector": "Metals",
+    "industry": "Gold Futures",
+    "last_updated": "2025-06-16T15:55:43.850796",
+    "source": "futures_mapping"
+  },
+  "/SI": {
+    "sector": "Metals",
+    "industry": "Silver Futures",
+    "last_updated": "2025-06-16T15:55:45.047308",
+    "source": "futures_mapping"
+  }
+}

@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TastyTracker - Underlyings Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .nav-links {
+            margin-top: 0.5rem;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            margin-right: 1rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .controls-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .controls-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .search-box {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .filter-group select {
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #357abd;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4a90e2;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .sectors-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .sector-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e1e5e9;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .sector-header:hover {
+            background: #e9ecef;
+        }
+
+        .sector-header.active {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .sector-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sector-count {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .sector-header.active .sector-count {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s;
+        }
+
+        .collapse-icon.rotated {
+            transform: rotate(180deg);
+        }
+
+        .sector-content {
+            display: none;
+            padding: 0;
+        }
+
+        .sector-content.show {
+            display: block;
+        }
+
+        .industry-group {
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .industry-header {
+            background: #f8f9fa;
+            padding: 0.75rem 2rem;
+            border-bottom: 1px solid #e1e5e9;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .industry-header:hover {
+            background: #e9ecef;
+        }
+
+        .industry-title {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .symbols-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .symbols-table th,
+        .symbols-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .symbols-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+        }
+
+        .symbol-row {
+            transition: background-color 0.2s;
+        }
+
+        .symbol-row:hover {
+            background-color: #f8f9fa;
+        }
+
+        .symbol-code {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-weight: 600;
+            color: #4a90e2;
+        }
+
+        .source-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .source-broker {
+            background: #28a745;
+            color: white;
+        }
+
+        .source-yfinance {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .source-manual_mapping {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .source-minimal_cache {
+            background: #6c757d;
+            color: white;
+        }
+
+        .source-manual_edit,
+        .source-manual_add,
+        .source-bulk_edit {
+            background: #dc3545;
+            color: white;
+        }
+
+        .edit-mode .symbol-row {
+            cursor: pointer;
+        }
+
+        .symbol-row.selected {
+            background-color: #e3f2fd !important;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            right: 1rem;
+            top: 1rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .success {
+            color: #155724;
+            background: #d4edda;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .bulk-actions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .bulk-actions.show {
+            display: block;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .controls-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box {
+                max-width: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .symbols-table {
+                font-size: 0.8rem;
+            }
+
+            .symbols-table th,
+            .symbols-table td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Underlyings Management</h1>
+        <div class="nav-links">
+            <a href="/">📊 Dashboard</a>
+            <a href="/underlyings">🎯 Underlyings</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Controls Panel -->
+        <div class="controls-panel">
+            <div class="controls-row">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search symbols, sectors, or industries...">
+                </div>
+                <div class="filter-group">
+                    <label>Sector:</label>
+                    <select id="sectorFilter">
+                        <option value="">All Sectors</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Source:</label>
+                    <select id="sourceFilter">
+                        <option value="">All Sources</option>
+                        <option value="broker">Broker</option>
+                        <option value="yfinance">YFinance</option>
+                        <option value="manual_mapping">Manual Mapping</option>
+                        <option value="minimal_cache">Minimal Cache</option>
+                        <option value="manual_edit">Manual Edit</option>
+                        <option value="manual_add">Manual Add</option>
+                        <option value="bulk_edit">Bulk Edit</option>
+                    </select>
+                </div>
+            </div>
+            <div class="controls-row">
+                <button class="btn btn-primary" onclick="toggleEditMode()">
+                    <span id="editModeText">Enable Edit Mode</span>
+                </button>
+                <button class="btn btn-success" onclick="openAddSymbolModal()">Add Symbol</button>
+                <button class="btn btn-warning" onclick="exportData()">Export CSV</button>
+                <button class="btn btn-secondary" onclick="refreshData()">Refresh</button>
+            </div>
+            
+            <!-- Bulk Actions Panel -->
+            <div id="bulkActions" class="bulk-actions">
+                <h4>Bulk Actions (<span id="selectedCount">0</span> selected)</h4>
+                <div class="controls-row">
+                    <button class="btn btn-warning" onclick="openBulkEditModal()">Edit Selected</button>
+                    <button class="btn btn-danger" onclick="deleteSelected()">Delete Selected</button>
+                    <button class="btn btn-secondary" onclick="clearSelection()">Clear Selection</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div id="statsContainer" class="stats-grid">
+            <!-- Stats will be populated dynamically -->
+        </div>
+
+        <!-- Sectors Container -->
+        <div id="sectorsContainer" class="sectors-container">
+            <div class="loading">
+                Loading underlyings data...
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Symbol Modal -->
+    <div id="symbolModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSymbolModal()">&times;</span>
+            <h3 id="modalTitle">Add New Symbol</h3>
+            <form id="symbolForm">
+                <div class="form-group">
+                    <label for="symbolInput">Symbol:</label>
+                    <input type="text" id="symbolInput" required>
+                </div>
+                <div class="form-group">
+                    <label for="sectorInput">Sector:</label>
+                    <input type="text" id="sectorInput" required>
+                </div>
+                <div class="form-group">
+                    <label for="industryInput">Industry:</label>
+                    <input type="text" id="industryInput" required>
+                </div>
+                <div class="controls-row">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeSymbolModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Edit Modal -->
+    <div id="bulkEditModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBulkEditModal()">&times;</span>
+            <h3>Bulk Edit Selected Symbols</h3>
+            <form id="bulkEditForm">
+                <div class="form-group">
+                    <label for="bulkSectorInput">New Sector (optional):</label>
+                    <input type="text" id="bulkSectorInput" placeholder="Leave blank to keep existing">
+                </div>
+                <div class="form-group">
+                    <label for="bulkIndustryInput">New Industry (optional):</label>
+                    <input type="text" id="bulkIndustryInput" placeholder="Leave blank to keep existing">
+                </div>
+                <div class="form-group">
+                    <small style="color: #94a3b8;">Note: Fill in at least one field to update. Blank fields will keep existing values.</small>
+                </div>
+                <div class="controls-row">
+                    <button type="submit" class="btn btn-primary">Update All</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeBulkEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let underlyingsData = null;
+        let filteredData = null;
+        let editMode = false;
+        let selectedSymbols = new Set();
+        let currentEditSymbol = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUnderlyingsData();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            document.getElementById('sectorFilter').addEventListener('change', applyFilters);
+            document.getElementById('sourceFilter').addEventListener('change', applyFilters);
+
+            // Modal form submissions
+            document.getElementById('symbolForm').addEventListener('submit', handleSymbolFormSubmit);
+            document.getElementById('bulkEditForm').addEventListener('submit', handleBulkEditFormSubmit);
+
+            // Close modals when clicking outside
+            window.addEventListener('click', function(event) {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            });
+        }
+
+        async function loadUnderlyingsData() {
+            try {
+                const response = await fetch('/api/underlyings');
+                const result = await response.json();
+                
+                if (result.success) {
+                    underlyingsData = result.data;
+                    populateFilters();
+                    renderStatistics();
+                    applyFilters();
+                } else {
+                    showError('Failed to load underlyings data: ' + result.error);
+                }
+            } catch (error) {
+                showError('Error loading data: ' + error.message);
+            }
+        }
+
+        function populateFilters() {
+            const sectorFilter = document.getElementById('sectorFilter');
+            sectorFilter.innerHTML = '<option value="">All Sectors</option>';
+            
+            underlyingsData.sectors.forEach(sector => {
+                const option = document.createElement('option');
+                option.value = sector.name;
+                option.textContent = `${sector.name} (${sector.symbol_count})`;
+                sectorFilter.appendChild(option);
+            });
+        }
+
+        function renderStatistics() {
+            const container = document.getElementById('statsContainer');
+            const stats = [
+                { label: 'Total Symbols', value: underlyingsData.total_symbols },
+                { label: 'Sectors', value: underlyingsData.total_sectors },
+                { label: 'Cache Sources', value: Object.keys(underlyingsData.cache_stats.sources || {}).length },
+                { label: 'Last Updated', value: new Date(underlyingsData.timestamp).toLocaleDateString() }
+            ];
+
+            container.innerHTML = stats.map(stat => `
+                <div class="stat-card">
+                    <div class="stat-number">${stat.value}</div>
+                    <div class="stat-label">${stat.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function applyFilters() {
+            if (!underlyingsData) return;
+
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const sectorFilter = document.getElementById('sectorFilter').value;
+            const sourceFilter = document.getElementById('sourceFilter').value;
+
+            filteredData = {
+                ...underlyingsData,
+                sectors: underlyingsData.sectors.map(sector => {
+                    // Filter sector
+                    if (sectorFilter && sector.name !== sectorFilter) {
+                        return null;
+                    }
+
+                    // Filter industries and symbols within sector
+                    const filteredIndustries = sector.industries.map(industry => {
+                        const filteredSymbols = industry.symbols.filter(symbol => {
+                            // Search filter
+                            const matchesSearch = !searchTerm || 
+                                symbol.symbol.toLowerCase().includes(searchTerm) ||
+                                symbol.sector.toLowerCase().includes(searchTerm) ||
+                                symbol.industry.toLowerCase().includes(searchTerm);
+
+                            // Source filter
+                            const matchesSource = !sourceFilter || symbol.source === sourceFilter;
+
+                            return matchesSearch && matchesSource;
+                        });
+
+                        return filteredSymbols.length > 0 ? {
+                            ...industry,
+                            symbols: filteredSymbols,
+                            symbol_count: filteredSymbols.length
+                        } : null;
+                    }).filter(industry => industry !== null);
+
+                    return filteredIndustries.length > 0 ? {
+                        ...sector,
+                        industries: filteredIndustries,
+                        symbol_count: filteredIndustries.reduce((sum, ind) => sum + ind.symbol_count, 0)
+                    } : null;
+                }).filter(sector => sector !== null)
+            };
+
+            renderSectors();
+        }
+
+        function renderSectors() {
+            const container = document.getElementById('sectorsContainer');
+            
+            if (!filteredData || filteredData.sectors.length === 0) {
+                container.innerHTML = '<div class="loading">No data matches your filters.</div>';
+                return;
+            }
+
+            container.innerHTML = filteredData.sectors.map(sector => `
+                <div class="sector-item">
+                    <div class="sector-header" onclick="toggleSector('${sector.name}')">
+                        <div class="sector-title">
+                            📁 ${sector.name}
+                            <span class="sector-count">${sector.symbol_count} symbols</span>
+                        </div>
+                        <div class="collapse-icon" id="icon-${sector.name}">▼</div>
+                    </div>
+                    <div class="sector-content" id="content-${sector.name}">
+                        ${renderIndustries(sector.industries)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderIndustries(industries) {
+            return industries.map(industry => `
+                <div class="industry-group">
+                    <div class="industry-header" onclick="toggleIndustry('${industry.name}')">
+                        <div class="industry-title">
+                            🔹 ${industry.name} (${industry.symbol_count} symbols)
+                        </div>
+                        <div class="collapse-icon" id="industry-icon-${industry.name}">▼</div>
+                    </div>
+                    <div class="industry-content" id="industry-content-${industry.name}">
+                        ${renderSymbolsTable(industry.symbols)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderSymbolsTable(symbols) {
+            console.log('Rendering symbols table, editMode:', editMode, 'symbols count:', symbols.length); // Debug log
+            return `
+                <table class="symbols-table">
+                    <thead>
+                        <tr>
+                            ${editMode ? '<th><input type="checkbox" onchange="toggleSelectAll(this)"></th>' : ''}
+                            <th>Symbol</th>
+                            <th>Sector</th>
+                            <th>Industry</th>
+                            <th>Source</th>
+                            <th>Last Updated</th>
+                            ${editMode ? '<th>Actions</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${symbols.map(symbol => `
+                            <tr class="symbol-row ${selectedSymbols.has(symbol.symbol) ? 'selected' : ''}" 
+                                data-symbol="${symbol.symbol}">
+                                ${editMode ? `<td><input type="checkbox" onchange="toggleSymbolSelection('${symbol.symbol}')" ${selectedSymbols.has(symbol.symbol) ? 'checked' : ''}></td>` : ''}
+                                <td class="symbol-code">${symbol.symbol}</td>
+                                <td>${symbol.sector}</td>
+                                <td>${symbol.industry}</td>
+                                <td><span class="source-badge source-${symbol.source}">${symbol.source}</span></td>
+                                <td>${symbol.last_updated ? new Date(symbol.last_updated).toLocaleDateString() : 'N/A'}</td>
+                                ${editMode ? `<td>
+                                    <button class="btn btn-warning" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="editSymbol('${symbol.symbol}')">Edit</button>
+                                    <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="deleteSymbol('${symbol.symbol}')">Delete</button>
+                                </td>` : ''}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function toggleSector(sectorName) {
+            const content = document.getElementById(`content-${sectorName}`);
+            const icon = document.getElementById(`icon-${sectorName}`);
+            const header = content.previousElementSibling;
+            
+            if (content.classList.contains('show')) {
+                content.classList.remove('show');
+                icon.classList.remove('rotated');
+                header.classList.remove('active');
+            } else {
+                content.classList.add('show');
+                icon.classList.add('rotated');
+                header.classList.add('active');
+            }
+        }
+
+        function toggleIndustry(industryName) {
+            const content = document.getElementById(`industry-content-${industryName}`);
+            const icon = document.getElementById(`industry-icon-${industryName}`);
+            
+            if (content.style.display === 'block') {
+                content.style.display = 'none';
+                icon.classList.remove('rotated');
+            } else {
+                content.style.display = 'block';
+                icon.classList.add('rotated');
+            }
+        }
+
+        function toggleEditMode() {
+            editMode = !editMode;
+            document.getElementById('editModeText').textContent = editMode ? 'Disable Edit Mode' : 'Enable Edit Mode';
+            document.body.classList.toggle('edit-mode', editMode);
+            
+            if (!editMode) {
+                clearSelection();
+            }
+            
+            console.log('Edit mode toggled:', editMode); // Debug log
+            renderSectors();
+        }
+
+        function toggleSymbolSelection(symbol) {
+            if (selectedSymbols.has(symbol)) {
+                selectedSymbols.delete(symbol);
+            } else {
+                selectedSymbols.add(symbol);
+            }
+            updateBulkActions();
+            updateRowSelection(symbol);
+        }
+
+        function toggleSelectAll(checkbox) {
+            const rows = document.querySelectorAll('.symbol-row');
+            rows.forEach(row => {
+                const symbol = row.dataset.symbol;
+                const symbolCheckbox = row.querySelector('input[type="checkbox"]');
+                
+                if (checkbox.checked) {
+                    selectedSymbols.add(symbol);
+                    symbolCheckbox.checked = true;
+                    row.classList.add('selected');
+                } else {
+                    selectedSymbols.delete(symbol);
+                    symbolCheckbox.checked = false;
+                    row.classList.remove('selected');
+                }
+            });
+            updateBulkActions();
+        }
+
+        function updateRowSelection(symbol) {
+            const row = document.querySelector(`[data-symbol="${symbol}"]`);
+            if (row) {
+                row.classList.toggle('selected', selectedSymbols.has(symbol));
+            }
+        }
+
+        function updateBulkActions() {
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            selectedCount.textContent = selectedSymbols.size;
+            bulkActions.classList.toggle('show', selectedSymbols.size > 0);
+        }
+
+        function clearSelection() {
+            selectedSymbols.clear();
+            updateBulkActions();
+            document.querySelectorAll('.symbol-row').forEach(row => {
+                row.classList.remove('selected');
+                const checkbox = row.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = false;
+            });
+        }
+
+        function openAddSymbolModal() {
+            currentEditSymbol = null;
+            document.getElementById('modalTitle').textContent = 'Add New Symbol';
+            document.getElementById('symbolInput').value = '';
+            document.getElementById('symbolInput').disabled = false;
+            document.getElementById('sectorInput').value = '';
+            document.getElementById('industryInput').value = '';
+            document.getElementById('symbolModal').style.display = 'block';
+        }
+
+        function editSymbol(symbol) {
+            // Find symbol data
+            const symbolData = findSymbolData(symbol);
+            if (!symbolData) return;
+
+            currentEditSymbol = symbol;
+            document.getElementById('modalTitle').textContent = `Edit ${symbol}`;
+            document.getElementById('symbolInput').value = symbol;
+            document.getElementById('symbolInput').disabled = true;
+            document.getElementById('sectorInput').value = symbolData.sector;
+            document.getElementById('industryInput').value = symbolData.industry;
+            document.getElementById('symbolModal').style.display = 'block';
+        }
+
+        function findSymbolData(symbol) {
+            for (const sector of underlyingsData.sectors) {
+                for (const industry of sector.industries) {
+                    const found = industry.symbols.find(s => s.symbol === symbol);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function closeSymbolModal() {
+            document.getElementById('symbolModal').style.display = 'none';
+        }
+
+        function openBulkEditModal() {
+            if (selectedSymbols.size === 0) return;
+            
+            document.getElementById('bulkSectorInput').value = '';
+            document.getElementById('bulkIndustryInput').value = '';
+            document.getElementById('bulkEditModal').style.display = 'block';
+        }
+
+        function closeBulkEditModal() {
+            document.getElementById('bulkEditModal').style.display = 'none';
+        }
+
+        async function handleSymbolFormSubmit(event) {
+            event.preventDefault();
+            
+            const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+            const sector = document.getElementById('sectorInput').value.trim();
+            const industry = document.getElementById('industryInput').value.trim();
+
+            try {
+                let response;
+                if (currentEditSymbol) {
+                    // Update existing symbol
+                    response = await fetch(`/api/underlyings/${symbol}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sector, industry })
+                    });
+                } else {
+                    // Add new symbol
+                    response = await fetch('/api/underlyings/add-symbol', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ symbol, sector, industry })
+                    });
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    showSuccess(`Symbol ${symbol} ${currentEditSymbol ? 'updated' : 'added'} successfully!`);
+                    closeSymbolModal();
+                    await loadUnderlyingsData(); // Refresh data
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                showError('Error saving symbol: ' + error.message);
+            }
+        }
+
+        async function handleBulkEditFormSubmit(event) {
+            event.preventDefault();
+            
+            const sector = document.getElementById('bulkSectorInput').value.trim();
+            const industry = document.getElementById('bulkIndustryInput').value.trim();
+
+            // Validate that at least one field is provided
+            if (!sector && !industry) {
+                showError('Please provide at least one field (sector or industry) to update.');
+                return;
+            }
+
+            const updates = Array.from(selectedSymbols).map(symbol => {
+                const update = { symbol };
+                if (sector) update.sector = sector;
+                if (industry) update.industry = industry;
+                return update;
+            });
+
+            try {
+                const response = await fetch('/api/underlyings/bulk-update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ updates })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showSuccess(`Successfully updated ${result.updated_count} symbols!`);
+                    if (result.failed_count > 0) {
+                        showError(`Failed to update ${result.failed_count} symbols.`);
+                    }
+                    closeBulkEditModal();
+                    clearSelection();
+                    await loadUnderlyingsData(); // Refresh data
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                showError('Error updating symbols: ' + error.message);
+            }
+        }
+
+        async function deleteSymbol(symbol) {
+            if (!confirm(`Are you sure you want to delete ${symbol}?`)) return;
+
+            try {
+                const response = await fetch(`/api/underlyings/delete-symbol/${symbol}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showSuccess(`Symbol ${symbol} deleted successfully!`);
+                    await loadUnderlyingsData(); // Refresh data
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                showError('Error deleting symbol: ' + error.message);
+            }
+        }
+
+        async function deleteSelected() {
+            if (selectedSymbols.size === 0) return;
+            
+            if (!confirm(`Are you sure you want to delete ${selectedSymbols.size} selected symbols?`)) return;
+
+            const deletePromises = Array.from(selectedSymbols).map(symbol =>
+                fetch(`/api/underlyings/delete-symbol/${symbol}`, { method: 'DELETE' })
+            );
+
+            try {
+                const responses = await Promise.all(deletePromises);
+                const results = await Promise.all(responses.map(r => r.json()));
+                
+                const successful = results.filter(r => r.success).length;
+                const failed = results.filter(r => !r.success).length;
+
+                if (successful > 0) {
+                    showSuccess(`Successfully deleted ${successful} symbols!`);
+                }
+                if (failed > 0) {
+                    showError(`Failed to delete ${failed} symbols.`);
+                }
+
+                clearSelection();
+                await loadUnderlyingsData(); // Refresh data
+            } catch (error) {
+                showError('Error deleting symbols: ' + error.message);
+            }
+        }
+
+        async function exportData() {
+            try {
+                const response = await fetch('/api/underlyings/export');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `underlyings_export_${new Date().toISOString().slice(0,10)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    showSuccess('Data exported successfully!');
+                } else {
+                    showError('Failed to export data');
+                }
+            } catch (error) {
+                showError('Error exporting data: ' + error.message);
+            }
+        }
+
+        async function refreshData() {
+            showSuccess('Refreshing data...');
+            await loadUnderlyingsData();
+        }
+
+        function showError(message) {
+            // Remove existing alerts
+            const existingAlerts = document.querySelectorAll('.error, .success');
+            existingAlerts.forEach(alert => alert.remove());
+
+            const alert = document.createElement('div');
+            alert.className = 'error';
+            alert.textContent = message;
+            document.querySelector('.container').prepend(alert);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        function showSuccess(message) {
+            // Remove existing alerts
+            const existingAlerts = document.querySelectorAll('.error, .success');
+            existingAlerts.forEach(alert => alert.remove());
+
+            const alert = document.createElement('div');
+            alert.className = 'success';
+            alert.textContent = message;
+            document.querySelector('.container').prepend(alert);
+
+            // Auto-remove after 3 seconds
+            setTimeout(() => alert.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
