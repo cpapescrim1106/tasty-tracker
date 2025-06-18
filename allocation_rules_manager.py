@@ -27,9 +27,9 @@ class AllocationRule:
     rule_type: RuleType
     category: str  # 'equities', 'bullish', '45_dte', etc.
     target_pct: float
-    min_pct: float
-    max_pct: float
-    tolerance_pct: float = 2.0  # Default 2% tolerance
+    min_pct: float = 0.0
+    max_pct: float = 100.0
+    tolerance_pct: float = 2.0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -75,10 +75,7 @@ class AllocationRulesManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     rule_type TEXT NOT NULL,
                     category TEXT NOT NULL,
-                    target_pct REAL NOT NULL,
-                    min_pct REAL NOT NULL,
                     max_pct REAL NOT NULL,
-                    tolerance_pct REAL DEFAULT 2.0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(rule_type, category)
@@ -93,7 +90,7 @@ class AllocationRulesManager:
                     rule_type TEXT NOT NULL,
                     category TEXT NOT NULL,
                     current_pct REAL NOT NULL,
-                    target_pct REAL NOT NULL,
+                    max_pct REAL NOT NULL,
                     deviation_pct REAL NOT NULL,
                     status TEXT NOT NULL,
                     total_portfolio_value REAL
@@ -113,20 +110,20 @@ class AllocationRulesManager:
             if not self.get_all_rules():
                 default_rules = [
                     # Asset Allocation
-                    AllocationRule(RuleType.ASSET, "equities", 60.0, 55.0, 65.0, 2.0),
-                    AllocationRule(RuleType.ASSET, "non_equities", 40.0, 35.0, 45.0, 2.0),
-                    AllocationRule(RuleType.ASSET, "max_sector", 10.0, 0.0, 10.0, 1.0),
+                    AllocationRule(RuleType.ASSET, "equities", target_pct=60.0, min_pct=55.0, max_pct=65.0, tolerance_pct=2.0),
+                    AllocationRule(RuleType.ASSET, "non_equities", target_pct=40.0, min_pct=35.0, max_pct=45.0, tolerance_pct=2.0),
+                    AllocationRule(RuleType.ASSET, "max_sector", target_pct=10.0, min_pct=0.0, max_pct=10.0, tolerance_pct=1.0),
                     
                     # Duration Diversification
-                    AllocationRule(RuleType.DURATION, "0_dte", 5.0, 0.0, 8.0, 1.0),
-                    AllocationRule(RuleType.DURATION, "7_dte", 10.0, 5.0, 15.0, 2.0),
-                    AllocationRule(RuleType.DURATION, "14_dte", 15.0, 10.0, 20.0, 2.0),
-                    AllocationRule(RuleType.DURATION, "45_dte", 70.0, 65.0, 80.0, 3.0),
+                    AllocationRule(RuleType.DURATION, "0_dte", target_pct=5.0, min_pct=0.0, max_pct=8.0, tolerance_pct=1.0),
+                    AllocationRule(RuleType.DURATION, "7_dte", target_pct=10.0, min_pct=5.0, max_pct=15.0, tolerance_pct=2.0),
+                    AllocationRule(RuleType.DURATION, "14_dte", target_pct=15.0, min_pct=10.0, max_pct=20.0, tolerance_pct=2.0),
+                    AllocationRule(RuleType.DURATION, "45_dte", target_pct=70.0, min_pct=65.0, max_pct=80.0, tolerance_pct=3.0),
                     
                     # Strategy Diversification  
-                    AllocationRule(RuleType.STRATEGY, "bullish", 50.0, 40.0, 60.0, 3.0),
-                    AllocationRule(RuleType.STRATEGY, "neutral", 35.0, 25.0, 45.0, 3.0),
-                    AllocationRule(RuleType.STRATEGY, "bearish", 15.0, 10.0, 25.0, 3.0)
+                    AllocationRule(RuleType.STRATEGY, "bullish", target_pct=50.0, min_pct=40.0, max_pct=60.0, tolerance_pct=3.0),
+                    AllocationRule(RuleType.STRATEGY, "neutral", target_pct=35.0, min_pct=25.0, max_pct=45.0, tolerance_pct=3.0),
+                    AllocationRule(RuleType.STRATEGY, "bearish", target_pct=15.0, min_pct=10.0, max_pct=25.0, tolerance_pct=3.0)
                 ]
                 
                 for rule in default_rules:
@@ -151,7 +148,7 @@ class AllocationRulesManager:
                 rule.rule_type.value,
                 rule.category,
                 rule.target_pct,
-                rule.min_pct, 
+                rule.min_pct,
                 rule.max_pct,
                 rule.tolerance_pct,
                 datetime.now()
@@ -173,10 +170,9 @@ class AllocationRulesManager:
             cursor = conn.cursor()
             
             cursor.execute('''
-                SELECT rule_type, category, target_pct, min_pct, max_pct, 
-                       tolerance_pct, created_at, updated_at
+                SELECT rule_type, category, target_pct, min_pct, max_pct, tolerance_pct, created_at, updated_at
                 FROM allocation_rules
-                ORDER BY rule_type, target_pct DESC
+                ORDER BY rule_type, max_pct DESC
             ''')
             
             rules = []
@@ -211,6 +207,23 @@ class AllocationRulesManager:
         
         try:
             all_rules = self.get_all_rules()
+            
+            # Special case: If portfolio value is 0 (no rebalanceable positions), 
+            # mark all rules as compliant since there's nothing to violate
+            if total_portfolio_value == 0:
+                self.logger.info("📊 No rebalanceable positions - marking all rules as compliant")
+                for rule in all_rules:
+                    check = ComplianceCheck(
+                        rule=rule,
+                        current_pct=0.0,
+                        target_pct=rule.target_pct,
+                        deviation_pct=-rule.target_pct,
+                        status=ComplianceStatus.COMPLIANT,
+                        message="No rebalanceable positions"
+                    )
+                    compliance_results.append(check)
+                    self._save_compliance_check(check, total_portfolio_value)
+                return compliance_results
             
             for rule in all_rules:
                 # Get current percentage for this rule category
@@ -267,7 +280,7 @@ class AllocationRulesManager:
                     gap_pct = check.target_pct - check.current_pct
                     
                     # Create gaps for both over and under allocations (lower threshold)
-                    if abs(gap_pct) > 1.0:  # Lower threshold from 2% to 1%
+                    if abs(gap_pct) > 0.5:  # Lower threshold to 0.5% for testing
                         if gap_pct > 0:
                             # Underallocated - need to open positions
                             required_dollars = (gap_pct / 100.0) * total_portfolio_value

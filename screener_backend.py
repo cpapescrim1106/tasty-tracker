@@ -16,6 +16,7 @@ from tastytrade import Session, Account
 
 # Local imports
 from sector_classifier import SectorClassifier
+from market_data_service import MarketDataService
 
 class ScreenerEngine:
     """Main screener engine for fetching and analyzing market data"""
@@ -24,7 +25,10 @@ class ScreenerEngine:
         self.tracker = tracker_instance  # Store reference to tracker instead of client
         self.base_url = "https://api.tastyworks.com"
         
-        # Cache for market data (refresh every 15 minutes)
+        # Initialize market data service for caching
+        self.market_data_service = MarketDataService(tracker=tracker_instance)
+        
+        # Legacy cache for backward compatibility (will be phased out)
         self.market_data_cache = {}
         self.cache_timestamp = {}
         self.cache_duration = 900  # 15 minutes in seconds
@@ -295,8 +299,11 @@ class ScreenerEngine:
             self.logger.error(f"❌ Error getting Main List watchlist: {e}")
             return None
     
-    def rank_main_list_underlyings(self) -> List[Dict[str, Any]]:
-        """Rank individual underlyings from Main List watchlist with concentration validation"""
+    def rank_main_list_underlyings(self, max_symbols: int = None, timeout_seconds: int = 120) -> List[Dict[str, Any]]:
+        """Rank individual underlyings from Main List watchlist with concentration validation (OPTIMIZED)"""
+        import time
+        start_time = time.time()
+        
         try:
             # Get Main List watchlist
             main_list = self.get_main_list_watchlist()
@@ -304,32 +311,98 @@ class ScreenerEngine:
                 self.logger.error("❌ No Main List watchlist available")
                 return []
             
-            symbols = main_list['symbols']
-            self.logger.info(f"🔄 Ranking {len(symbols)} symbols from Main List...")
+            
+            # Process all symbols unless explicitly limited
+            self.logger.info(f"🔍 Debug: max_symbols={max_symbols}, type={type(max_symbols)}, total_symbols={len(main_list['symbols'])}")
+            if max_symbols is not None:
+                symbols = main_list['symbols'][:max_symbols]
+            else:
+                symbols = main_list['symbols']
+            self.logger.info(f"🚀 Ranking {len(symbols)} symbols from Main List (multi-instrument support)...")
             
             # Get current portfolio for concentration checking
             current_portfolio = self._get_current_portfolio_breakdown()
             
+            # PERFORMANCE OPTIMIZATION: Batch fetch all market data with smart caching
+            self.logger.info(f"📡 Batch fetching market data for {len(symbols)} symbols...")
+            batch_start = time.time()
+            market_data_batch = self.market_data_service.get_market_data(
+                symbols, data_type='screening', max_age_minutes=15
+            )
+            batch_time = time.time() - batch_start
+            self.logger.info(f"✅ Batch fetch completed in {batch_time:.2f}s ({len(market_data_batch)} symbols)")
+            
+            # Quick validation: If no valid prices found, try force refresh once
+            valid_prices = sum(1 for data in market_data_batch.values() 
+                             if data.last_price is not None and data.last_price > 0)
+            
+            # Debug: Show sample of what we're getting
+            sample_data = list(market_data_batch.items())[:5]
+            for symbol, data in sample_data:
+                self.logger.info(f"📊 Sample data - {symbol}: price={data.last_price}, source={data.data_source}")
+            
+            if valid_prices == 0:
+                self.logger.warning(f"⚠️ No valid prices found in batch, attempting force refresh...")
+                refresh_start = time.time()
+                market_data_batch = self.market_data_service.get_market_data(
+                    symbols, data_type='screening', max_age_minutes=15, force_refresh=True
+                )
+                refresh_time = time.time() - refresh_start
+                valid_prices_after = sum(1 for data in market_data_batch.values() 
+                                       if data.last_price is not None and data.last_price > 0)
+                
+                # Debug: Show sample after refresh
+                sample_data_after = list(market_data_batch.items())[:5]
+                for symbol, data in sample_data_after:
+                    self.logger.info(f"📊 After refresh - {symbol}: price={data.last_price}, source={data.data_source}")
+                
+                self.logger.info(f"🔄 Force refresh completed in {refresh_time:.2f}s, found {valid_prices_after} valid prices")
+            else:
+                self.logger.info(f"✅ Found {valid_prices} valid prices in initial batch")
+            
             ranked_symbols = []
             processed_count = 0
+            skipped_count = 0
             
-            for symbol in symbols:
+            for i, symbol in enumerate(symbols):
+                # Check timeout
+                if time.time() - start_time > timeout_seconds:
+                    self.logger.warning(f"⚠️ Ranking timeout reached after {timeout_seconds}s, processed {processed_count}/{len(symbols)} symbols")
+                    break
+                    
                 try:
-                    # Get market metrics
-                    metrics = self.get_market_metrics(symbol)
-                    if not metrics:
-                        # If no metrics at all, still try to get sector info and show the symbol
-                        # This allows futures symbols that don't have IV data to still appear in rankings
-                        self.logger.warning(f"⚠️ No metrics available for {symbol}, showing with limited data")
+                    # Progress logging every 25 symbols
+                    if i > 0 and i % 25 == 0:
+                        elapsed = time.time() - start_time
+                        self.logger.info(f"🔄 Progress: {i}/{len(symbols)} symbols processed in {elapsed:.1f}s")
+                    
+                    # OPTIMIZED: Get market metrics from batch data
+                    market_data_point = market_data_batch.get(symbol)
+                    if market_data_point and market_data_point.data_source != 'no_data':
+                        # Convert MarketDataPoint to legacy format for compatibility
+                        metrics = {
+                            'symbol': symbol,
+                            'last_price': market_data_point.last_price,
+                            'implied_volatility_rank': market_data_point.iv_rank,
+                            'implied_volatility_index': market_data_point.iv_index,
+                            'implied_volatility_index_5_day_change': market_data_point.iv_5d_change,
+                            'volume': market_data_point.volume,
+                            'liquidity_rank': market_data_point.liquidity_rank,
+                            'data_source': market_data_point.data_source
+                        }
+                    else:
+                        # No market data available
                         metrics = {
                             'symbol': symbol,
                             'last_price': None,
                             'implied_volatility_rank': None,
                             'implied_volatility_index': None,
                             'implied_volatility_index_5_day_change': None,
-                            'price_error': 'No market metrics available',
+                            'volume': None,
+                            'liquidity_rank': None,
                             'data_source': 'no_data'
                         }
+                        skipped_count += 1
                     
                     # Get sector information (auto-expanding cache)
                     sector_info = self.sector_classifier.get_symbol_sector(symbol)
@@ -358,17 +431,36 @@ class ScreenerEngine:
                         'current_equity_weight': concentration_check.get('current_equity_weight', 0)
                     }
                     
-                    ranked_symbols.append(symbol_data)
-                    processed_count += 1
+                    # Include symbols in ranking if they have ANY meaningful market data
+                    has_price = metrics.get('last_price') is not None and metrics.get('last_price') > 0
+                    has_analytics = (score_data['iv_rank'] is not None or 
+                                   metrics.get('liquidity_rank') is not None or
+                                   metrics.get('volume') is not None)
+                    is_futures_with_data = (symbol.startswith('/') and 
+                                          (metrics.get('liquidity_rank') is not None or 
+                                           score_data['iv_rank'] is not None))
+                    
+                    # Include if: has price OR has analytics data OR is futures with data
+                    if has_price or has_analytics or is_futures_with_data:
+                        ranked_symbols.append(symbol_data)
+                        processed_count += 1
+                        if processed_count <= 5:  # Log first few successful ones
+                            self.logger.info(f"✅ Including {symbol} in ranking: price={metrics.get('last_price')}, has_analytics={has_analytics}, futures_data={is_futures_with_data}, score={score_data['score']}")
+                    else:
+                        if skipped_count <= 5:  # Log first few skipped ones  
+                            self.logger.info(f"⚠️ Skipping {symbol} from ranking: no valid data (price={metrics.get('last_price')}, has_analytics={has_analytics}, futures_data={is_futures_with_data})")
+                        skipped_count += 1
                     
                 except Exception as e:
                     self.logger.error(f"❌ Error processing {symbol}: {e}")
+                    skipped_count += 1
                     continue
             
             # Sort by screening score descending
             ranked_symbols.sort(key=lambda x: x['screening_score'], reverse=True)
             
-            self.logger.info(f"✅ Ranked {processed_count} underlyings from Main List")
+            elapsed = time.time() - start_time
+            self.logger.info(f"✅ Ranked {processed_count} underlyings from Main List in {elapsed:.1f}s (skipped: {skipped_count})")
             return ranked_symbols
             
         except Exception as e:
@@ -676,7 +768,8 @@ class ScreenerEngine:
             
             response = requests.get(f"{self.base_url}/market-metrics", 
                                   params={'symbols': symbol}, 
-                                  headers=headers)
+                                  headers=headers,
+                                  timeout=5)
             
             if response.status_code == 200:
                 data = response.json()
@@ -937,7 +1030,7 @@ class ScreenerEngine:
                 # If symbol passes all available criteria
                 if passes_criteria:
                     # Calculate enhanced scoring and trend analysis
-                    screening_score = self._calculate_screening_score(metrics)
+                    screening_score_data = self._calculate_screening_score(metrics)
                     trend_score = self._calculate_trend_score(metrics)
                     
                     # Simple momentum indicator
@@ -954,7 +1047,7 @@ class ScreenerEngine:
                         'avg_volume': avg_volume,
                         'liquidity_rank': liquidity_rank,
                         'liquidity_rating': metrics.get('liquidity_rating'),
-                        'screening_score': screening_score,
+                        'screening_score': screening_score_data.get('score', 0),
                         'trend_score': trend_score,
                         'momentum_signal': momentum_signal,
                         'passes_screen': True
@@ -966,7 +1059,14 @@ class ScreenerEngine:
                 continue
         
         # Sort by new screening score (descending) by default, handling None values
-        results.sort(key=lambda x: x.get('screening_score') or 0, reverse=True)
+        try:
+            results.sort(key=lambda x: float(x.get('screening_score', 0)) if x.get('screening_score') is not None else 0, reverse=True)
+        except Exception as e:
+            self.logger.error(f"❌ Error sorting results: {e}")
+            # Debug: check what's in the results
+            for i, result in enumerate(results[:3]):  # Check first 3 results
+                self.logger.error(f"Debug result {i}: screening_score={result.get('screening_score')}, type={type(result.get('screening_score'))}")
+            # Don't sort if there's an error
         
         self.logger.info(f"✅ Screening complete: {len(results)} symbols passed criteria")
         return results

@@ -25,6 +25,20 @@ def get_rebalancer(tracker_instance):
     global rebalancer, allocation_manager
     
     if rebalancer is None:
+        # Get the global tracker instance if none provided
+        if tracker_instance is None:
+            try:
+                from app import tracker as global_tracker
+                tracker_instance = global_tracker
+            except ImportError:
+                # Fallback: try to get from delta_backend
+                try:
+                    from delta_backend import tracker as global_tracker
+                    tracker_instance = global_tracker
+                except ImportError:
+                    logging.error("❌ Cannot find tracker instance - routes not properly initialized")
+                    raise RuntimeError("Tracker instance not available - ensure rebalancing routes are properly initialized")
+            
         rebalancer = AutomatedRebalancer(tracker_instance)
         allocation_manager = AllocationRulesManager()
         
@@ -110,20 +124,293 @@ def get_rebalancing_status():
         logging.error(f"❌ Error getting rebalancing status: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@rebalancing_bp.route('/api/rebalancing/trigger', methods=['POST'])
-def trigger_rebalancing():
-    """Manually trigger portfolio rebalancing"""
+@rebalancing_bp.route('/api/rebalancing/diagnostics')
+def get_rebalancing_diagnostics():
+    """Get diagnostic information about rebalancing system"""
+    try:
+        rebalancer_instance, allocation_manager = get_rebalancer(None)
+        
+        # Test screener rankings
+        rankings_info = {}
+        try:
+            rankings = rebalancer_instance._get_cached_rankings()
+            rankings_info = {
+                'available': True,
+                'count': len(rankings),
+                'sample_symbols': [r['symbol'] for r in rankings[:5]] if rankings else []
+            }
+        except Exception as e:
+            rankings_info = {
+                'available': False,
+                'error': str(e)
+            }
+        
+        # Test portfolio analysis
+        portfolio_info = {}
+        try:
+            snapshot = rebalancer_instance.portfolio_analyzer.analyze_current_portfolio()
+            portfolio_info = {
+                'available': True,
+                'total_value': snapshot.total_market_value,
+                'buying_power': snapshot.total_buying_power,
+                'positions_count': len(snapshot.positions),
+                'asset_allocation': snapshot.asset_allocation,
+                'duration_allocation': snapshot.duration_allocation
+            }
+        except Exception as e:
+            portfolio_info = {
+                'available': False,
+                'error': str(e)
+            }
+        
+        # Test allocation rules
+        rules_info = {}
+        try:
+            rules = allocation_manager.get_all_rules()
+            rules_info = {
+                'available': True,
+                'count': len(rules),
+                'rule_categories': [r.category for r in rules]
+            }
+        except Exception as e:
+            rules_info = {
+                'available': False,
+                'error': str(e)
+            }
+        
+        # Test gap identification
+        gaps_info = {}
+        if portfolio_info.get('available') and rules_info.get('available'):
+            try:
+                current_allocations = {
+                    'asset_allocation': portfolio_info['asset_allocation'],
+                    'duration_allocation': portfolio_info['duration_allocation'],
+                    'strategy_allocation': {}
+                }
+                gaps = allocation_manager.identify_allocation_gaps(
+                    current_allocations,
+                    portfolio_info['total_value'],
+                    portfolio_info['buying_power']
+                )
+                gaps_info = {
+                    'available': True,
+                    'count': len(gaps),
+                    'gaps': [{
+                        'category': gap.category,
+                        'current_pct': gap.current_pct,
+                        'target_pct': gap.target_pct,
+                        'gap_pct': gap.gap_pct,
+                        'gap_dollars': gap.required_allocation_dollars
+                    } for gap in gaps]
+                }
+            except Exception as e:
+                gaps_info = {
+                    'available': False,
+                    'error': str(e)
+                }
+        else:
+            gaps_info = {'available': False, 'error': 'Portfolio or rules not available'}
+        
+        # Configuration info
+        config_info = {
+            'min_position_size': rebalancer_instance.min_position_size_dollars,
+            'max_single_trade': rebalancer_instance.max_single_trade_dollars,
+            'min_confidence': rebalancer_instance.min_confidence_threshold,
+            'max_positions_per_gap': rebalancer_instance.max_positions_per_gap
+        }
+        
+        return jsonify({
+            'success': True,
+            'rankings': rankings_info,
+            'portfolio': portfolio_info,
+            'rules': rules_info,
+            'gaps': gaps_info,
+            'config': config_info,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error in diagnostics: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/rebalancing/debug-portfolio', methods=['GET'])
+def debug_portfolio_analysis():
+    """Debug endpoint to see portfolio analysis details"""
+    try:
+        rebalancer_instance, _ = get_rebalancer(None)
+        portfolio_analyzer = rebalancer_instance.portfolio_analyzer
+        
+        # Get dashboard data directly
+        dashboard_data = rebalancer_instance.tracker.get_dashboard_data()
+        positions = dashboard_data.get('positions', [])
+        
+        # Convert positions for display
+        portfolio_positions = portfolio_analyzer._convert_positions_for_display(positions)
+        
+        # Check some position details
+        position_details = []
+        total_market_value = 0
+        
+        for pos in portfolio_positions[:5]:  # First 5 positions
+            total_market_value += pos.market_value
+            position_details.append({
+                'symbol': pos.symbol,
+                'underlying': pos.underlying_symbol,
+                'instrument_type': pos.instrument_type,
+                'strategy_type': pos.strategy_type,
+                'market_value': pos.market_value,
+                'is_equity': pos.is_equity,
+                'is_bullish': pos.is_bullish,
+                'is_neutral': pos.is_neutral,
+                'is_bearish': pos.is_bearish,
+                'sector': pos.sector
+            })
+        
+        # Calculate allocations manually
+        equity_value = sum(pos.market_value for pos in portfolio_positions if pos.is_equity)
+        non_equity_value = sum(pos.market_value for pos in portfolio_positions if not pos.is_equity)
+        total_calculated = equity_value + non_equity_value
+        
+        return jsonify({
+            'success': True,
+            'raw_positions_count': len(positions),
+            'converted_positions_count': len(portfolio_positions),
+            'first_5_positions': position_details,
+            'total_market_value_calculated': total_calculated,
+            'equity_value': equity_value,
+            'non_equity_value': non_equity_value,
+            'equity_pct': (equity_value / total_calculated * 100) if total_calculated > 0 else 0,
+            'non_equity_pct': (non_equity_value / total_calculated * 100) if total_calculated > 0 else 0
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error in debug portfolio analysis: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/rebalancing/test-trigger', methods=['POST'])
+def test_trigger_rebalancing():
+    """Test trigger with relaxed thresholds for debugging"""
     try:
         rebalancer_instance, _ = get_rebalancer(None)
         
         data = request.get_json() or {}
+        lower_thresholds = data.get('lower_thresholds', False)
+        
+        # Temporarily lower thresholds if requested
+        original_min_position = rebalancer_instance.min_position_size_dollars
+        original_gap_threshold = 1.0  # Default gap threshold
+        
+        if lower_thresholds:
+            rebalancer_instance.min_position_size_dollars = 250  # Lower from 500 to 250
+            logging.info("🧪 Test mode: Using lower thresholds (min position: $250)")
+        
+        # Also modify allocation manager gap threshold temporarily
+        if lower_thresholds:
+            # We'll need to patch the identify_allocation_gaps method
+            from allocation_rules_manager import AllocationRulesManager
+            original_method = AllocationRulesManager.identify_allocation_gaps
+            
+            def patched_identify_gaps(self, current_allocations, total_portfolio_value, available_buying_power):
+                """Temporary version with lower thresholds"""
+                gaps = []
+                try:
+                    compliance_checks = self.check_compliance(current_allocations, total_portfolio_value)
+                    
+                    for check in compliance_checks:
+                        if check.status.value in ['warning', 'violation']:
+                            gap_pct = check.target_pct - check.current_pct
+                            
+                            # Lower threshold to 0.25% for testing
+                            if abs(gap_pct) > 0.25:
+                                if gap_pct > 0:
+                                    required_dollars = (gap_pct / 100.0) * total_portfolio_value
+                                    required_dollars = min(required_dollars, available_buying_power)
+                                else:
+                                    required_dollars = abs(gap_pct / 100.0) * total_portfolio_value
+                                
+                                priority = 1 if check.status.value == 'violation' else (
+                                    2 if abs(gap_pct) > 5.0 else (
+                                        3 if abs(gap_pct) > 3.0 else 4
+                                    )
+                                )
+                                
+                                from allocation_rules_manager import AllocationGap
+                                gap = AllocationGap(
+                                    rule_type=check.rule.rule_type,
+                                    category=check.rule.category,
+                                    current_pct=check.current_pct,
+                                    target_pct=check.target_pct,
+                                    gap_pct=gap_pct,
+                                    required_allocation_dollars=required_dollars,
+                                    priority=priority
+                                )
+                                gaps.append(gap)
+                                
+                    logging.info(f"🧪 Test mode: Found {len(gaps)} gaps with 0.25% threshold")
+                    return gaps
+                    
+                except Exception as e:
+                    logging.error(f"❌ Error in patched gap identification: {e}")
+                    return []
+            
+            # Temporarily patch the method
+            AllocationRulesManager.identify_allocation_gaps = patched_identify_gaps
+        
+        try:
+            # Trigger the rebalancing
+            event_id = rebalancer_instance.trigger_rebalancing(
+                trigger_event='test_manual',
+                trigger_details={'reason': 'test_with_lower_thresholds', 'lower_thresholds': lower_thresholds}
+            )
+            
+            return jsonify({
+                'success': True,
+                'event_id': event_id,
+                'message': f'Test rebalancing analysis triggered (lower_thresholds: {lower_thresholds})',
+                'test_mode': lower_thresholds
+            })
+            
+        finally:
+            # Restore original thresholds
+            if lower_thresholds:
+                rebalancer_instance.min_position_size_dollars = original_min_position
+                # Restore original method
+                AllocationRulesManager.identify_allocation_gaps = original_method
+                logging.info("🧪 Test mode: Restored original thresholds")
+        
+    except Exception as e:
+        logging.error(f"❌ Error in test trigger: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/rebalancing/trigger', methods=['POST'])
+def trigger_rebalancing():
+    """Manually trigger portfolio rebalancing"""
+    try:
+        data = request.get_json() or {}
         trigger_reason = data.get('reason', 'manual_trigger')
         
-        event_id = rebalancer_instance.trigger_rebalancing(
-            trigger_event='manual',
-            trigger_details={'reason': trigger_reason, 'user_triggered': True}
-        )
+        logging.info(f"🔄 Rebalancing trigger requested: {trigger_reason}")
         
+        # Try to get rebalancer instance
+        try:
+            rebalancer_instance, _ = get_rebalancer(None)
+            if rebalancer_instance is None:
+                raise RuntimeError("Rebalancer instance is None")
+        except Exception as e:
+            logging.error(f"❌ Failed to get rebalancer instance for trigger: {e}")
+            return jsonify({'success': False, 'error': f'Rebalancer initialization failed: {str(e)}'}), 500
+        
+        # Try to trigger rebalancing
+        try:
+            event_id = rebalancer_instance.trigger_rebalancing(
+                trigger_event='manual',
+                trigger_details={'reason': trigger_reason, 'user_triggered': True}
+            )
+        except Exception as e:
+            logging.error(f"❌ Failed to trigger rebalancing: {e}")
+            return jsonify({'success': False, 'error': f'Rebalancing trigger failed: {str(e)}'}), 500
+        
+        logging.info(f"✅ Rebalancing triggered successfully: {event_id}")
         return jsonify({
             'success': True,
             'event_id': event_id,
@@ -131,8 +418,10 @@ def trigger_rebalancing():
         })
         
     except Exception as e:
-        logging.error(f"❌ Error triggering rebalancing: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logging.error(f"❌ Unexpected error triggering rebalancing: {e}")
+        import traceback
+        logging.error(f"❌ Traceback: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
 
 @rebalancing_bp.route('/api/rebalancing/approve', methods=['POST'])
 def approve_recommendations():
@@ -244,10 +533,10 @@ def check_allocation_compliance():
     try:
         rebalancer_instance, allocation_manager_instance = get_rebalancer(None)
         
-        # Get current portfolio analysis using the tracker
+        # Get current portfolio analysis using the rebalancer's portfolio analyzer
+        # Use rebalanceable portfolio (excludes long-term) for compliance checking
         rebalancer_instance, allocation_manager_instance = get_rebalancer(None)
-        portfolio_analyzer = PortfolioAnalyzer(rebalancer_instance.tracker)
-        portfolio_snapshot = portfolio_analyzer.analyze_current_portfolio()
+        portfolio_snapshot = rebalancer_instance.portfolio_analyzer.analyze_current_portfolio()
         
         # Check compliance
         current_allocations = {
@@ -307,15 +596,41 @@ def get_portfolio_analysis():
         # Get account filter from query parameters
         requested_accounts = request.args.getlist('accounts')
         
-        rebalancer_instance, _ = get_rebalancer(None)
-        portfolio_analyzer = PortfolioAnalyzer(rebalancer_instance.tracker)
-        portfolio_snapshot = portfolio_analyzer.analyze_current_portfolio(
-            account_numbers=requested_accounts if requested_accounts else None
-        )
+        logging.info(f"🔍 Portfolio analysis requested for accounts: {requested_accounts}")
         
-        # Get portfolio summary
-        summary = portfolio_analyzer.get_portfolio_summary(portfolio_snapshot)
+        # Try to get rebalancer instance
+        try:
+            rebalancer_instance, _ = get_rebalancer(None)
+            if rebalancer_instance is None:
+                raise RuntimeError("Rebalancer instance is None")
+        except Exception as e:
+            logging.error(f"❌ Failed to get rebalancer instance: {e}")
+            return jsonify({'success': False, 'error': f'Rebalancer initialization failed: {str(e)}'}), 500
         
+        # Try to create portfolio analyzer
+        try:
+            portfolio_analyzer = PortfolioAnalyzer(rebalancer_instance.tracker)
+        except Exception as e:
+            logging.error(f"❌ Failed to create portfolio analyzer: {e}")
+            return jsonify({'success': False, 'error': f'Portfolio analyzer creation failed: {str(e)}'}), 500
+        
+        # Try to analyze portfolio
+        try:
+            portfolio_snapshot = portfolio_analyzer.analyze_current_portfolio(
+                account_numbers=requested_accounts if requested_accounts else None
+            )
+        except Exception as e:
+            logging.error(f"❌ Failed to analyze portfolio: {e}")
+            return jsonify({'success': False, 'error': f'Portfolio analysis failed: {str(e)}'}), 500
+        
+        # Try to get portfolio summary
+        try:
+            summary = portfolio_analyzer.get_portfolio_summary(portfolio_snapshot)
+        except Exception as e:
+            logging.error(f"❌ Failed to get portfolio summary: {e}")
+            return jsonify({'success': False, 'error': f'Portfolio summary failed: {str(e)}'}), 500
+        
+        logging.info(f"✅ Portfolio analysis completed successfully")
         return jsonify({
             'success': True,
             'portfolio_summary': summary,
@@ -328,8 +643,10 @@ def get_portfolio_analysis():
         })
         
     except Exception as e:
-        logging.error(f"❌ Error getting portfolio analysis: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logging.error(f"❌ Unexpected error in portfolio analysis: {e}")
+        import traceback
+        logging.error(f"❌ Traceback: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
 
 @rebalancing_bp.route('/api/rebalancing/configuration')
 def get_rebalancing_configuration():
@@ -392,6 +709,54 @@ def update_rebalancing_configuration():
     except Exception as e:
         logging.error(f"❌ Error updating configuration: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/rebalancing/debug-diagnostics')
+def debug_diagnostics():
+    """Simple diagnostics for debugging"""
+    try:
+        logging.info("🔍 Debug diagnostics requested")
+        
+        # Test basic functionality
+        basic_info = {
+            'endpoint_accessible': True,
+            'timestamp': datetime.now().isoformat(),
+            'routes_registered': True
+        }
+        
+        # Try to get rebalancer instance
+        try:
+            rebalancer_instance, allocation_manager = get_rebalancer(None)
+            basic_info['rebalancer_available'] = True
+            basic_info['min_position_size'] = rebalancer_instance.min_position_size_dollars
+        except Exception as e:
+            basic_info['rebalancer_available'] = False
+            basic_info['rebalancer_error'] = str(e)
+            logging.error(f"❌ Rebalancer not available in diagnostics: {e}")
+        
+        logging.info(f"✅ Debug diagnostics completed")
+        return jsonify({
+            'success': True,
+            'message': 'Debug diagnostics completed',
+            'diagnostics': basic_info
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error in debug diagnostics: {e}")
+        import traceback
+        logging.error(f"❌ Traceback: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/rebalancing/health')
+def health_check():
+    """Simple health check endpoint"""
+    return jsonify({
+        'success': True,
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'message': 'Rebalancing routes are accessible'
+    })
+
+
 
 def create_rebalancing_routes(app, tracker):
     """Register rebalancing routes with the Flask app"""

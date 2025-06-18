@@ -5,6 +5,8 @@ Analyzes current portfolio state and calculates allocations for compliance check
 """
 
 import logging
+import json
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
@@ -50,6 +52,9 @@ class PortfolioAnalyzer:
         self.tracker = tracker_instance
         self.logger = logging.getLogger(__name__)
         
+        # Load long-term position flags
+        self.long_term_flags = self._load_long_term_flags()
+        
         # Strategy bias mapping
         self.strategy_bias_map = {
             'covered_call': 'neutral',
@@ -94,6 +99,13 @@ class PortfolioAnalyzer:
             total_buying_power = sum(balance.get('buying_power', 0) for balance in balances.values())
             cash_balance = sum(balance.get('cash_balance', 0) for balance in balances.values())
             
+            self.logger.info(f"📊 Portfolio Analysis Summary:")
+            self.logger.info(f"  - Total positions: {len(portfolio_positions)} (filtered from {len(dashboard_data.get('positions', []))})")
+            self.logger.info(f"  - Total market value: ${total_market_value:,.0f}")
+            self.logger.info(f"  - Total buying power: ${total_buying_power:,.0f}")
+            self.logger.info(f"  - Cash balance: ${cash_balance:,.0f}")
+            self.logger.info(f"  - Accounts analyzed: {list(balances.keys())}")
+            
             # Calculate allocations
             asset_allocation = self._calculate_asset_allocation(portfolio_positions, total_market_value)
             duration_allocation = self._calculate_duration_allocation(portfolio_positions, total_market_value)
@@ -117,15 +129,68 @@ class PortfolioAnalyzer:
         except Exception as e:
             self.logger.error(f"❌ Failed to analyze portfolio: {e}")
             raise
+    
+    def analyze_portfolio_for_display(self, account_numbers: Optional[List[str]] = None) -> PortfolioSnapshot:
+        """Analyze portfolio including long-term positions for display purposes"""
+        try:
+            # Get current dashboard data
+            dashboard_data = self.tracker.get_dashboard_data(filter_accounts=account_numbers)
+            
+            # Get account balances
+            balances = self._get_account_balances(account_numbers)
+            
+            # Convert positions to portfolio positions (INCLUDING long-term)
+            portfolio_positions = self._convert_positions_for_display(dashboard_data.get('positions', []))
+            
+            # Calculate total values
+            total_market_value = sum(pos.market_value for pos in portfolio_positions)
+            total_buying_power = sum(balance.get('buying_power', 0) for balance in balances.values())
+            cash_balance = sum(balance.get('cash_balance', 0) for balance in balances.values())
+            
+            self.logger.info(f"📊 Portfolio Display Analysis:")
+            self.logger.info(f"  - Total positions: {len(portfolio_positions)} (including long-term)")
+            self.logger.info(f"  - Total market value: ${total_market_value:,.0f}")
+            self.logger.info(f"  - Total buying power: ${total_buying_power:,.0f}")
+            
+            # Calculate allocations
+            asset_allocation = self._calculate_asset_allocation(portfolio_positions, total_market_value)
+            duration_allocation = self._calculate_duration_allocation(portfolio_positions, total_market_value)
+            strategy_allocation = self._calculate_strategy_allocation(portfolio_positions, total_market_value)
+            sector_allocation = self._calculate_sector_allocation(portfolio_positions, total_market_value)
+            
+            snapshot = PortfolioSnapshot(
+                total_market_value=total_market_value,
+                total_buying_power=total_buying_power,
+                cash_balance=cash_balance,
+                positions=portfolio_positions,
+                asset_allocation=asset_allocation,
+                duration_allocation=duration_allocation,
+                strategy_allocation=strategy_allocation,
+                sector_allocation=sector_allocation,
+                timestamp=datetime.now()
+            )
+            
+            return snapshot
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to analyze portfolio for display: {e}")
+            raise
             
     def _convert_positions(self, positions: List[Dict]) -> List[PortfolioPosition]:
         """Convert raw positions to portfolio position objects"""
         portfolio_positions = []
+        long_term_excluded = 0
         
         try:
             for pos in positions:
                 # Skip summary rows
                 if pos.get('is_summary', False):
+                    continue
+                
+                # Skip long-term positions for rebalancing analysis
+                if self._is_long_term_position(pos):
+                    long_term_excluded += 1
+                    self.logger.debug(f"🏷️ Excluding long-term position: {pos.get('symbol_occ', '')}")
                     continue
                     
                 # Determine strategy type and bias
@@ -152,11 +217,57 @@ class PortfolioAnalyzer:
                 )
                 
                 portfolio_positions.append(portfolio_pos)
+            
+            if long_term_excluded > 0:
+                self.logger.info(f"🏷️ Excluded {long_term_excluded} long-term positions from rebalancing analysis")
                 
             return portfolio_positions
             
         except Exception as e:
             self.logger.error(f"❌ Failed to convert positions: {e}")
+            return []
+    
+    def _convert_positions_for_display(self, positions: List[Dict]) -> List[PortfolioPosition]:
+        """Convert raw positions to portfolio position objects including long-term positions"""
+        portfolio_positions = []
+        
+        try:
+            for pos in positions:
+                # Skip summary rows
+                if pos.get('is_summary', False):
+                    continue
+                    
+                # Include ALL positions for display (don't filter long-term)
+                # Determine strategy type and bias
+                strategy_type = self._identify_strategy_type(pos)
+                bias = self._get_strategy_bias(strategy_type)
+                
+                # Calculate DTE if option
+                dte = self._calculate_dte(pos) if pos.get('instrument_type') == 'Equity Option' else None
+                
+                portfolio_pos = PortfolioPosition(
+                    symbol=pos.get('symbol_occ', pos.get('underlying_symbol', '')),
+                    underlying_symbol=pos.get('underlying_symbol', ''),
+                    instrument_type=pos.get('instrument_type', ''),
+                    strategy_type=strategy_type,
+                    quantity=pos.get('quantity', 0),
+                    market_value=abs(pos.get('net_liq', 0)),  # Use absolute value
+                    delta=pos.get('position_delta', 0),
+                    dte=dte,
+                    is_equity=(pos.get('instrument_type') == 'Equity'),
+                    is_bullish=(bias == 'bullish'),
+                    is_neutral=(bias == 'neutral'),
+                    is_bearish=(bias == 'bearish'),
+                    sector=self.sector_map.get(pos.get('underlying_symbol', ''), 'Other')
+                )
+                
+                portfolio_positions.append(portfolio_pos)
+                
+            self.logger.info(f"📊 Included {len(portfolio_positions)} total positions for display analysis")
+            return portfolio_positions
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to convert positions for display: {e}")
             return []
             
     def _identify_strategy_type(self, position: Dict) -> str:
@@ -244,6 +355,46 @@ class PortfolioAnalyzer:
         # Convert to percentages
         return {bucket: (value / total_value) * 100 
                 for bucket, value in duration_buckets.items()}
+    
+    def _load_long_term_flags(self) -> Dict[str, bool]:
+        """Load long-term position flags from JSON file"""
+        try:
+            flags_file = os.path.join(os.path.dirname(__file__), 'long_term_flags.json')
+            if os.path.exists(flags_file):
+                with open(flags_file, 'r') as f:
+                    flags = json.load(f)
+                    self.logger.info(f"🏷️ Loaded {len(flags)} long-term position flags")
+                    return flags
+            else:
+                self.logger.warning("⚠️ Long-term flags file not found, no positions will be excluded")
+                return {}
+        except Exception as e:
+            self.logger.error(f"❌ Failed to load long-term flags: {e}")
+            return {}
+    
+    def _is_long_term_position(self, position: Dict) -> bool:
+        """Check if position is marked as long-term"""
+        try:
+            account_num = position.get('account_number', '')
+            symbol_occ = position.get('symbol_occ', '')
+            underlying_symbol = position.get('underlying_symbol', '')
+            
+            # Check various key formats used in long_term_flags.json
+            position_keys = [
+                f"{account_num}:{symbol_occ}",      # Primary: account:full_symbol
+                f"{account_num}:{underlying_symbol}",  # Secondary: account:underlying
+                symbol_occ,                         # Just the full symbol
+                underlying_symbol                   # Just the underlying
+            ]
+            
+            for key in position_keys:
+                if key and key in self.long_term_flags and self.long_term_flags[key]:
+                    return True
+            
+            return False
+        except Exception as e:
+            self.logger.error(f"❌ Error checking long-term status: {e}")
+            return False
                 
     def _calculate_strategy_allocation(self, positions: List[PortfolioPosition],
                                      total_value: float) -> Dict[str, float]:
@@ -284,10 +435,17 @@ class PortfolioAnalyzer:
             with self.tracker.balances_lock:
                 for account_num, balance_obj in self.tracker.account_balances.items():
                     if account_numbers is None or account_num in account_numbers:
+                        # Convert to float to handle Decimal types
+                        net_liq = float(getattr(balance_obj, 'net_liquidating_value', 0) or 0)
+                        option_bp = float(getattr(balance_obj, 'option_buying_power', 0) or 0)
+                        cash = float(getattr(balance_obj, 'cash_balance', 0) or 0)
+                        
+                        self.logger.debug(f"💰 Account {account_num}: BP=${option_bp:,.0f}, Cash=${cash:,.0f}, NetLiq=${net_liq:,.0f}")
+                        
                         balances[account_num] = {
-                            'net_liquidating_value': getattr(balance_obj, 'net_liquidating_value', 0),
-                            'buying_power': getattr(balance_obj, 'option_buying_power', 0),
-                            'cash_balance': getattr(balance_obj, 'cash_balance', 0)
+                            'net_liquidating_value': net_liq,
+                            'buying_power': option_bp,
+                            'cash_balance': cash
                         }
                         
             return balances
@@ -299,14 +457,19 @@ class PortfolioAnalyzer:
     def get_portfolio_summary(self, snapshot: PortfolioSnapshot) -> Dict[str, Any]:
         """Get high-level portfolio summary"""
         try:
+            # Convert to float to handle Decimal types from API
+            cash_balance = float(snapshot.cash_balance) if snapshot.cash_balance is not None else 0.0
+            total_market_value = float(snapshot.total_market_value) if snapshot.total_market_value is not None else 0.0
+            total_buying_power = float(snapshot.total_buying_power) if snapshot.total_buying_power is not None else 0.0
+            
             return {
                 'total_positions': len(snapshot.positions),
-                'total_market_value': snapshot.total_market_value,
-                'total_buying_power': snapshot.total_buying_power,
-                'cash_percentage': (snapshot.cash_balance / snapshot.total_market_value * 100) if snapshot.total_market_value > 0 else 0,
+                'total_market_value': total_market_value,
+                'total_buying_power': total_buying_power,
+                'cash_percentage': (cash_balance / total_market_value * 100) if total_market_value > 0 else 0,
                 'equity_positions': len([p for p in snapshot.positions if p.is_equity]),
                 'option_positions': len([p for p in snapshot.positions if not p.is_equity]),
-                'total_delta': sum(p.delta for p in snapshot.positions),
+                'total_delta': sum(float(p.delta) if p.delta is not None else 0.0 for p in snapshot.positions),
                 'sectors_represented': len(set(p.sector for p in snapshot.positions if p.sector)),
                 'timestamp': snapshot.timestamp.isoformat()
             }

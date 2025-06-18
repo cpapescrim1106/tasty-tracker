@@ -2458,5 +2458,41 @@
     "industry": "Silver Futures",
     "last_updated": "2025-06-16T15:55:45.047308",
     "source": "futures_mapping"
+  },
+  "/ETH": {
+    "sector": "Cryptocurrency",
+    "industry": "Ethereum Futures",
+    "last_updated": "2025-06-16T19:11:13.755298",
+    "source": "futures_mapping"
+  },
+  "/M2K": {
+    "sector": "Futures",
+    "industry": "M2K Futures",
+    "last_updated": "2025-06-16T19:37:56.936520",
+    "source": "futures_default"
+  },
+  "/HG": {
+    "sector": "Metals",
+    "industry": "Copper Futures",
+    "last_updated": "2025-06-16T19:38:22.960068",
+    "source": "futures_mapping"
+  },
+  "/LE": {
+    "sector": "Agricultural",
+    "industry": "Live Cattle Futures",
+    "last_updated": "2025-06-17T23:23:50.392999",
+    "source": "futures_mapping"
+  },
+  "/HE": {
+    "sector": "Agricultural",
+    "industry": "Lean Hogs Futures",
+    "last_updated": "2025-06-17T23:23:50.395843",
+    "source": "futures_mapping"
+  },
+  "/PL": {
+    "sector": "Metals",
+    "industry": "Platinum Futures",
+    "last_updated": "2025-06-17T23:23:50.397425",
+    "source": "futures_mapping"
   }
 }

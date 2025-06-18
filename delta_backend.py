@@ -18,6 +18,7 @@ import dotenv
 dotenv.load_dotenv()
 
 from tastytrade import Session, Account
+from market_data_service import MarketDataService
 from tastytrade_sdk import Tastytrade
 from tastytrade_sdk.market_data.streamer_symbol_translation import StreamerSymbolTranslationsFactory
 import requests
@@ -58,6 +59,9 @@ class DeltaTracker:
         self.api_quote_token = None
         self.target_accounts = ["5WX84566", "5WU39639"]
         
+        # Market data service for caching
+        self.market_data_service = None
+        
         # Data storage with locks for thread safety
         self.positions = {}          # Key: account_specific_key, Value: position info
         self.account_balances = {}   # Key: account_number, Value: balance info
@@ -77,6 +81,9 @@ class DeltaTracker:
         
         # Order management service (will be initialized after tasty_client)
         self.order_management_service = None
+        
+        # Background service control
+        self.cache_refresh_running = False
 
     def _get_login_credentials(self):
         login = os.getenv("TASTYTRADE_LOGIN")
@@ -104,6 +111,9 @@ class DeltaTracker:
             
             # Initialize order management service
             self._initialize_order_management_service()
+            
+            # Initialize market data service for caching
+            self.market_data_service = MarketDataService(tracker=self)
             
             return True
         except Exception as e:
@@ -152,6 +162,11 @@ class DeltaTracker:
         try:
             logging.info("🔄 Fetching positions...")
             
+            # Check for cached positions first (if available and recent)
+            if self._try_load_cached_positions():
+                logging.info("📊 Using cached positions")
+                return len(self.positions) > 0
+            
             with self.positions_lock:
                 self.positions.clear()
                 for acc_num in self.target_accounts:
@@ -190,11 +205,87 @@ class DeltaTracker:
             # Fetch live underlying prices from TastyTrade API
             self._fetch_underlying_prices_from_api()
 
+            # Store position snapshots in database for each account
+            if self.market_data_service:
+                for acc_num in self.target_accounts:
+                    account_positions = [
+                        pos for pos in self.positions.values() 
+                        if pos['account_number'] == acc_num
+                    ]
+                    if account_positions:
+                        snapshot_id = self.market_data_service.store_position_snapshot(
+                            account_number=acc_num,
+                            positions=account_positions
+                        )
+                        if snapshot_id > 0:
+                            logging.info(f"📸 Stored position snapshot {snapshot_id} for account {acc_num}")
+
             logging.info(f"✅ Position loading complete. Total loaded: {len(self.positions)}")
             return len(self.positions) > 0
         except Exception as e:
             logging.error(f"❌ Error fetching positions: {e}")
             return False
+
+    def _try_load_cached_positions(self) -> bool:
+        """Try to load positions from cache if available and recent enough"""
+        try:
+            if not self.market_data_service:
+                return False
+            
+            cached_positions_loaded = False
+            
+            with self.positions_lock:
+                self.positions.clear()
+                
+                for acc_num in self.target_accounts:
+                    # Try to get cached position snapshot (within last 5 minutes)
+                    snapshot = self.market_data_service.get_latest_position_snapshot(
+                        account_number=acc_num, 
+                        max_age_minutes=5
+                    )
+                    
+                    if snapshot:
+                        # Load positions from snapshot
+                        positions_data = json.loads(snapshot.positions_json)
+                        
+                        for pos_data in positions_data:
+                            symbol_occ = pos_data.get('symbol_occ')
+                            if symbol_occ:
+                                key = f"{acc_num}:{symbol_occ}"
+                                self.positions[key] = pos_data
+                        
+                        logging.info(f"📊 Loaded {len(positions_data)} cached positions for account {acc_num}")
+                        cached_positions_loaded = True
+                    else:
+                        logging.debug(f"📊 No recent cached positions for account {acc_num}")
+                        return False  # If any account doesn't have cache, fetch fresh
+            
+            if cached_positions_loaded:
+                # Still fetch fresh underlying prices for real-time updates
+                self._fetch_underlying_prices_from_api()
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logging.error(f"❌ Error loading cached positions: {e}")
+            return False
+
+    def _background_cache_refresh(self):
+        """Background thread to periodically refresh cache"""
+        while self.cache_refresh_running:
+            try:
+                if self.market_data_service:
+                    # Clean up old data every hour
+                    self.market_data_service.cleanup_old_data(days_to_keep=7)
+                    logging.info("🧹 Background cache cleanup completed")
+                
+                # Sleep for 1 hour
+                time.sleep(3600)
+                
+            except Exception as e:
+                logging.error(f"❌ Error in background cache refresh: {e}")
+                time.sleep(60)  # Wait 1 minute before retrying
 
     def _convert_occ_to_streamer(self, occ_symbol):
         """Convert OCC format to streamer symbol format using the SDK."""
@@ -238,6 +329,29 @@ class DeltaTracker:
             if not underlying_symbols:
                 logging.info("📊 No underlying symbols found in positions")
                 return
+            
+            # Try to use cached market data service first
+            if self.market_data_service:
+                symbols_list = list(underlying_symbols)
+                market_data_batch = self.market_data_service.get_market_data(
+                    symbols_list, 
+                    data_type='realtime', 
+                    max_age_minutes=1  # 1 minute cache for real-time prices
+                )
+                
+                fetched_count = 0
+                with self.prices_lock:
+                    for symbol, data in market_data_batch.items():
+                        if data.last_price is not None:
+                            self.underlying_prices[symbol] = data.last_price
+                            fetched_count += 1
+                            logging.info(f"📊 CACHED price for {symbol}: ${data.last_price:.2f}")
+                
+                if fetched_count > 0:
+                    # Recalculate notionals with new prices
+                    self._recalculate_notionals()
+                    logging.info(f"✅ Fetched {fetched_count} underlying prices from cache")
+                    return
             
             # Fetch market data using TastyTrade API
             headers = {
@@ -587,6 +701,11 @@ class DeltaTracker:
         if not self.initialize_session(): return
         threading.Thread(target=self._balance_update_thread, daemon=True).start()
         
+        # Start background cache refresh service
+        self.cache_refresh_running = True
+        threading.Thread(target=self._background_cache_refresh, daemon=True).start()
+        logging.info("🔄 Background cache refresh service started")
+        
         while True:
             if self.fetch_positions():
                 await self._connect_and_subscribe()
@@ -611,6 +730,9 @@ from trade_journal_routes import create_trade_journal_routes
 
 # Import rebalancing functionality
 from rebalancing_routes import create_rebalancing_routes
+
+# Import workflow functionality
+from workflow_routes import create_workflow_routes
 
 
 @app.route('/')
@@ -761,6 +883,56 @@ def api_position_monitor():
             'error': str(e)
         }), 500
 
+@app.route('/api/cache/stats')
+def api_cache_stats():
+    """Get cache statistics"""
+    try:
+        if tracker.market_data_service:
+            stats = tracker.market_data_service.get_cache_stats()
+            return jsonify({
+                'success': True,
+                'cache_stats': stats,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Market data service not available'
+            }), 503
+            
+    except Exception as e:
+        logging.error(f"❌ Error getting cache stats: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/cache/cleanup', methods=['POST'])
+def api_cache_cleanup():
+    """Clean up old cached data"""
+    try:
+        days_to_keep = request.json.get('days_to_keep', 7) if request.json else 7
+        
+        if tracker.market_data_service:
+            tracker.market_data_service.cleanup_old_data(days_to_keep=days_to_keep)
+            return jsonify({
+                'success': True,
+                'message': f'Cleaned up data older than {days_to_keep} days',
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Market data service not available'
+            }), 503
+            
+    except Exception as e:
+        logging.error(f"❌ Error cleaning up cache: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 def run_async_tracker():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -777,6 +949,9 @@ if __name__ == '__main__':
     
     # Initialize rebalancing routes
     create_rebalancing_routes(app, tracker)
+    
+    # Initialize workflow routes
+    create_workflow_routes(app, tracker)
     
     threading.Thread(target=run_async_tracker, daemon=True).start()
     logging.info("🌐 Starting dashboard server on http://localhost:5001")

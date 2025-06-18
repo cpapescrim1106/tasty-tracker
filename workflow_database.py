@@ -1,0 +1,504 @@
+#!/usr/bin/env python3
+"""
+Workflow Database Manager
+Manages database schema and operations for the trading workflow system
+"""
+
+import sqlite3
+import json
+import logging
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass, asdict
+from enum import Enum
+
+class WorkflowState(Enum):
+    SCANNING = "scanning"
+    EVALUATING = "evaluating"
+    PENDING_APPROVAL = "pending_approval"
+    EXECUTING = "executing"
+    MONITORING = "monitoring"
+    CLOSING = "closing"
+    COMPLETED = "completed"
+    ERROR = "error"
+
+@dataclass
+class StrategyLeg:
+    """Individual leg of a multi-leg strategy"""
+    action: str  # "buy", "sell"
+    option_type: str  # "call", "put"
+    selection_method: str  # "delta", "atm_offset", "fixed_strike"
+    selection_value: float  # delta target, offset, or strike
+    quantity: int = 1
+
+@dataclass
+class ManagementRule:
+    """Position management rule"""
+    rule_type: str  # "profit_target", "stop_loss", "time_exit", "delta_breach"
+    trigger_condition: str  # "gte", "lte", "equals"
+    trigger_value: float  # percentage, price, or other value
+    action: str  # "close_position", "partial_close", "roll", "adjust"
+    quantity_pct: float = 100.0  # percentage of position to affect
+    priority: int = 1  # execution priority (1 = highest)
+
+@dataclass
+class StrategyConfig:
+    """Complete strategy configuration"""
+    id: Optional[int] = None
+    name: str = ""
+    description: str = ""
+    legs: List[StrategyLeg] = None
+    dte_range_min: int = 30
+    dte_range_max: int = 45
+    profit_target_pct: float = 50.0
+    stop_loss_pct: float = 200.0
+    delta_biases: List[str] = None  # ["bullish", "neutral", "bearish"]
+    management_rules: List[ManagementRule] = None
+    created_at: Optional[datetime] = None
+    is_active: bool = True
+    
+    def __post_init__(self):
+        if self.legs is None:
+            self.legs = []
+        if self.delta_biases is None:
+            self.delta_biases = ["neutral"]
+        if self.management_rules is None:
+            self.management_rules = []
+
+@dataclass
+class WorkflowInstance:
+    """Individual workflow instance tracking"""
+    id: str
+    symbol: str
+    strategy_id: int
+    current_state: WorkflowState
+    state_data: Dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+    error_message: Optional[str] = None
+
+@dataclass
+class ApprovedTrade:
+    """Trade approved for execution"""
+    id: Optional[int] = None
+    workflow_id: str = ""
+    symbol: str = ""
+    strategy_id: int = 0
+    strategy_config: Dict[str, Any] = None
+    order_details: Dict[str, Any] = None
+    approval_status: str = "pending"  # "pending", "approved", "rejected", "executed"
+    approved_at: Optional[datetime] = None
+    order_id: Optional[str] = None
+    position_key: Optional[str] = None
+    risk_metrics: Dict[str, Any] = None
+    
+    def __post_init__(self):
+        if self.strategy_config is None:
+            self.strategy_config = {}
+        if self.order_details is None:
+            self.order_details = {}
+        if self.risk_metrics is None:
+            self.risk_metrics = {}
+
+class WorkflowDatabase:
+    """Database manager for workflow system"""
+    
+    def __init__(self, db_path: str = "workflow.db"):
+        self.db_path = db_path
+        self.logger = logging.getLogger(__name__)
+        self._initialize_database()
+        
+    def _initialize_database(self):
+        """Initialize database schema"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Strategies table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS strategies (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    legs_config TEXT NOT NULL,  -- JSON
+                    dte_range_min INTEGER DEFAULT 30,
+                    dte_range_max INTEGER DEFAULT 45,
+                    profit_target_pct REAL DEFAULT 50.0,
+                    stop_loss_pct REAL DEFAULT 200.0,
+                    delta_biases TEXT DEFAULT '["neutral"]',  -- JSON array
+                    management_rules TEXT DEFAULT '[]',  -- JSON array
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_active BOOLEAN DEFAULT true
+                )
+            ''')
+            
+            # Workflow instances table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS workflow_instances (
+                    id TEXT PRIMARY KEY,
+                    symbol TEXT NOT NULL,
+                    strategy_id INTEGER NOT NULL,
+                    current_state TEXT NOT NULL,
+                    state_data TEXT DEFAULT '{}',  -- JSON
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    error_message TEXT,
+                    FOREIGN KEY (strategy_id) REFERENCES strategies (id)
+                )
+            ''')
+            
+            # Approved trades table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS approved_trades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    workflow_id TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    strategy_id INTEGER NOT NULL,
+                    strategy_config TEXT NOT NULL,  -- JSON
+                    order_details TEXT DEFAULT '{}',  -- JSON
+                    approval_status TEXT DEFAULT 'pending',
+                    approved_at TIMESTAMP,
+                    order_id TEXT,
+                    position_key TEXT,
+                    risk_metrics TEXT DEFAULT '{}',  -- JSON
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (workflow_id) REFERENCES workflow_instances (id),
+                    FOREIGN KEY (strategy_id) REFERENCES strategies (id)
+                )
+            ''')
+            
+            # Create indexes for performance
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_workflow_state ON workflow_instances(current_state)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_workflow_symbol ON workflow_instances(symbol)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_approved_status ON approved_trades(approval_status)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_approved_symbol ON approved_trades(symbol)')
+            
+            conn.commit()
+            conn.close()
+            
+            self.logger.info("✅ Workflow database initialized successfully")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to initialize workflow database: {e}")
+            raise
+    
+    def save_strategy(self, strategy: StrategyConfig) -> int:
+        """Save strategy configuration"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Convert complex objects to JSON
+            legs_json = json.dumps([asdict(leg) for leg in strategy.legs])
+            management_rules_json = json.dumps([asdict(rule) for rule in strategy.management_rules])
+            delta_biases_json = json.dumps(strategy.delta_biases)
+            
+            if strategy.id:
+                # Update existing strategy
+                cursor.execute('''
+                    UPDATE strategies SET
+                        name = ?, description = ?, legs_config = ?, 
+                        dte_range_min = ?, dte_range_max = ?,
+                        profit_target_pct = ?, stop_loss_pct = ?,
+                        delta_biases = ?, management_rules = ?, is_active = ?
+                    WHERE id = ?
+                ''', (
+                    strategy.name, strategy.description, legs_json,
+                    strategy.dte_range_min, strategy.dte_range_max,
+                    strategy.profit_target_pct, strategy.stop_loss_pct,
+                    delta_biases_json, management_rules_json, strategy.is_active,
+                    strategy.id
+                ))
+                strategy_id = strategy.id
+            else:
+                # Insert new strategy
+                cursor.execute('''
+                    INSERT INTO strategies 
+                    (name, description, legs_config, dte_range_min, dte_range_max,
+                     profit_target_pct, stop_loss_pct, delta_biases, management_rules, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    strategy.name, strategy.description, legs_json,
+                    strategy.dte_range_min, strategy.dte_range_max,
+                    strategy.profit_target_pct, strategy.stop_loss_pct,
+                    delta_biases_json, management_rules_json, strategy.is_active
+                ))
+                strategy_id = cursor.lastrowid
+            
+            conn.commit()
+            conn.close()
+            
+            self.logger.info(f"✅ Saved strategy: {strategy.name} (ID: {strategy_id})")
+            return strategy_id
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to save strategy: {e}")
+            raise
+    
+    def get_strategy(self, strategy_id: int) -> Optional[StrategyConfig]:
+        """Get strategy by ID"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id, name, description, legs_config, dte_range_min, dte_range_max,
+                       profit_target_pct, stop_loss_pct, delta_biases, management_rules,
+                       created_at, is_active
+                FROM strategies WHERE id = ?
+            ''', (strategy_id,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if not row:
+                return None
+            
+            # Parse JSON fields
+            legs_data = json.loads(row[3])
+            legs = [StrategyLeg(**leg_data) for leg_data in legs_data]
+            
+            management_rules_data = json.loads(row[9])
+            management_rules = [ManagementRule(**rule_data) for rule_data in management_rules_data]
+            
+            delta_biases = json.loads(row[8])
+            
+            return StrategyConfig(
+                id=row[0],
+                name=row[1],
+                description=row[2],
+                legs=legs,
+                dte_range_min=row[4],
+                dte_range_max=row[5],
+                profit_target_pct=row[6],
+                stop_loss_pct=row[7],
+                delta_biases=delta_biases,
+                management_rules=management_rules,
+                created_at=datetime.fromisoformat(row[10]) if row[10] else None,
+                is_active=bool(row[11])
+            )
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get strategy {strategy_id}: {e}")
+            return None
+    
+    def get_all_strategies(self, active_only: bool = True) -> List[StrategyConfig]:
+        """Get all strategies"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            query = '''
+                SELECT id, name, description, legs_config, dte_range_min, dte_range_max,
+                       profit_target_pct, stop_loss_pct, delta_biases, management_rules,
+                       created_at, is_active
+                FROM strategies
+            '''
+            
+            if active_only:
+                query += ' WHERE is_active = true'
+            
+            query += ' ORDER BY created_at DESC'
+            
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            conn.close()
+            
+            strategies = []
+            for row in rows:
+                legs_data = json.loads(row[3])
+                legs = [StrategyLeg(**leg_data) for leg_data in legs_data]
+                
+                management_rules_data = json.loads(row[9])
+                management_rules = [ManagementRule(**rule_data) for rule_data in management_rules_data]
+                
+                delta_biases = json.loads(row[8])
+                
+                strategy = StrategyConfig(
+                    id=row[0],
+                    name=row[1],
+                    description=row[2],
+                    legs=legs,
+                    dte_range_min=row[4],
+                    dte_range_max=row[5],
+                    profit_target_pct=row[6],
+                    stop_loss_pct=row[7],
+                    delta_biases=delta_biases,
+                    management_rules=management_rules,
+                    created_at=datetime.fromisoformat(row[10]) if row[10] else None,
+                    is_active=bool(row[11])
+                )
+                strategies.append(strategy)
+            
+            return strategies
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get strategies: {e}")
+            return []
+    
+    def create_workflow_instance(self, workflow_id: str, symbol: str, strategy_id: int,
+                                initial_state: WorkflowState = WorkflowState.SCANNING,
+                                state_data: Dict[str, Any] = None) -> bool:
+        """Create new workflow instance"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            if state_data is None:
+                state_data = {}
+            
+            cursor.execute('''
+                INSERT INTO workflow_instances 
+                (id, symbol, strategy_id, current_state, state_data)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                workflow_id, symbol, strategy_id, initial_state.value,
+                json.dumps(state_data)
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            self.logger.info(f"✅ Created workflow instance: {workflow_id} for {symbol}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to create workflow instance: {e}")
+            return False
+    
+    def update_workflow_state(self, workflow_id: str, new_state: WorkflowState,
+                             state_data: Dict[str, Any] = None, 
+                             error_message: str = None) -> bool:
+        """Update workflow state"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            if state_data is None:
+                state_data = {}
+            
+            cursor.execute('''
+                UPDATE workflow_instances SET
+                    current_state = ?, state_data = ?, updated_at = CURRENT_TIMESTAMP,
+                    error_message = ?
+                WHERE id = ?
+            ''', (
+                new_state.value, json.dumps(state_data), error_message, workflow_id
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            self.logger.info(f"✅ Updated workflow {workflow_id} to state: {new_state.value}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to update workflow state: {e}")
+            return False
+    
+    def get_workflows_by_state(self, state: WorkflowState) -> List[WorkflowInstance]:
+        """Get all workflows in a specific state"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id, symbol, strategy_id, current_state, state_data,
+                       created_at, updated_at, error_message
+                FROM workflow_instances 
+                WHERE current_state = ?
+                ORDER BY updated_at ASC
+            ''', (state.value,))
+            
+            rows = cursor.fetchall()
+            conn.close()
+            
+            workflows = []
+            for row in rows:
+                workflow = WorkflowInstance(
+                    id=row[0],
+                    symbol=row[1],
+                    strategy_id=row[2],
+                    current_state=WorkflowState(row[3]),
+                    state_data=json.loads(row[4]),
+                    created_at=datetime.fromisoformat(row[5]),
+                    updated_at=datetime.fromisoformat(row[6]),
+                    error_message=row[7]
+                )
+                workflows.append(workflow)
+            
+            return workflows
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get workflows by state: {e}")
+            return []
+    
+    def save_approved_trade(self, trade: ApprovedTrade) -> int:
+        """Save approved trade"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO approved_trades 
+                (workflow_id, symbol, strategy_id, strategy_config, order_details,
+                 approval_status, approved_at, order_id, position_key, risk_metrics)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                trade.workflow_id, trade.symbol, trade.strategy_id,
+                json.dumps(trade.strategy_config), json.dumps(trade.order_details),
+                trade.approval_status, trade.approved_at, trade.order_id,
+                trade.position_key, json.dumps(trade.risk_metrics)
+            ))
+            
+            trade_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            
+            self.logger.info(f"✅ Saved approved trade: {trade_id} for {trade.symbol}")
+            return trade_id
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to save approved trade: {e}")
+            raise
+    
+    def get_pending_trades(self) -> List[ApprovedTrade]:
+        """Get all pending trades awaiting approval"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id, workflow_id, symbol, strategy_id, strategy_config,
+                       order_details, approval_status, approved_at, order_id,
+                       position_key, risk_metrics, created_at
+                FROM approved_trades 
+                WHERE approval_status = 'pending'
+                ORDER BY created_at ASC
+            ''')
+            
+            rows = cursor.fetchall()
+            conn.close()
+            
+            trades = []
+            for row in rows:
+                trade = ApprovedTrade(
+                    id=row[0],
+                    workflow_id=row[1],
+                    symbol=row[2],
+                    strategy_id=row[3],
+                    strategy_config=json.loads(row[4]),
+                    order_details=json.loads(row[5]),
+                    approval_status=row[6],
+                    approved_at=datetime.fromisoformat(row[7]) if row[7] else None,
+                    order_id=row[8],
+                    position_key=row[9],
+                    risk_metrics=json.loads(row[10])
+                )
+                trades.append(trade)
+            
+            return trades
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get pending trades: {e}")
+            return []
