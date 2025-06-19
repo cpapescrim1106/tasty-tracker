@@ -27,8 +27,8 @@ class StrategyLeg:
     """Individual leg of a multi-leg strategy"""
     action: str  # "buy", "sell"
     option_type: str  # "call", "put"
-    selection_method: str  # "delta", "atm_offset", "fixed_strike"
-    selection_value: float  # delta target, offset, or strike
+    selection_method: str  # "atm", "offset", "percentage", "premium", "atm_straddle"
+    selection_value: float  # offset, percentage, or premium amount
     quantity: int = 1
 
 @dataclass
@@ -47,11 +47,16 @@ class StrategyConfig:
     id: Optional[int] = None
     name: str = ""
     description: str = ""
+    opening_action: str = "STO"  # "BTO" or "STO"
     legs: List[StrategyLeg] = None
     dte_range_min: int = 30
     dte_range_max: int = 45
     profit_target_pct: float = 50.0
     stop_loss_pct: float = 200.0
+    no_stop_loss: bool = True  # Default to no stop loss
+    minimum_premium_required: float = 0.0  # Minimum total strategy premium
+    minimum_underlying_price: float = 0.0  # Minimum underlying price filter
+    closing_21_dte: bool = False  # Close positions at 21 DTE
     delta_biases: List[str] = None  # ["bullish", "neutral", "bearish"]
     management_rules: List[ManagementRule] = None
     created_at: Optional[datetime] = None
@@ -114,17 +119,46 @@ class WorkflowDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
+            # Check if opening_action column exists, add if missing
+            cursor.execute("PRAGMA table_info(strategies)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'opening_action' not in columns:
+                cursor.execute("ALTER TABLE strategies ADD COLUMN opening_action TEXT DEFAULT 'STO'")
+                self.logger.info("✅ Added opening_action column to existing strategies table")
+            
+            # Add new strategy enhancement columns if missing
+            if 'no_stop_loss' not in columns:
+                cursor.execute("ALTER TABLE strategies ADD COLUMN no_stop_loss BOOLEAN DEFAULT true")
+                self.logger.info("✅ Added no_stop_loss column to existing strategies table")
+            
+            if 'minimum_premium_required' not in columns:
+                cursor.execute("ALTER TABLE strategies ADD COLUMN minimum_premium_required REAL DEFAULT 0.0")
+                self.logger.info("✅ Added minimum_premium_required column to existing strategies table")
+            
+            if 'minimum_underlying_price' not in columns:
+                cursor.execute("ALTER TABLE strategies ADD COLUMN minimum_underlying_price REAL DEFAULT 0.0")
+                self.logger.info("✅ Added minimum_underlying_price column to existing strategies table")
+            
+            if 'closing_21_dte' not in columns:
+                cursor.execute("ALTER TABLE strategies ADD COLUMN closing_21_dte BOOLEAN DEFAULT false")
+                self.logger.info("✅ Added closing_21_dte column to existing strategies table")
+            
             # Strategies table
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS strategies (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL UNIQUE,
                     description TEXT,
+                    opening_action TEXT DEFAULT 'STO',  -- 'BTO' or 'STO'
                     legs_config TEXT NOT NULL,  -- JSON
                     dte_range_min INTEGER DEFAULT 30,
                     dte_range_max INTEGER DEFAULT 45,
                     profit_target_pct REAL DEFAULT 50.0,
                     stop_loss_pct REAL DEFAULT 200.0,
+                    no_stop_loss BOOLEAN DEFAULT true,
+                    minimum_premium_required REAL DEFAULT 0.0,
+                    minimum_underlying_price REAL DEFAULT 0.0,
+                    closing_21_dte BOOLEAN DEFAULT false,
                     delta_biases TEXT DEFAULT '["neutral"]',  -- JSON array
                     management_rules TEXT DEFAULT '[]',  -- JSON array
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -197,15 +231,17 @@ class WorkflowDatabase:
                 # Update existing strategy
                 cursor.execute('''
                     UPDATE strategies SET
-                        name = ?, description = ?, legs_config = ?, 
+                        name = ?, description = ?, opening_action = ?, legs_config = ?, 
                         dte_range_min = ?, dte_range_max = ?,
-                        profit_target_pct = ?, stop_loss_pct = ?,
+                        profit_target_pct = ?, stop_loss_pct = ?, no_stop_loss = ?,
+                        minimum_premium_required = ?, minimum_underlying_price = ?, closing_21_dte = ?,
                         delta_biases = ?, management_rules = ?, is_active = ?
                     WHERE id = ?
                 ''', (
-                    strategy.name, strategy.description, legs_json,
+                    strategy.name, strategy.description, strategy.opening_action, legs_json,
                     strategy.dte_range_min, strategy.dte_range_max,
-                    strategy.profit_target_pct, strategy.stop_loss_pct,
+                    strategy.profit_target_pct, strategy.stop_loss_pct, strategy.no_stop_loss,
+                    strategy.minimum_premium_required, strategy.minimum_underlying_price, strategy.closing_21_dte,
                     delta_biases_json, management_rules_json, strategy.is_active,
                     strategy.id
                 ))
@@ -214,13 +250,15 @@ class WorkflowDatabase:
                 # Insert new strategy
                 cursor.execute('''
                     INSERT INTO strategies 
-                    (name, description, legs_config, dte_range_min, dte_range_max,
-                     profit_target_pct, stop_loss_pct, delta_biases, management_rules, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (name, description, opening_action, legs_config, dte_range_min, dte_range_max,
+                     profit_target_pct, stop_loss_pct, no_stop_loss, minimum_premium_required, 
+                     minimum_underlying_price, closing_21_dte, delta_biases, management_rules, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    strategy.name, strategy.description, legs_json,
+                    strategy.name, strategy.description, strategy.opening_action, legs_json,
                     strategy.dte_range_min, strategy.dte_range_max,
-                    strategy.profit_target_pct, strategy.stop_loss_pct,
+                    strategy.profit_target_pct, strategy.stop_loss_pct, strategy.no_stop_loss,
+                    strategy.minimum_premium_required, strategy.minimum_underlying_price, strategy.closing_21_dte,
                     delta_biases_json, management_rules_json, strategy.is_active
                 ))
                 strategy_id = cursor.lastrowid
@@ -242,8 +280,9 @@ class WorkflowDatabase:
             cursor = conn.cursor()
             
             cursor.execute('''
-                SELECT id, name, description, legs_config, dte_range_min, dte_range_max,
-                       profit_target_pct, stop_loss_pct, delta_biases, management_rules,
+                SELECT id, name, description, opening_action, legs_config, dte_range_min, dte_range_max,
+                       profit_target_pct, stop_loss_pct, no_stop_loss, minimum_premium_required,
+                       minimum_underlying_price, closing_21_dte, delta_biases, management_rules,
                        created_at, is_active
                 FROM strategies WHERE id = ?
             ''', (strategy_id,))
@@ -255,27 +294,32 @@ class WorkflowDatabase:
                 return None
             
             # Parse JSON fields
-            legs_data = json.loads(row[3])
+            legs_data = json.loads(row[4])
             legs = [StrategyLeg(**leg_data) for leg_data in legs_data]
             
-            management_rules_data = json.loads(row[9])
+            management_rules_data = json.loads(row[14])
             management_rules = [ManagementRule(**rule_data) for rule_data in management_rules_data]
             
-            delta_biases = json.loads(row[8])
+            delta_biases = json.loads(row[13])
             
             return StrategyConfig(
                 id=row[0],
                 name=row[1],
                 description=row[2],
+                opening_action=row[3],
                 legs=legs,
-                dte_range_min=row[4],
-                dte_range_max=row[5],
-                profit_target_pct=row[6],
-                stop_loss_pct=row[7],
+                dte_range_min=row[5],
+                dte_range_max=row[6],
+                profit_target_pct=row[7],
+                stop_loss_pct=row[8],
+                no_stop_loss=bool(row[9]) if row[9] is not None else True,
+                minimum_premium_required=row[10] if row[10] is not None else 0.0,
+                minimum_underlying_price=row[11] if row[11] is not None else 0.0,
+                closing_21_dte=bool(row[12]) if row[12] is not None else False,
                 delta_biases=delta_biases,
                 management_rules=management_rules,
-                created_at=datetime.fromisoformat(row[10]) if row[10] else None,
-                is_active=bool(row[11])
+                created_at=datetime.fromisoformat(row[15]) if row[15] else None,
+                is_active=bool(row[16])
             )
             
         except Exception as e:
@@ -285,18 +329,20 @@ class WorkflowDatabase:
     def get_all_strategies(self, active_only: bool = True) -> List[StrategyConfig]:
         """Get all strategies"""
         try:
+            self.logger.info(f"Getting strategies from {self.db_path}, active_only={active_only}")
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
             query = '''
-                SELECT id, name, description, legs_config, dte_range_min, dte_range_max,
-                       profit_target_pct, stop_loss_pct, delta_biases, management_rules,
+                SELECT id, name, description, opening_action, legs_config, dte_range_min, dte_range_max,
+                       profit_target_pct, stop_loss_pct, no_stop_loss, minimum_premium_required,
+                       minimum_underlying_price, closing_21_dte, delta_biases, management_rules,
                        created_at, is_active
                 FROM strategies
             '''
             
             if active_only:
-                query += ' WHERE is_active = true'
+                query += ' WHERE is_active = 1'
             
             query += ' ORDER BY created_at DESC'
             
@@ -304,37 +350,80 @@ class WorkflowDatabase:
             rows = cursor.fetchall()
             conn.close()
             
+            self.logger.info(f"Query returned {len(rows)} rows")
             strategies = []
             for row in rows:
-                legs_data = json.loads(row[3])
+                legs_data = json.loads(row[4])
                 legs = [StrategyLeg(**leg_data) for leg_data in legs_data]
                 
-                management_rules_data = json.loads(row[9])
+                management_rules_data = json.loads(row[14])
                 management_rules = [ManagementRule(**rule_data) for rule_data in management_rules_data]
                 
-                delta_biases = json.loads(row[8])
+                delta_biases = json.loads(row[13])
                 
                 strategy = StrategyConfig(
                     id=row[0],
                     name=row[1],
                     description=row[2],
+                    opening_action=row[3],
                     legs=legs,
-                    dte_range_min=row[4],
-                    dte_range_max=row[5],
-                    profit_target_pct=row[6],
-                    stop_loss_pct=row[7],
+                    dte_range_min=row[5],
+                    dte_range_max=row[6],
+                    profit_target_pct=row[7],
+                    stop_loss_pct=row[8],
+                    no_stop_loss=bool(row[9]) if row[9] is not None else True,
+                    minimum_premium_required=row[10] if row[10] is not None else 0.0,
+                    minimum_underlying_price=row[11] if row[11] is not None else 0.0,
+                    closing_21_dte=bool(row[12]) if row[12] is not None else False,
                     delta_biases=delta_biases,
                     management_rules=management_rules,
-                    created_at=datetime.fromisoformat(row[10]) if row[10] else None,
-                    is_active=bool(row[11])
+                    created_at=datetime.fromisoformat(row[15]) if row[15] else None,
+                    is_active=bool(row[16])
                 )
                 strategies.append(strategy)
             
+            self.logger.info(f"Successfully loaded {len(strategies)} strategies")
             return strategies
             
         except Exception as e:
             self.logger.error(f"❌ Failed to get strategies: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             return []
+    
+    def delete_strategy(self, strategy_id: int) -> bool:
+        """Delete strategy by ID"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Check if strategy exists
+            cursor.execute("SELECT name FROM strategies WHERE id = ?", (strategy_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                conn.close()
+                self.logger.warning(f"⚠️ Strategy {strategy_id} not found for deletion")
+                return False
+            
+            strategy_name = result[0]
+            
+            # Delete the strategy
+            cursor.execute("DELETE FROM strategies WHERE id = ?", (strategy_id,))
+            
+            if cursor.rowcount > 0:
+                conn.commit()
+                conn.close()
+                self.logger.info(f"✅ Deleted strategy: {strategy_name} (ID: {strategy_id})")
+                return True
+            else:
+                conn.close()
+                self.logger.error(f"❌ Failed to delete strategy {strategy_id}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"❌ Failed to delete strategy {strategy_id}: {e}")
+            return False
     
     def create_workflow_instance(self, workflow_id: str, symbol: str, strategy_id: int,
                                 initial_state: WorkflowState = WorkflowState.SCANNING,

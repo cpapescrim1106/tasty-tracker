@@ -50,7 +50,9 @@ def get_strategies():
     """Get all strategies"""
     try:
         active_only = request.args.get('active_only', 'true').lower() == 'true'
+        logger.info(f"Getting strategies with active_only={active_only}")
         strategies = workflow_database.get_all_strategies(active_only=active_only)
+        logger.info(f"Found {len(strategies)} strategies")
         
         # Convert to dict format for JSON response
         strategies_data = []
@@ -59,6 +61,7 @@ def get_strategies():
                 'id': strategy.id,
                 'name': strategy.name,
                 'description': strategy.description,
+                'opening_action': strategy.opening_action,
                 'legs': [
                     {
                         'action': leg.action,
@@ -72,6 +75,10 @@ def get_strategies():
                 'dte_range_max': strategy.dte_range_max,
                 'profit_target_pct': strategy.profit_target_pct,
                 'stop_loss_pct': strategy.stop_loss_pct,
+                'no_stop_loss': strategy.no_stop_loss,
+                'minimum_premium_required': strategy.minimum_premium_required,
+                'minimum_underlying_price': strategy.minimum_underlying_price,
+                'closing_21_dte': strategy.closing_21_dte,
                 'delta_biases': strategy.delta_biases,
                 'management_rules': [
                     {
@@ -113,45 +120,70 @@ def save_strategy():
             if field not in data:
                 return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
         
-        # Parse legs
+        # Parse legs with proper error handling
         legs = []
-        for leg_data in data['legs']:
-            leg = StrategyLeg(
-                action=leg_data['action'],
-                option_type=leg_data['option_type'],
-                selection_method=leg_data['selection_method'],
-                selection_value=float(leg_data['selection_value']),
-                quantity=int(leg_data.get('quantity', 1))
-            )
-            legs.append(leg)
+        try:
+            for i, leg_data in enumerate(data['legs']):
+                # Validate leg data
+                required_leg_fields = ['action', 'option_type', 'selection_method']
+                for field in required_leg_fields:
+                    if field not in leg_data:
+                        return jsonify({'success': False, 'error': f'Leg {i+1}: Missing required field: {field}'}), 400
+                
+                # For premium target, selection_value should be 0 as it uses strategy minimum premium
+                selection_value = 0.0
+                if leg_data['selection_method'] != 'premium':
+                    selection_value = float(leg_data.get('selection_value', 0)) if leg_data.get('selection_value') not in [None, ''] else 0.0
+                
+                leg = StrategyLeg(
+                    action=leg_data['action'],
+                    option_type=leg_data['option_type'],
+                    selection_method=leg_data['selection_method'],
+                    selection_value=selection_value,
+                    quantity=int(leg_data.get('quantity', 1))
+                )
+                legs.append(leg)
+        except (ValueError, TypeError) as e:
+            return jsonify({'success': False, 'error': f'Invalid leg data: {str(e)}'}), 400
         
-        # Parse management rules
+        # Parse management rules with error handling
         management_rules = []
-        for rule_data in data.get('management_rules', []):
-            rule = ManagementRule(
-                rule_type=rule_data['rule_type'],
-                trigger_condition=rule_data.get('trigger_condition', 'gte'),
-                trigger_value=float(rule_data['trigger_value']),
-                action=rule_data['action'],
-                quantity_pct=float(rule_data.get('quantity_pct', 100.0)),
-                priority=int(rule_data.get('priority', 1))
-            )
-            management_rules.append(rule)
+        try:
+            for rule_data in data.get('management_rules', []):
+                rule = ManagementRule(
+                    rule_type=rule_data['rule_type'],
+                    trigger_condition=rule_data.get('trigger_condition', 'gte'),
+                    trigger_value=float(rule_data['trigger_value']),
+                    action=rule_data['action'],
+                    quantity_pct=float(rule_data.get('quantity_pct', 100.0)),
+                    priority=int(rule_data.get('priority', 1))
+                )
+                management_rules.append(rule)
+        except (ValueError, TypeError, KeyError) as e:
+            return jsonify({'success': False, 'error': f'Invalid management rule data: {str(e)}'}), 400
         
-        # Create strategy configuration
-        strategy = StrategyConfig(
-            id=data.get('id'),  # For updates
-            name=data['name'],
-            description=data.get('description', ''),
-            legs=legs,
-            dte_range_min=int(data.get('dte_range_min', 30)),
-            dte_range_max=int(data.get('dte_range_max', 45)),
-            profit_target_pct=float(data.get('profit_target_pct', 50.0)),
-            stop_loss_pct=float(data.get('stop_loss_pct', 200.0)),
-            delta_biases=data.get('delta_biases', ['neutral']),
-            management_rules=management_rules,
-            is_active=data.get('is_active', True)
-        )
+        # Create strategy configuration with proper error handling
+        try:
+            strategy = StrategyConfig(
+                id=data.get('id'),  # For updates
+                name=data['name'],
+                description=data.get('description', ''),
+                opening_action=data.get('opening_action', 'STO'),
+                legs=legs,
+                dte_range_min=int(data.get('dte_range_min', 30)),
+                dte_range_max=int(data.get('dte_range_max', 45)),
+                profit_target_pct=float(data.get('profit_target_pct', 50.0)),
+                stop_loss_pct=float(data.get('stop_loss_pct', 200.0)),
+                no_stop_loss=bool(data.get('no_stop_loss', True)),
+                minimum_premium_required=float(data.get('minimum_premium_required', 0.0)),
+                minimum_underlying_price=float(data.get('minimum_underlying_price', 0.0)),
+                closing_21_dte=bool(data.get('closing_21_dte', False)),
+                delta_biases=data.get('delta_biases', ['neutral']),
+                management_rules=management_rules,
+                is_active=data.get('is_active', True)
+            )
+        except (ValueError, TypeError) as e:
+            return jsonify({'success': False, 'error': f'Invalid strategy data: {str(e)}'}), 400
         
         # Save strategy
         strategy_id = workflow_database.save_strategy(strategy)
@@ -164,6 +196,104 @@ def save_strategy():
         
     except Exception as e:
         logger.error(f"❌ Error saving strategy: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@workflow_bp.route('/api/strategies/<int:strategy_id>', methods=['PUT'])
+def update_strategy(strategy_id):
+    """Update existing strategy configuration"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Check if strategy exists
+        existing_strategy = workflow_database.get_strategy(strategy_id)
+        if not existing_strategy:
+            return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+        
+        # Validate required fields
+        required_fields = ['name', 'legs']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
+        
+        # Parse legs with proper error handling
+        legs = []
+        try:
+            for i, leg_data in enumerate(data['legs']):
+                # Validate leg data
+                required_leg_fields = ['action', 'option_type', 'selection_method']
+                for field in required_leg_fields:
+                    if field not in leg_data:
+                        return jsonify({'success': False, 'error': f'Leg {i+1}: Missing required field: {field}'}), 400
+                
+                # For premium target, selection_value should be 0 as it uses strategy minimum premium
+                selection_value = 0.0
+                if leg_data['selection_method'] != 'premium':
+                    selection_value = float(leg_data.get('selection_value', 0)) if leg_data.get('selection_value') not in [None, ''] else 0.0
+                
+                leg = StrategyLeg(
+                    action=leg_data['action'],
+                    option_type=leg_data['option_type'],
+                    selection_method=leg_data['selection_method'],
+                    selection_value=selection_value,
+                    quantity=int(leg_data.get('quantity', 1))
+                )
+                legs.append(leg)
+        except (ValueError, TypeError) as e:
+            return jsonify({'success': False, 'error': f'Invalid leg data: {str(e)}'}), 400
+        
+        # Parse management rules with error handling
+        management_rules = []
+        try:
+            for rule_data in data.get('management_rules', []):
+                rule = ManagementRule(
+                    rule_type=rule_data['rule_type'],
+                    trigger_condition=rule_data.get('trigger_condition', 'gte'),
+                    trigger_value=float(rule_data['trigger_value']),
+                    action=rule_data['action'],
+                    quantity_pct=float(rule_data.get('quantity_pct', 100.0)),
+                    priority=int(rule_data.get('priority', 1))
+                )
+                management_rules.append(rule)
+        except (ValueError, TypeError, KeyError) as e:
+            return jsonify({'success': False, 'error': f'Invalid management rule data: {str(e)}'}), 400
+        
+        # Create strategy configuration with proper error handling
+        try:
+            strategy = StrategyConfig(
+                id=strategy_id,  # For updates
+                name=data['name'],
+                description=data.get('description', ''),
+                opening_action=data.get('opening_action', 'STO'),
+                legs=legs,
+                dte_range_min=int(data.get('dte_range_min', 30)),
+                dte_range_max=int(data.get('dte_range_max', 45)),
+                profit_target_pct=float(data.get('profit_target_pct', 50.0)),
+                stop_loss_pct=float(data.get('stop_loss_pct', 200.0)),
+                no_stop_loss=bool(data.get('no_stop_loss', True)),
+                minimum_premium_required=float(data.get('minimum_premium_required', 0.0)),
+                minimum_underlying_price=float(data.get('minimum_underlying_price', 0.0)),
+                closing_21_dte=bool(data.get('closing_21_dte', False)),
+                delta_biases=data.get('delta_biases', ['neutral']),
+                management_rules=management_rules,
+                is_active=data.get('is_active', True)
+            )
+        except (ValueError, TypeError) as e:
+            return jsonify({'success': False, 'error': f'Invalid strategy data: {str(e)}'}), 400
+        
+        # Save strategy
+        saved_strategy_id = workflow_database.save_strategy(strategy)
+        
+        return jsonify({
+            'success': True,
+            'strategy_id': saved_strategy_id,
+            'message': f'Strategy "{strategy.name}" updated successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error updating strategy {strategy_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @workflow_bp.route('/api/strategies/<int:strategy_id>', methods=['GET'])
@@ -179,6 +309,7 @@ def get_strategy(strategy_id):
             'id': strategy.id,
             'name': strategy.name,
             'description': strategy.description,
+            'opening_action': strategy.opening_action,
             'legs': [
                 {
                     'action': leg.action,
@@ -192,6 +323,10 @@ def get_strategy(strategy_id):
             'dte_range_max': strategy.dte_range_max,
             'profit_target_pct': strategy.profit_target_pct,
             'stop_loss_pct': strategy.stop_loss_pct,
+            'no_stop_loss': strategy.no_stop_loss,
+            'minimum_premium_required': strategy.minimum_premium_required,
+            'minimum_underlying_price': strategy.minimum_underlying_price,
+            'closing_21_dte': strategy.closing_21_dte,
             'delta_biases': strategy.delta_biases,
             'management_rules': [
                 {
@@ -216,48 +351,343 @@ def get_strategy(strategy_id):
         logger.error(f"❌ Error getting strategy {strategy_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@workflow_bp.route('/api/strategies/<int:strategy_id>', methods=['DELETE'])
+def delete_strategy(strategy_id):
+    """Delete a strategy"""
+    try:
+        # Check if strategy exists
+        strategy = workflow_database.get_strategy(strategy_id)
+        if not strategy:
+            return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+        
+        # Delete the strategy
+        success = workflow_database.delete_strategy(strategy_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Strategy "{strategy.name}" deleted successfully'
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Failed to delete strategy'}), 500
+        
+    except Exception as e:
+        logger.error(f"❌ Error deleting strategy {strategy_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @workflow_bp.route('/api/strategies/validate', methods=['POST'])
 def validate_strategy():
-    """Validate strategy configuration using test data"""
+    """Validate strategy configuration using live option chain data"""
+    logger.info("🚨🚨🚨 VALIDATE STRATEGY ENDPOINT CALLED")
     try:
         data = request.get_json()
+        logger.info(f"🚨 Received data: {data}")
         
         if not data:
             return jsonify({'success': False, 'error': 'No strategy data provided'}), 400
         
-        # For now, return basic validation
-        # In production, this would:
-        # 1. Test strategy on SPY historical data
-        # 2. Calculate P&L curves
-        # 3. Validate leg combinations
-        # 4. Check risk metrics
+        strategy_data = data.get('strategy_data', data.get('strategy', {}))
+        test_symbol = data.get('test_symbol', 'SPY')
         
-        validation_results = {
-            'is_valid': True,
-            'warnings': [],
+        # Debug logging to see what we receive
+        logger.info(f"🔍 Validation request received strategy_data keys: {list(strategy_data.keys())}")
+        min_premium_raw = strategy_data.get('minimum_premium_required', 'NOT FOUND')
+        logger.info(f"🔍 Minimum premium in strategy_data: {min_premium_raw}")
+        logger.info(f"🔍 Type of minimum premium: {type(min_premium_raw)}")
+        logger.info(f"🔍 DTE range max in strategy_data: {strategy_data.get('dte_range_max', 'NOT FOUND')}")
+        logger.info(f"🔍 Full strategy_data received: {strategy_data}")
+        
+        # Validate basic strategy structure
+        validation_result = {
+            'valid': True,
             'errors': [],
-            'test_metrics': {
-                'max_profit': 150.0,
-                'max_loss': 350.0,
-                'risk_reward_ratio': 0.43,
-                'win_rate': 0.65,
-                'avg_profit': 98.50,
-                'avg_loss': 175.25
-            },
-            'recommendations': [
-                'Consider tightening profit target to 40% for better win rate',
-                'Strategy performs well in neutral to slightly bullish markets'
-            ]
+            'warnings': [],
+            'sample_trade': None
         }
         
-        return jsonify({
-            'success': True,
-            'validation': validation_results
-        })
+        # Check required fields
+        if not strategy_data.get('name'):
+            validation_result['valid'] = False
+            validation_result['errors'].append('Strategy name is required')
+        
+        legs = strategy_data.get('legs', [])
+        if not legs:
+            validation_result['valid'] = False
+            validation_result['errors'].append('Strategy must have at least one leg')
+        
+        # Validate each leg
+        for i, leg in enumerate(legs):
+            leg_num = i + 1
+            
+            # Check required leg fields
+            if not leg.get('action') in ['buy', 'sell']:
+                validation_result['errors'].append(f'Leg {leg_num}: Invalid action')
+                validation_result['valid'] = False
+            
+            if not leg.get('option_type') in ['call', 'put']:
+                validation_result['errors'].append(f'Leg {leg_num}: Invalid option type')
+                validation_result['valid'] = False
+            
+            if not leg.get('selection_method') in ['atm', 'offset', 'percentage', 'premium', 'atm_straddle']:
+                validation_result['errors'].append(f'Leg {leg_num}: Invalid selection method')
+                validation_result['valid'] = False
+            
+            # Validate selection value based on method
+            selection_method = leg.get('selection_method')
+            selection_value = leg.get('selection_value', 0)
+            
+            if selection_method == 'delta':
+                validation_result['errors'].append(f'Leg {leg_num}: Delta selection is not supported. Please use ATM, offset, percentage, or premium selection.')
+                validation_result['valid'] = False
+            elif selection_method == 'offset':
+                if not isinstance(selection_value, (int, float)) or selection_value == 0:
+                    validation_result['errors'].append(f'Leg {leg_num}: Strike offset must be a non-zero dollar amount')
+                    validation_result['valid'] = False
+            elif selection_method == 'percentage':
+                if not isinstance(selection_value, (int, float)) or selection_value <= 0:
+                    validation_result['errors'].append(f'Leg {leg_num}: Percentage from current must be positive')
+                    validation_result['valid'] = False
+            elif selection_method == 'premium':
+                # Premium target uses strategy minimum premium, not leg selection value
+                strategy_min_premium = strategy_data.get('minimum_premium_required', 0)
+                if strategy_min_premium <= 0:
+                    validation_result['errors'].append(f'Leg {leg_num}: Premium target requires strategy minimum premium to be set')
+                    validation_result['valid'] = False
+            elif selection_method == 'atm_straddle':
+                if not isinstance(selection_value, (int, float)) or selection_value < 0 or selection_value > 200:
+                    validation_result['errors'].append(f'Leg {leg_num}: ATM straddle percentage must be between 0 and 200')
+                    validation_result['valid'] = False
+            
+            if leg.get('quantity', 0) <= 0:
+                validation_result['errors'].append(f'Leg {leg_num}: Quantity must be positive')
+                validation_result['valid'] = False
+        
+        # Validate strategy-wide settings
+        minimum_premium = strategy_data.get('minimum_premium_required', 0)
+        if minimum_premium < 0:
+            validation_result['errors'].append('Minimum premium required cannot be negative')
+            validation_result['valid'] = False
+        
+        minimum_underlying_price = strategy_data.get('minimum_underlying_price', 0)
+        if minimum_underlying_price < 0:
+            validation_result['errors'].append('Minimum underlying price cannot be negative')
+            validation_result['valid'] = False
+        
+        # Validate DTE ranges
+        dte_min = strategy_data.get('dte_range_min', 0)
+        dte_max = strategy_data.get('dte_range_max', 0)
+        if dte_min < 0 or dte_max < 0:
+            validation_result['errors'].append('DTE ranges must be positive')
+            validation_result['valid'] = False
+        elif dte_min > dte_max:
+            validation_result['errors'].append('Minimum DTE cannot be greater than maximum DTE')
+            validation_result['valid'] = False
+        
+        # If basic validation fails, return early
+        if not validation_result['valid']:
+            return jsonify(validation_result)
+        
+        # Try to get option chain data for real validation
+        try:
+            # Import here to avoid circular imports
+            from strategy_engine import StrategyEngine
+            
+            # Get tracker instance from global
+            if workflow_orchestrator and hasattr(workflow_orchestrator, 'tracker'):
+                tracker = workflow_orchestrator.tracker
+                if tracker and tracker.tasty_client:
+                    # Use validation cache for SPY
+                    use_cache = test_symbol.upper() == 'SPY'
+                    strategy_engine = StrategyEngine(tracker.tasty_client, use_validation_cache=use_cache)
+                    
+                    # Get option chain
+                    option_chain = strategy_engine.get_options_chain(test_symbol)
+                    
+                    if option_chain:
+                        # Use real strategy engine to find actual trades
+                        try:
+                            # Get current underlying price from market data
+                            underlying_price = None
+                            
+                            # Try to get actual underlying price from the tracker's market data
+                            if hasattr(tracker, 'underlying_prices') and test_symbol in tracker.underlying_prices:
+                                underlying_price = tracker.underlying_prices[test_symbol]
+                                logger.info(f"📊 Using real-time underlying price for {test_symbol}: ${underlying_price:.2f}")
+                            else:
+                                # Try to get from market data service
+                                try:
+                                    # Use the tastytrade SDK to get market data
+                                    from tastytrade.market_data import get_market_data_by_type
+                                    
+                                    # Get equity quotes - pass symbol list directly
+                                    quotes = get_market_data_by_type(tracker.tasty_client, [test_symbol])
+                                    
+                                    if quotes:
+                                        quote = quotes[0]
+                                        # Try different price fields
+                                        if hasattr(quote, 'last'):
+                                            underlying_price = float(quote.last) if quote.last else None
+                                        elif hasattr(quote, 'mark'):
+                                            underlying_price = float(quote.mark) if quote.mark else None
+                                        elif hasattr(quote, 'bid') and hasattr(quote, 'ask') and quote.bid and quote.ask:
+                                            underlying_price = (float(quote.bid) + float(quote.ask)) / 2
+                                        
+                                        if underlying_price:
+                                            logger.info(f"📊 Fetched underlying price for {test_symbol}: ${underlying_price:.2f}")
+                                except Exception as e:
+                                    logger.warning(f"⚠️ Could not fetch underlying price for {test_symbol}: {e}")
+                            
+                            # Validate we have a price
+                            if underlying_price is None or underlying_price == 0:
+                                return jsonify({
+                                    'success': False,
+                                    'error': f'Could not determine underlying price for {test_symbol}'
+                                }), 400
+                            
+                            # Determine strategy type and use appropriate engine method
+                            strategy_min_premium_raw = strategy_data.get('minimum_premium_required', 1.0)
+                            strategy_min_premium = float(strategy_min_premium_raw) if strategy_min_premium_raw not in [None, ''] else 1.0
+                            target_dte = strategy_data.get('dte_range_max', 45)
+                            
+                            logger.info(f"🔍 Raw minimum premium from strategy_data: {strategy_min_premium_raw} (type: {type(strategy_min_premium_raw)})")
+                            logger.info(f"🔍 Converted minimum premium: {strategy_min_premium} (type: {type(strategy_min_premium)})")
+                            
+                            # Ensure minimum premium is reasonable (not 0 or too small)
+                            if strategy_min_premium <= 0:
+                                strategy_min_premium = 1.0
+                                logger.warning(f"⚠️ Minimum premium was {strategy_min_premium_raw}, using default 1.0")
+                            
+                            # === UNIVERSAL STRATEGY VALIDATION ===
+                            # Use the new universal strategy builder for any leg configuration
+                            logger.info(f"🔍 Universal strategy validation - Min premium: {strategy_min_premium}, Target DTE: {target_dte}")
+                            logger.info(f"🔍 Strategy legs configuration: {legs}")
+                            
+                            # Build strategy sample using universal system
+                            logger.info(f"🚨 About to call build_strategy_sample with legs={legs}")
+                            sample_legs, total_net_premium = strategy_engine.build_strategy_sample(
+                                legs=legs,
+                                underlying_price=underlying_price,
+                                target_dte=target_dte,
+                                test_symbol=test_symbol,
+                                strategy_min_premium=strategy_min_premium
+                            )
+                            logger.info(f"🚨 build_strategy_sample returned {len(sample_legs)} legs")
+                            
+                            if sample_legs:
+                                # Calculate strategy metrics
+                                metrics = strategy_engine.calculate_strategy_metrics(sample_legs, total_net_premium)
+                                
+                                # Determine strategy type for display
+                                strategy_types = []
+                                for leg in legs:
+                                    leg_type = f"{leg['action']}_{leg['option_type']}"
+                                    strategy_types.append(leg_type)
+                                strategy_type_display = "_".join(strategy_types)
+                                
+                                # Check if strategy meets minimum premium requirement
+                                meets_premium_req = total_net_premium >= strategy_min_premium if strategy_min_premium > 0 else True
+                                
+                                sample_trade = {
+                                    'symbol': test_symbol,
+                                    'underlying_price': underlying_price,
+                                    'strategy_type': strategy_type_display,
+                                    'legs': sample_legs,
+                                    'net_premium': metrics['net_premium'],
+                                    'premium_type': metrics.get('premium_type', 'Credit'),
+                                    'max_profit': metrics['max_profit'],
+                                    'max_loss': metrics['max_loss'],
+                                    'break_even': metrics['break_even'],
+                                    'estimated_cost': metrics['max_loss'],
+                                    'meets_premium_requirement': meets_premium_req,
+                                    'target_premium': strategy_min_premium
+                                }
+                                
+                                # Add validation warning if premium requirement not met
+                                if not meets_premium_req:
+                                    validation_result['valid'] = False
+                                    validation_result['errors'].append(
+                                        f'Strategy net premium ${total_net_premium:.2f} is below minimum requirement ${strategy_min_premium:.2f}'
+                                    )
+                                    
+                                logger.info(f"✅ Universal validation successful: {len(sample_legs)} legs, net premium: ${total_net_premium:.2f}")
+                                
+                            else:
+                                # Strategy building failed - validation failure
+                                validation_result['valid'] = False
+                                validation_result['errors'].append(
+                                    f'Could not build strategy sample for the given leg configuration with {target_dte} DTE on {test_symbol}'
+                                )
+                                sample_trade = {
+                                    'symbol': test_symbol,
+                                    'legs': [],
+                                    'message': f'Could not find suitable options for the strategy configuration with {target_dte} DTE',
+                                    'estimated_cost': 0,
+                                    'max_profit': 0,
+                                    'max_loss': 0,
+                                    'target_premium': strategy_min_premium
+                                }
+                                
+                        except Exception as e:
+                            logger.error(f"Error generating sample trade: {e}")
+                            validation_result['valid'] = False
+                            validation_result['errors'].append(f'Sample trade generation failed: {str(e)}')
+                            sample_trade = {
+                                'symbol': test_symbol,
+                                'legs': [],
+                                'error': f'Error generating sample trade: {str(e)}',
+                                'estimated_cost': 0,
+                                'max_profit': 0,
+                                'max_loss': 0
+                            }
+                        
+                        validation_result['sample_trade'] = sample_trade
+                        
+                        # Only add success warning if no errors occurred
+                        if validation_result['valid']:
+                            validation_result['warnings'].append(
+                                f'Sample calculation based on {test_symbol} option chain'
+                            )
+                    
+                    else:
+                        validation_result['warnings'].append(
+                            f'Could not fetch option chain for {test_symbol} - validation limited'
+                        )
+                
+                else:
+                    validation_result['warnings'].append(
+                        'Market data not available - validation limited to structure checks'
+                    )
+            
+            else:
+                validation_result['warnings'].append(
+                    'Workflow system not initialized - validation limited to structure checks'
+                )
+        
+        except Exception as e:
+            logger.warning(f"Option chain validation failed: {e}")
+            validation_result['warnings'].append(
+                'Live option data unavailable - validation limited to structure checks'
+            )
+        
+        # Add some basic warnings based on strategy configuration
+        if strategy_data.get('profit_target_pct', 50) > 75:
+            validation_result['warnings'].append(
+                'High profit target (>75%) may reduce fill probability'
+            )
+        
+        if strategy_data.get('stop_loss_pct', 200) < 150:
+            validation_result['warnings'].append(
+                'Low stop loss (<150%) may result in frequent stops'
+            )
+        
+        return jsonify(validation_result)
         
     except Exception as e:
         logger.error(f"❌ Error validating strategy: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({
+            'valid': False,
+            'errors': [f'Validation error: {str(e)}']
+        }), 500
 
 @workflow_bp.route('/api/workflow/start', methods=['POST'])
 def start_workflow():
@@ -343,6 +773,50 @@ def approve_trade(trade_id):
         logger.error(f"❌ Error approving trade {trade_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@workflow_bp.route('/api/strategies/refresh-validation-chains', methods=['POST'])
+def refresh_validation_chains():
+    """Refresh the cached validation chains for SPY"""
+    try:
+        # Import here to avoid circular imports
+        from strategy_engine import StrategyEngine
+        
+        # Check if we have a tracker instance
+        if workflow_orchestrator and hasattr(workflow_orchestrator, 'tracker'):
+            tracker = workflow_orchestrator.tracker
+            if tracker and tracker.tasty_client:
+                strategy_engine = StrategyEngine(tracker.tasty_client)
+                
+                # Refresh the chains
+                success = strategy_engine.refresh_validation_chains()
+                
+                if success:
+                    return jsonify({
+                        'success': True,
+                        'message': 'Successfully refreshed SPY validation chains'
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Failed to refresh validation chains - check logs'
+                    }), 500
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'TastyTrade client not available'
+                }), 503
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Workflow orchestrator not initialized'
+            }), 503
+            
+    except Exception as e:
+        logger.error(f"Error refreshing validation chains: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @workflow_bp.route('/api/workflow/reject/<int:trade_id>', methods=['POST'])
 def reject_trade(trade_id):
     """Reject pending trade"""
@@ -360,6 +834,104 @@ def reject_trade(trade_id):
         
     except Exception as e:
         logger.error(f"❌ Error rejecting trade {trade_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@workflow_bp.route('/api/workflow/pending/detailed', methods=['GET'])
+def get_pending_trades_detailed():
+    """Get pending trades with enhanced risk metrics and real-time pricing"""
+    try:
+        pending_trades = workflow_database.get_pending_trades()
+        
+        # Convert to enhanced response format
+        trades_data = []
+        for trade in pending_trades:
+            # Get strategy details
+            strategy = None
+            if trade.strategy_id:
+                try:
+                    strategy = workflow_database.get_strategy(trade.strategy_id)
+                except:
+                    pass
+            
+            # Enhanced trade data with calculated metrics
+            trade_dict = {
+                'id': trade.id,
+                'workflow_id': trade.workflow_id,
+                'symbol': trade.symbol,
+                'strategy_id': trade.strategy_id,
+                'strategy_config': {
+                    'name': strategy.name if strategy else 'Unknown Strategy',
+                    'legs': [
+                        {
+                            'action': leg.action,
+                            'option_type': leg.option_type,
+                            'selection_method': leg.selection_method,
+                            'selection_value': leg.selection_value,
+                            'quantity': leg.quantity
+                        } for leg in strategy.legs
+                    ] if strategy else [],
+                    'profit_target_pct': strategy.profit_target_pct if strategy else None,
+                    'stop_loss_pct': strategy.stop_loss_pct if strategy else None
+                },
+                'order_details': trade.order_details,
+                'risk_metrics': {
+                    'expected_pnl': trade.risk_metrics.get('expected_pnl', 0) if trade.risk_metrics else 0,
+                    'max_loss': trade.risk_metrics.get('max_loss', 0) if trade.risk_metrics else 0,
+                    'risk_reward_ratio': trade.risk_metrics.get('risk_reward_ratio', 0) if trade.risk_metrics else 0,
+                    'confidence_score': trade.risk_metrics.get('confidence_score', 0) if trade.risk_metrics else 0,
+                    'buying_power_required': trade.risk_metrics.get('buying_power_required', 0) if trade.risk_metrics else 0,
+                    'win_probability': trade.risk_metrics.get('win_probability', 0) if trade.risk_metrics else 0
+                },
+                'created_at': trade.created_at.isoformat() if hasattr(trade, 'created_at') and trade.created_at else None,
+                'workflow_state': getattr(trade, 'workflow_state', 'PENDING_APPROVAL')
+            }
+            trades_data.append(trade_dict)
+        
+        return jsonify({
+            'success': True,
+            'pending_trades': trades_data,
+            'count': len(trades_data),
+            'last_updated': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting detailed pending trades: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@workflow_bp.route('/api/workflow/approve/bulk', methods=['POST'])
+def bulk_approve_trades():
+    """Approve multiple trades with optional modifications"""
+    try:
+        data = request.get_json()
+        if not data or 'trade_ids' not in data:
+            return jsonify({'success': False, 'error': 'trade_ids required'}), 400
+        
+        trade_ids = data['trade_ids']
+        modifications = data.get('modifications', {})
+        
+        results = []
+        approved_count = 0
+        
+        for trade_id in trade_ids:
+            try:
+                success = workflow_orchestrator.approve_trade(trade_id, modifications.get(str(trade_id), {}))
+                if success:
+                    approved_count += 1
+                    results.append({'trade_id': trade_id, 'status': 'approved'})
+                else:
+                    results.append({'trade_id': trade_id, 'status': 'failed', 'error': 'Approval failed'})
+            except Exception as e:
+                results.append({'trade_id': trade_id, 'status': 'error', 'error': str(e)})
+        
+        return jsonify({
+            'success': True,
+            'approved_count': approved_count,
+            'total_count': len(trade_ids),
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error in bulk approval: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @workflow_bp.route('/api/workflow/status/<workflow_id>', methods=['GET'])

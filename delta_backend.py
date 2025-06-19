@@ -24,7 +24,7 @@ from tastytrade_sdk.market_data.streamer_symbol_translation import StreamerSymbo
 import requests
 
 # --- Configuration & Setup ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger('tastytrade').setLevel(logging.WARNING)
 logging.getLogger('websockets').setLevel(logging.WARNING)
 

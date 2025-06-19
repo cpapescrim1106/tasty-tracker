@@ -5,6 +5,7 @@ Flask routes for automated portfolio rebalancing functionality
 """
 
 import logging
+import time
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from typing import Optional, Dict, Any
@@ -12,6 +13,9 @@ from typing import Optional, Dict, Any
 from automated_rebalancer import AutomatedRebalancer, RecommendationType, RecommendationPriority
 from allocation_rules_manager import AllocationRulesManager, RuleType, AllocationRule
 from portfolio_analyzer import PortfolioAnalyzer
+from enhanced_position_storage import EnhancedStrategyPositionStorage
+from strategy_aware_analyzer import StrategyAwareAnalyzer, StrategyAwareRebalancer
+from position_chain_detector import PositionChainDetector
 
 # Create blueprint for rebalancing routes
 rebalancing_bp = Blueprint('rebalancing', __name__)
@@ -19,10 +23,13 @@ rebalancing_bp = Blueprint('rebalancing', __name__)
 # Global rebalancer instance (will be initialized when needed)
 rebalancer = None
 allocation_manager = None
+strategy_storage = None
+strategy_analyzer = None
+strategy_rebalancer = None
 
 def get_rebalancer(tracker_instance):
     """Get or create rebalancer instance"""
-    global rebalancer, allocation_manager
+    global rebalancer, allocation_manager, strategy_storage, strategy_analyzer, strategy_rebalancer
     
     if rebalancer is None:
         # Get the global tracker instance if none provided
@@ -42,10 +49,16 @@ def get_rebalancer(tracker_instance):
         rebalancer = AutomatedRebalancer(tracker_instance)
         allocation_manager = AllocationRulesManager()
         
+        # Initialize strategy-aware components
+        strategy_storage = EnhancedStrategyPositionStorage()
+        chain_detector = PositionChainDetector()
+        strategy_analyzer = StrategyAwareAnalyzer(strategy_storage, tracker_instance, chain_detector)
+        strategy_rebalancer = StrategyAwareRebalancer(strategy_analyzer, allocation_manager)
+        
         # Start fill monitoring
         rebalancer.start_fill_monitoring()
         
-        logging.info("✅ Automated rebalancer initialized")
+        logging.info("✅ Automated rebalancer and strategy analyzer initialized")
     
     return rebalancer, allocation_manager
 
@@ -756,18 +769,157 @@ def health_check():
         'message': 'Rebalancing routes are accessible'
     })
 
+# ============ Strategy-Aware Routes ============
+
+@rebalancing_bp.route('/api/rebalancing/analyze-fast', methods=['POST'])
+def analyze_portfolio_fast():
+    """Fast portfolio analysis using enhanced storage (<100ms)"""
+    try:
+        # Get strategy analyzer instance
+        _, _ = get_rebalancer(None)
+        
+        data = request.get_json() or {}
+        account_numbers = data.get('account_numbers')
+        
+        # Perform fast analysis
+        start_time = time.time()
+        analysis = strategy_analyzer.analyze_portfolio_complete(account_numbers)
+        
+        # Log performance
+        logging.info(f"✅ Fast portfolio analysis completed in {analysis['processing_time_ms']:.1f}ms")
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis,
+            'performance': {
+                'processing_time_ms': analysis['processing_time_ms'],
+                'positions_count': len(analysis['positions']),
+                'strategies_detected': analysis['detected_strategies']
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error in fast portfolio analysis: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/rebalancing/sync-strategies', methods=['POST'])
+def sync_strategies():
+    """Manually trigger strategy detection and storage"""
+    try:
+        # Get components
+        _, _ = get_rebalancer(None)
+        
+        # Get live positions
+        with strategy_analyzer.tracker.positions_lock:
+            live_positions = list(strategy_analyzer.tracker.positions.values())
+        
+        # Detect and store strategies
+        detected = strategy_storage.detect_and_store_strategy(
+            live_positions, 
+            strategy_analyzer.chain_detector
+        )
+        
+        return jsonify({
+            'success': True,
+            'detected_strategies': detected,
+            'message': f"Detected and stored {len(detected)} strategies"
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error syncing strategies: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/positions/strategy-summary')
+def get_strategy_summary():
+    """Get summary of all detected strategies"""
+    try:
+        _, _ = get_rebalancer(None)
+        
+        account_numbers = request.args.getlist('accounts')
+        summary = strategy_storage.get_strategy_summary(
+            account_numbers if account_numbers else None
+        )
+        
+        return jsonify({
+            'success': True,
+            'summary': summary,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error getting strategy summary: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/rebalancing/recommendations-smart', methods=['POST'])
+def get_smart_recommendations():
+    """Get strategy-aware rebalancing recommendations"""
+    try:
+        _, _ = get_rebalancer(None)
+        
+        data = request.get_json() or {}
+        account_numbers = data.get('account_numbers')
+        
+        # Generate smart recommendations
+        result = strategy_rebalancer.generate_strategy_aware_recommendations(account_numbers)
+        
+        # Format gaps for response
+        gaps_data = []
+        for gap in result['gaps']:
+            gaps_data.append({
+                'category': gap.category,
+                'rule_type': gap.rule_type.value,
+                'current_pct': round(gap.current_pct, 2),
+                'target_pct': round(gap.target_pct, 2),
+                'gap_pct': round(gap.gap_pct, 2),
+                'required_dollars': round(gap.required_allocation_dollars, 2),
+                'priority': gap.priority.value
+            })
+        
+        return jsonify({
+            'success': True,
+            'recommendations': result['recommendations'],
+            'gaps': gaps_data,
+            'strategy_insights': result['analysis']['strategy_insights'],
+            'portfolio_metrics': result['analysis']['portfolio_metrics'],
+            'compliance_checks': [
+                {
+                    'rule_type': check.rule.rule_type.value,
+                    'category': check.rule.category,
+                    'status': check.status.value,
+                    'current_pct': round(check.current_pct, 2),
+                    'target_pct': round(check.target_pct, 2),
+                    'deviation_pct': round(check.deviation_pct, 2),
+                    'message': check.message
+                } for check in result['compliance_checks']
+            ],
+            'timestamp': result['timestamp']
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error getting smart recommendations: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 
 def create_rebalancing_routes(app, tracker):
     """Register rebalancing routes with the Flask app"""
     
     # Initialize rebalancer with tracker instance
-    global rebalancer, allocation_manager
+    global rebalancer, allocation_manager, strategy_storage, strategy_analyzer, strategy_rebalancer
     if rebalancer is None:
         rebalancer = AutomatedRebalancer(tracker)
         allocation_manager = AllocationRulesManager()
+        
+        # Initialize strategy-aware components
+        strategy_storage = EnhancedStrategyPositionStorage()
+        chain_detector = PositionChainDetector()
+        strategy_analyzer = StrategyAwareAnalyzer(strategy_storage, tracker, chain_detector)
+        strategy_rebalancer = StrategyAwareRebalancer(strategy_analyzer, allocation_manager)
+        
         rebalancer.start_fill_monitoring()
-        logging.info("✅ Automated rebalancer initialized with tracker")
+        logging.info("✅ Automated rebalancer and strategy analyzer initialized with tracker")
     
     # Patch the get_rebalancer function to use the actual tracker
     def get_rebalancer_with_tracker(tracker_instance=None):

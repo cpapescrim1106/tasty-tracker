@@ -15,6 +15,7 @@ from enum import Enum
 from allocation_rules_manager import AllocationRulesManager, AllocationGap, ComplianceCheck
 from portfolio_analyzer import PortfolioAnalyzer, PortfolioSnapshot
 from screener_backend import ScreenerEngine
+from workflow_database import WorkflowDatabase
 
 class RecommendationType(Enum):
     OPEN = "open"
@@ -97,6 +98,7 @@ class AutomatedRebalancer:
         self.allocation_manager = AllocationRulesManager()
         self.portfolio_analyzer = PortfolioAnalyzer(tracker_instance)
         self.screener_engine = ScreenerEngine(tracker_instance)
+        self.workflow_database = WorkflowDatabase()
         
         # State management
         self.current_event: Optional[RebalancingEvent] = None
@@ -825,6 +827,114 @@ class AutomatedRebalancer:
             
         return recommendations
         
+    def _calculate_option_strategy_premium(self, symbol: str, strategy_type: str, 
+                                          underlying_price: float, dte_target: int) -> Dict[str, float]:
+        """Calculate option strategy premium and margin requirements"""
+        try:
+            # For demonstration, use simplified calculations
+            # In production, this would fetch real option chain data
+            
+            if strategy_type == 'put_credit_spread':
+                # Example: $5 wide put credit spread at ~16 delta
+                # Sell put at -0.16 delta (~$5 OTM), buy put $5 below
+                short_strike = round(underlying_price * 0.95, 0)  # ~5% OTM
+                long_strike = short_strike - 5
+                
+                # Estimate premiums (simplified)
+                short_premium = underlying_price * 0.015  # ~1.5% of underlying
+                long_premium = underlying_price * 0.008   # ~0.8% of underlying
+                
+                net_premium = short_premium - long_premium
+                max_loss = (short_strike - long_strike) * 100 - (net_premium * 100)
+                
+                return {
+                    'premium': round(net_premium, 2),
+                    'margin_requirement': round(max_loss, 0),
+                    'short_strike': short_strike,
+                    'long_strike': long_strike
+                }
+                
+            elif strategy_type == 'call_credit_spread':
+                # Example: $5 wide call credit spread at ~16 delta
+                short_strike = round(underlying_price * 1.05, 0)  # ~5% OTM
+                long_strike = short_strike + 5
+                
+                short_premium = underlying_price * 0.015
+                long_premium = underlying_price * 0.008
+                
+                net_premium = short_premium - long_premium
+                max_loss = (long_strike - short_strike) * 100 - (net_premium * 100)
+                
+                return {
+                    'premium': round(net_premium, 2),
+                    'margin_requirement': round(max_loss, 0),
+                    'short_strike': short_strike,
+                    'long_strike': long_strike
+                }
+                
+            elif strategy_type == 'iron_condor':
+                # Combine put and call spreads
+                put_spread = self._calculate_option_strategy_premium(symbol, 'put_credit_spread', underlying_price, dte_target)
+                call_spread = self._calculate_option_strategy_premium(symbol, 'call_credit_spread', underlying_price, dte_target)
+                
+                return {
+                    'premium': round(put_spread['premium'] + call_spread['premium'], 2),
+                    'margin_requirement': round(max(put_spread['margin_requirement'], call_spread['margin_requirement']), 0)
+                }
+                
+            elif strategy_type == 'cash_secured_put':
+                # Cash secured put at ~16 delta
+                strike = round(underlying_price * 0.95, 0)
+                premium = underlying_price * 0.02  # ~2% premium
+                
+                return {
+                    'premium': round(premium, 2),
+                    'margin_requirement': round(strike * 100, 0),  # Cash requirement
+                    'strike': strike
+                }
+                
+            else:
+                # Default fallback
+                return {
+                    'premium': round(underlying_price * 0.015, 2),
+                    'margin_requirement': round(underlying_price * 20, 0)  # Conservative estimate
+                }
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error calculating option premium for {symbol} {strategy_type}: {e}")
+            return {
+                'premium': 1.00,  # Default premium
+                'margin_requirement': 500  # Default margin
+            }
+
+    def _calculate_strategy_margin_requirement(self, strategy_type: str, strategy_calcs: Dict[str, float], 
+                                             underlying_price: float) -> float:
+        """Calculate margin requirement for specific strategy type"""
+        try:
+            if strategy_type in ['put_credit_spread', 'call_credit_spread']:
+                # Credit spread margin = (strike difference * 100) - premium received
+                return strategy_calcs.get('margin_requirement', underlying_price * 20)
+                
+            elif strategy_type == 'iron_condor':
+                # Iron condor margin = max of put or call spread margin
+                return strategy_calcs.get('margin_requirement', underlying_price * 20)
+                
+            elif strategy_type == 'cash_secured_put':
+                # Cash secured put = strike price * 100
+                return strategy_calcs.get('margin_requirement', underlying_price * 100)
+                
+            elif strategy_type == 'short_strangle':
+                # Simplified strangle margin (would need complex calculation in reality)
+                return underlying_price * 30
+                
+            else:
+                # Conservative default for unknown strategies
+                return underlying_price * 20
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error calculating margin requirement for {strategy_type}: {e}")
+            return underlying_price * 20  # Safe default
+
     def _create_trade_recommendation_from_screener(self, screener_result: Dict[str, Any],
                                                   gap: AllocationGap,
                                                   priority: RecommendationPriority) -> TradeRecommendation:
@@ -848,6 +958,24 @@ class AutomatedRebalancer:
             self.logger.warning(f"⚠️ Cannot create recommendation for {symbol}: invalid last_price={last_price}")
             return None
         
+        # Get strategy configuration from database
+        strategy_config = self._get_strategy_by_type(strategy_type)
+        if not strategy_config:
+            self.logger.warning(f"⚠️ No strategy configuration found for {strategy_type}")
+            action = "STO"  # Default for option strategies
+            dte_target = 30
+        else:
+            action = strategy_config.opening_action
+            dte_target = (strategy_config.dte_range_min + strategy_config.dte_range_max) // 2
+        
+        # Calculate option strategy premium and margin requirements
+        strategy_calcs = self._calculate_option_strategy_premium(symbol, strategy_type, last_price, dte_target)
+        premium = strategy_calcs['premium']
+        margin_required = strategy_calcs['margin_requirement']
+        
+        # Log the calculations for verification
+        self.logger.info(f"💰 {symbol} {strategy_type}: Premium=${premium:.2f}, Margin=${margin_required:.0f}")
+        
         rec = TradeRecommendation(
             recommendation_id=f"open_{symbol}_{int(datetime.now().timestamp())}",
             recommendation_type=RecommendationType.OPEN,
@@ -855,19 +983,19 @@ class AutomatedRebalancer:
             symbol=symbol,
             underlying_symbol=symbol,
             strategy_type=strategy_type,
-            action="BTO",  # Buy to open
-            entry_price=last_price,
-            max_price=last_price * 1.02,  # 2% slippage
-            quantity=max(1, int(position_size / last_price)),
-            dte_target=30,  # Default
+            action=action,
+            entry_price=premium,  # Now using option strategy premium instead of underlying price
+            max_price=premium * 1.10,  # 10% slippage on option premium
+            quantity=1,  # Standard 1 contract for options strategies
+            dte_target=dte_target,
             delta_target=0.16,  # Default
             allocation_impact={
                 gap.rule_type.value: {gap.category: gap.gap_pct}
             },
-            buying_power_required=position_size,
-            expected_return=position_size * 0.02,  # Estimate 2% return
-            max_risk=position_size * 0.10,  # Estimate 10% max risk
-            confidence_score=screener_result.get('screening_score', 60),
+            buying_power_required=margin_required,  # Now using actual margin requirement
+            expected_return=premium * 100 * 0.5,  # Estimate 50% of premium as target profit
+            max_risk=margin_required,  # Max risk is the margin requirement
+            confidence_score=100,  # Will be removed from frontend
             reasoning=f"Fill {gap.rule_type.value} gap: {gap.category}",
             market_context=f"IV Rank: {screener_result.get('iv_rank', 0):.0f}%",
             created_at=datetime.now()
@@ -931,6 +1059,36 @@ class AutomatedRebalancer:
             
         return final_recommendations
         
+    def _get_strategy_by_type(self, strategy_type: str):
+        """Get strategy configuration from database by type"""
+        try:
+            strategies = self.workflow_database.get_all_strategies(active_only=True)
+            
+            # Map strategy type names to database strategy names
+            strategy_name_mapping = {
+                'put_credit_spread': 'Put Credit Spread - 30 DTE',
+                'call_credit_spread': 'Call Credit Spread - 30 DTE', 
+                'iron_condor': 'Iron Condor - 45 DTE',
+                'short_strangle': 'Short Strangle - 30 DTE',
+                'cash_secured_put': 'Cash Secured Put - 30 DTE'
+            }
+            
+            strategy_name = strategy_name_mapping.get(strategy_type)
+            if strategy_name:
+                for strategy in strategies:
+                    if strategy.name == strategy_name:
+                        return strategy
+            
+            # Fallback to first available strategy
+            if strategies:
+                return strategies[0]
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error getting strategy {strategy_type}: {e}")
+            return None
+    
     def _determine_strategy_for_gap(self, screener_result: Dict[str, Any], 
                                   gap: AllocationGap) -> str:
         """Determine appropriate strategy based on screener result and gap type"""

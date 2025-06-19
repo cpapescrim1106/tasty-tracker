@@ -7,6 +7,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="/static/css/strategy-builder.css">
+    <link rel="stylesheet" href="/static/css/trade-approval.css">
     <style>
         * {
             margin: 0;
@@ -827,6 +829,7 @@
             <button class="tab-button" data-tab="smart-pricing">🎯 Working Order Management</button>
             <button class="tab-button" data-tab="positions">🎯 Position Manager</button>
             <button class="tab-button" data-tab="journal">📖 Trade Journal</button>
+            <button class="tab-button" data-tab="strategy-builder">🔧 Strategy Builder</button>
         </div>
         
         <!-- Portfolio Tab Content -->
@@ -1172,14 +1175,12 @@
                         The following positions are specifically recommended to fill identified allocation gaps.
                     </p>
                     <div class="results-table">
-                        <div class="results-header" style="grid-template-columns: 60px 120px 100px 120px 100px 80px 100px 80px 120px 1fr;">
+                        <div class="results-header" style="grid-template-columns: 60px 120px 100px 120px 100px 80px 120px 1fr;">
                             <div>Select</div>
                             <div>Action</div>
                             <div>Symbol</div>
                             <div>Strategy</div>
-                            <div>Priority</div>
-                            <div>Conf%</div>
-                            <div>Entry Price</div>
+                            <div>Premium</div>
                             <div>DTE</div>
                             <div>BP Required</div>
                             <div>Reasoning</div>
@@ -1255,6 +1256,17 @@
                         <button class="btn-secondary" id="reject-selected-recommendations">❌ Reject Selected</button>
                         <span id="recommendations-summary" style="margin-left: 20px;"></span>
                     </div>
+                </div>
+
+                <!-- Integrated Trade Approval Section -->
+                <div id="pending-approvals-section" style="display: none; margin-top: 30px; padding-top: 20px; border-top: 1px solid #2a3f5f;">
+                    <h3 class="section-title">🎯 Pending Trade Approvals</h3>
+                    <p style="color: #94a3b8; margin-bottom: 15px; font-size: 0.9rem;">
+                        Trades generated from portfolio analysis - Review and approve for execution
+                    </p>
+                    
+                    <!-- Compact Trade Approval Component -->
+                    <div id="integrated-trade-approval-root"></div>
                 </div>
             </div>
         </div>
@@ -1737,6 +1749,15 @@
                 </div>
             </div>
         </div>
+
+        <!-- Strategy Builder Tab Content -->
+        <div id="strategy-builder-tab" class="tab-content">
+            <div class="screener-container">
+                <h2 class="section-title">🔧 Strategy Builder</h2>
+                <div id="strategy-builder-root"></div>
+            </div>
+        </div>
+
     </div>
     
     <script>
@@ -2290,14 +2311,33 @@
         function setupTabSwitching() {
             $('.tab-button').on('click', function() {
                 const targetTab = $(this).data('tab');
+                console.log('🔄 Tab clicked:', targetTab);
                 
                 // Update button states
                 $('.tab-button').removeClass('active');
                 $(this).addClass('active');
+                console.log('✅ Button states updated');
                 
                 // Show/hide tab content
                 $('.tab-content').removeClass('active');
-                $(`#${targetTab}-tab`).addClass('active');
+                const targetElement = $(`#${targetTab}-tab`);
+                targetElement.addClass('active');
+                console.log('📊 Target tab element:', targetElement.length > 0 ? 'found' : 'NOT FOUND');
+                console.log('📊 Target tab visibility:', targetElement.css('display'));
+                
+                // Special handling for Strategy Builder
+                if (targetTab === 'strategy-builder') {
+                    console.log('🔧 Strategy Builder tab activated');
+                    setTimeout(() => {
+                        const container = document.getElementById('strategy-builder-root');
+                        console.log('📦 Strategy Builder container after tab switch:', !!container);
+                        if (container) {
+                            console.log('📦 Container visibility after tab switch:', window.getComputedStyle(container).display);
+                            console.log('📦 Container parent visibility after tab switch:', window.getComputedStyle(container.parentElement).display);
+                        }
+                    }, 100);
+                }
+
             });
         }
         
@@ -3723,32 +3763,83 @@
 
         function triggerRebalancing() {
             $('#rebalancing-loading').text('🔄 Analyzing portfolio...');
-            $('#rebalancing-status-text').text('Running portfolio analysis and gap identification...');
+            $('#rebalancing-status-text').text('Running fast portfolio analysis with strategy detection...');
             
-            fetch('/api/rebalancing/trigger', {
+            const startTime = performance.now();
+            
+            fetch('/api/rebalancing/analyze-fast', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({reason: 'manual_analysis'})
+                body: JSON.stringify({account_numbers: null})
             })
                 .then(response => response.json())
                 .then(data => {
                     if (!data.success) {
-                        throw new Error(data.error || 'Failed to trigger analysis');
+                        throw new Error(data.error || 'Failed to analyze portfolio');
                     }
                     
-                    $('#rebalancing-loading').text('');
-                    $('#rebalancing-status-text').html(`<span style="color: #10b981;">✅ Analysis complete (Event: ${data.event_id})</span>`);
+                    const processingTime = data.analysis.processing_time_ms || (performance.now() - startTime);
                     
-                    // Load the recommendations
-                    setTimeout(loadRebalancingStatus, 1000);
+                    $('#rebalancing-loading').text('');
+                    $('#rebalancing-status-text').html(`<span style="color: #10b981;">✅ Analysis complete in ${processingTime.toFixed(0)}ms (${data.analysis.detected_strategies} strategies detected)</span>`);
+                    
+                    // Now trigger the smart recommendations
+                    loadSmartRecommendations();
                 })
                 .catch(error => {
-                    console.error('❌ Rebalancing trigger error:', error);
+                    console.error('❌ Portfolio analysis error:', error);
                     $('#rebalancing-loading').text('');
                     $('#rebalancing-status-text').html(`<span style="color: #ef4444;">❌ Error: ${error.message}</span>`);
                 });
         }
 
+        function loadSmartRecommendations() {
+            $('#rebalancing-loading').text('🔄 Generating smart recommendations...');
+            
+            fetch('/api/rebalancing/recommendations-smart', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({account_numbers: null})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || 'Failed to get recommendations');
+                    }
+                    
+                    // Display recommendations
+                    displaySmartRecommendations(data);
+                    
+                    $('#rebalancing-loading').text('');
+                })
+                .catch(error => {
+                    console.error('❌ Smart recommendations error:', error);
+                    $('#rebalancing-loading').text('');
+                    $('#rebalancing-status-text').html(`<span style="color: #ef4444;">❌ Error getting recommendations: ${error.message}</span>`);
+                });
+        }
+        
+        function displaySmartRecommendations(data) {
+            // Use existing displayRecommendations logic but with enhanced data
+            const recommendations = data.recommendations || [];
+            const gaps = data.gaps || [];
+            const strategyInsights = data.strategy_insights || {};
+            
+            // Display strategy insights
+            if (strategyInsights.total_strategies > 0) {
+                $('#rebalancing-status-text').append(`<br><small>📊 ${strategyInsights.total_strategies} strategies detected across ${Object.keys(strategyInsights.strategies_by_underlying).length} underlyings</small>`);
+            }
+            
+            // Display recommendations using existing logic
+            displayRecommendations(recommendations);
+            
+            // Show gaps summary
+            if (gaps.length > 0) {
+                const gapsSummary = gaps.map(g => `${g.category}: ${g.gap_pct.toFixed(1)}%`).join(', ');
+                $('#rebalancing-status-text').append(`<br><small>📈 Gaps: ${gapsSummary}</small>`);
+            }
+        }
+        
         function loadRebalancingStatus() {
             $('#rebalancing-loading').text('🔄 Loading status...');
             
@@ -3823,7 +3914,11 @@
         }
 
         function createRecommendationTrades() {
+            console.log('🎯 createRecommendationTrades called');
+            
             const selectedRecs = getSelectedRecommendations();
+            console.log('Selected recommendations:', selectedRecs);
+            
             if (selectedRecs.length === 0) {
                 alert('Please select at least one recommendation');
                 return;
@@ -3835,6 +3930,24 @@
                 return;
             }
             
+            // Map strategy types to strategy IDs
+            const strategyMapping = {
+                'put_credit_spread': 1,
+                'call_credit_spread': 2,
+                'iron_condor': 3,
+                'short_strangle': 4,
+                'cash_secured_put': 5
+            };
+            
+            // Get unique strategy IDs from selected recommendations
+            const uniqueStrategyIds = [...new Set(selectedRecs.map(rec => {
+                const strategyId = strategyMapping[rec.strategy_type];
+                console.log(`Mapping ${rec.strategy_type} to strategy ID ${strategyId} for ${rec.symbol}`);
+                return strategyId;
+            }).filter(id => id !== undefined))];
+            
+            console.log('Unique strategy IDs:', uniqueStrategyIds);
+            
             // Convert recommendations to trade format
             const trades = selectedRecs.map(rec => ({
                 symbol: rec.symbol,
@@ -3845,24 +3958,89 @@
                 recommendation_id: rec.recommendation_id
             }));
             
-            $('#rec-trade-status').text('🔄 Creating trades...');
+            $('#rec-trade-status').text('🔄 Creating trades for approval...');
             
-            // Use the existing screener create-trades endpoint
-            fetch('/api/screener/create-trades', {
+            const requestPayload = {
+                symbols: selectedRecs.map(rec => rec.symbol),
+                strategy_ids: uniqueStrategyIds.length > 0 ? uniqueStrategyIds : [1], // Fallback to strategy 1
+                account: account,
+                trade_params: trades
+            };
+            
+            console.log('Sending request to /api/workflow/start with payload:', requestPayload);
+            
+            // Create trades through the workflow system for approval
+            fetch('/api/workflow/start', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    account: account,
-                    trades: trades
-                })
+                body: JSON.stringify(requestPayload)
             })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('API response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('API response data:', data);
+                    
                     if (!data.success) {
                         throw new Error(data.error || 'Failed to create trades');
                     }
                     
-                    $('#rec-trade-status').html(`<span style="color: #10b981;">✅ ${data.orders_created} trades created</span>`);
+                    const workflowCount = data.workflow_ids ? data.workflow_ids.length : 0;
+                    $('#rec-trade-status').html(`<span style="color: #10b981;">✅ ${workflowCount} workflows started successfully</span>`);
+                    
+                    // Show the pending approvals section and wait for trades to be generated
+                    const approvalsSection = document.getElementById('pending-approvals-section');
+                    if (approvalsSection) {
+                        console.log('📋 Found pending approvals section, making it visible');
+                        approvalsSection.style.display = 'block';
+                        
+                        // Scroll to it after a brief delay to ensure it's rendered
+                        setTimeout(() => {
+                            approvalsSection.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                        
+                        // Initialize the React component after a delay to ensure dependencies are loaded
+                        setTimeout(() => {
+                            const approvalRoot = document.getElementById('integrated-trade-approval-root');
+                            if (approvalRoot && !approvalRoot.hasChildNodes() && window.React && window.ReactDOM && window.TradeApprovalDashboard) {
+                                console.log('🎯 Initializing trade approval component');
+                                try {
+                                    if (ReactDOM.createRoot) {
+                                        const root = ReactDOM.createRoot(approvalRoot);
+                                        root.render(React.createElement(window.TradeApprovalDashboard, { compact: true }));
+                                    } else {
+                                        ReactDOM.render(React.createElement(window.TradeApprovalDashboard, { compact: true }), approvalRoot);
+                                    }
+                                    console.log('✅ Trade approval component initialized');
+                                } catch (error) {
+                                    console.error('❌ Error initializing trade approval component:', error);
+                                }
+                            } else {
+                                console.log('⏳ Waiting for dependencies:', {
+                                    approvalRoot: !!approvalRoot,
+                                    React: !!window.React,
+                                    ReactDOM: !!window.ReactDOM,
+                                    TradeApprovalDashboard: !!window.TradeApprovalDashboard
+                                });
+                            }
+                        }, 500);
+                    } else {
+                        console.error('❌ Pending approvals section not found in DOM');
+                    }
+                    
+                    // Fallback - also try the window function if available
+                    if (window.showPendingApprovalsSection) {
+                        window.showPendingApprovalsSection();
+                    }
+                    
+                    // Check for pending trades after a delay to allow workflow processing
+                    setTimeout(() => {
+                        if (window.React && document.getElementById('integrated-trade-approval-root')) {
+                            // Trigger a refresh of the trade approval component
+                            console.log('Refreshing trade approval component...');
+                        }
+                    }, 2000);
                     
                     // Mark recommendations as approved
                     markRecommendationsAsApproved(selectedRecs.map(r => r.recommendation_id));
@@ -4029,13 +4207,11 @@
                 const actionColor = rec.type === 'open' ? '#10b981' : (rec.type === 'close' ? '#ef4444' : '#f59e0b');
                 
                 const row = $(`
-                    <div class="result-row" style="grid-template-columns: 60px 120px 100px 120px 100px 80px 100px 80px 120px 1fr;">
+                    <div class="result-row" style="grid-template-columns: 60px 120px 100px 120px 100px 80px 120px 1fr;">
                         <div><input type="checkbox" name="rec-select" value="${rec.recommendation_id}"></div>
                         <div style="color: ${actionColor}; font-weight: 600;">${rec.action}</div>
                         <div style="font-weight: 600;">${rec.symbol}</div>
                         <div>${rec.strategy_type.replace('_', ' ')}</div>
-                        <div style="color: ${priorityColor};">${rec.priority === 1 ? 'CRITICAL' : (rec.priority === 2 ? 'HIGH' : rec.priority === 3 ? 'MEDIUM' : 'LOW')}</div>
-                        <div>${rec.confidence_score}%</div>
                         <div>$${rec.entry_price.toFixed(2)}</div>
                         <div>${rec.dte_target}</div>
                         <div>$${rec.buying_power_required.toFixed(0)}</div>
@@ -4441,5 +4617,15 @@
             });
         });
     </script>
+
+    <!-- React CDN for Strategy Builder -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Strategy Builder Component -->
+    <script src="/static/js/strategy-builder.js"></script>
+    
+    <!-- Trade Approval Dashboard Component -->
+    <script src="/static/js/trade-approval.js"></script>
 </body>
 </html> 

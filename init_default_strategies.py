@@ -22,147 +22,44 @@ def create_default_strategies():
     
     strategies = [
         {
-            'name': 'Put Credit Spread - 30 DTE',
-            'description': 'Bullish/neutral strategy selling puts 16 delta, buying puts 5 strikes below',
-            'legs': [
-                StrategyLeg(
-                    action='sell',
-                    option_type='put',
-                    selection_method='delta',
-                    selection_value=-0.16,
-                    quantity=1
-                ),
-                StrategyLeg(
-                    action='buy', 
-                    option_type='put',
-                    selection_method='atm_offset',
-                    selection_value=-5,  # 5 strikes below
-                    quantity=1
-                )
-            ],
-            'dte_range_min': 25,
-            'dte_range_max': 35,
-            'profit_target_pct': 50.0,
-            'stop_loss_pct': 200.0,
-            'delta_biases': ['bullish', 'neutral'],
-            'management_rules': [
-                ManagementRule(
-                    rule_type='profit_target',
-                    trigger_condition='gte',
-                    trigger_value=50.0,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=1
-                ),
-                ManagementRule(
-                    rule_type='stop_loss',
-                    trigger_condition='lte',
-                    trigger_value=-200.0,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=1
-                ),
-                ManagementRule(
-                    rule_type='time_exit',
-                    trigger_condition='lte',
-                    trigger_value=21,  # 21 DTE
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=2
-                )
-            ]
-        },
-        
-        {
-            'name': 'Call Credit Spread - 30 DTE',
-            'description': 'Bearish/neutral strategy selling calls 16 delta, buying calls 5 strikes above',
-            'legs': [
-                StrategyLeg(
-                    action='sell',
-                    option_type='call',
-                    selection_method='delta',
-                    selection_value=0.16,
-                    quantity=1
-                ),
-                StrategyLeg(
-                    action='buy',
-                    option_type='call', 
-                    selection_method='atm_offset',
-                    selection_value=5,  # 5 strikes above
-                    quantity=1
-                )
-            ],
-            'dte_range_min': 25,
-            'dte_range_max': 35,
-            'profit_target_pct': 50.0,
-            'stop_loss_pct': 200.0,
-            'delta_biases': ['bearish', 'neutral'],
-            'management_rules': [
-                ManagementRule(
-                    rule_type='profit_target',
-                    trigger_condition='gte',
-                    trigger_value=50.0,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=1
-                ),
-                ManagementRule(
-                    rule_type='stop_loss',
-                    trigger_condition='lte',
-                    trigger_value=-200.0,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=1
-                ),
-                ManagementRule(
-                    rule_type='time_exit',
-                    trigger_condition='lte',
-                    trigger_value=21,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=2
-                )
-            ]
-        },
-        
-        {
-            'name': 'Iron Condor - 45 DTE',
-            'description': 'Neutral strategy with put and call credit spreads',
+            'name': 'ATM Straddle Iron Condor - 45 DTE',
+            'description': 'Iron condor with strikes based on ATM straddle price',
+            'opening_action': 'STO',
             'legs': [
                 # Put credit spread
                 StrategyLeg(
                     action='sell',
                     option_type='put',
-                    selection_method='delta',
-                    selection_value=-0.16,
+                    selection_method='atm_straddle',
+                    selection_value=100,  # 100% of ATM straddle below
                     quantity=1
                 ),
                 StrategyLeg(
                     action='buy',
                     option_type='put',
-                    selection_method='atm_offset',
-                    selection_value=-10,
+                    selection_method='atm_straddle',
+                    selection_value=150,  # 150% of ATM straddle below
                     quantity=1
                 ),
                 # Call credit spread
                 StrategyLeg(
                     action='sell',
                     option_type='call',
-                    selection_method='delta',
-                    selection_value=0.16,
+                    selection_method='atm_straddle',
+                    selection_value=100,  # 100% of ATM straddle above
                     quantity=1
                 ),
                 StrategyLeg(
                     action='buy',
                     option_type='call',
-                    selection_method='atm_offset',
-                    selection_value=10,
+                    selection_method='atm_straddle',
+                    selection_value=150,  # 150% of ATM straddle above
                     quantity=1
                 )
             ],
             'dte_range_min': 40,
             'dte_range_max': 50,
-            'profit_target_pct': 25.0,  # Lower target for iron condors
+            'profit_target_pct': 25.0,
             'stop_loss_pct': 200.0,
             'delta_biases': ['neutral'],
             'management_rules': [
@@ -191,103 +88,6 @@ def create_default_strategies():
                     priority=2
                 )
             ]
-        },
-        
-        {
-            'name': 'Short Strangle - 30 DTE',
-            'description': 'Neutral strategy selling puts and calls around 16 delta',
-            'legs': [
-                StrategyLeg(
-                    action='sell',
-                    option_type='put',
-                    selection_method='delta',
-                    selection_value=-0.16,
-                    quantity=1
-                ),
-                StrategyLeg(
-                    action='sell',
-                    option_type='call',
-                    selection_method='delta',
-                    selection_value=0.16,
-                    quantity=1
-                )
-            ],
-            'dte_range_min': 25,
-            'dte_range_max': 35,
-            'profit_target_pct': 50.0,
-            'stop_loss_pct': 200.0,
-            'delta_biases': ['neutral'],
-            'management_rules': [
-                ManagementRule(
-                    rule_type='profit_target',
-                    trigger_condition='gte',
-                    trigger_value=50.0,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=1
-                ),
-                ManagementRule(
-                    rule_type='stop_loss',
-                    trigger_condition='lte',
-                    trigger_value=-200.0,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=1
-                ),
-                ManagementRule(
-                    rule_type='time_exit',
-                    trigger_condition='lte',
-                    trigger_value=21,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=2
-                ),
-                ManagementRule(
-                    rule_type='delta_breach',
-                    trigger_condition='gte',
-                    trigger_value=0.25,  # Close if delta gets too high
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=1
-                )
-            ]
-        },
-        
-        {
-            'name': 'Cash Secured Put - 30 DTE',
-            'description': 'Bullish strategy selling puts to acquire stock',
-            'legs': [
-                StrategyLeg(
-                    action='sell',
-                    option_type='put',
-                    selection_method='delta',
-                    selection_value=-0.20,
-                    quantity=1
-                )
-            ],
-            'dte_range_min': 25,
-            'dte_range_max': 35,
-            'profit_target_pct': 50.0,
-            'stop_loss_pct': 300.0,  # Higher tolerance for CSPs
-            'delta_biases': ['bullish'],
-            'management_rules': [
-                ManagementRule(
-                    rule_type='profit_target',
-                    trigger_condition='gte',
-                    trigger_value=50.0,
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=1
-                ),
-                ManagementRule(
-                    rule_type='time_exit',
-                    trigger_condition='lte',
-                    trigger_value=7,  # Close at 7 DTE
-                    action='close_position',
-                    quantity_pct=100.0,
-                    priority=2
-                )
-            ]
         }
     ]
     
@@ -298,6 +98,7 @@ def create_default_strategies():
             strategy = StrategyConfig(
                 name=strategy_data['name'],
                 description=strategy_data['description'],
+                opening_action=strategy_data['opening_action'],
                 legs=strategy_data['legs'],
                 dte_range_min=strategy_data['dte_range_min'],
                 dte_range_max=strategy_data['dte_range_max'],
