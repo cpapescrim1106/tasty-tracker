@@ -1,10 +1,20 @@
 /* Strategy Builder Styles - Dark Theme to match TastyTracker */
 .strategy-builder {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 20px;
     padding: 20px;
     background: #1e2936;
     border: 1px solid #2a3f5f;
     border-radius: 8px;
     margin-top: 20px;
+}
+
+/* Main content area for builder */
+.strategy-builder-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Prevent grid blowout */
 }
 
 /* Fix for tab content visibility */
@@ -46,7 +56,30 @@
     border: 1px solid #2a3f5f;
     border-radius: 6px;
     padding: 15px;
-    margin-bottom: 20px;
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    align-self: flex-start;
+}
+
+/* Custom scrollbar for saved strategies */
+.saved-strategies::-webkit-scrollbar {
+    width: 6px;
+}
+
+.saved-strategies::-webkit-scrollbar-track {
+    background: #1e2936;
+    border-radius: 3px;
+}
+
+.saved-strategies::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 3px;
+}
+
+.saved-strategies::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
 }
 
 /* Legs Table Styling */
@@ -170,6 +203,13 @@
     gap: 4px;
     flex: 1;
     cursor: pointer;
+    min-width: 0; /* Allow text truncation */
+}
+
+.strategy-info span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .delete-btn {
@@ -200,14 +240,15 @@
 
 .strategy-type {
     color: #8b98a8;
-    font-size: 12px;
+    font-size: 11px;
     text-transform: capitalize;
 }
 
 .strategy-legs {
-    color: #6366f1;
-    font-size: 12px;
+    color: #6b7280;
+    font-size: 11px;
 }
+
 
 /* Tab Navigation */
 .strategy-tabs {
@@ -284,6 +325,26 @@ textarea.form-control {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 15px;
     margin-bottom: 15px;
+}
+
+/* Two-column layout for basic info tab */
+.basic-info-tab {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+/* Full width items in the grid */
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+/* Single column items that should stay together */
+.form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 /* Range Inputs */
@@ -468,6 +529,67 @@ textarea.form-control {
     font-size: 13px;
 }
 
+/* DTE Selection Section */
+.dte-selection-section {
+    background: #1e2936;
+    padding: 20px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border: 1px solid #2a3f5f;
+}
+
+.dte-selection-section h5 {
+    margin-bottom: 15px;
+    color: #60a5fa;
+    font-size: 14px;
+}
+
+.dte-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.dte-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 5px 10px;
+    background: #252d3d;
+    border-radius: 4px;
+    border: 1px solid #2a3f5f;
+    transition: all 0.2s;
+    font-size: 13px;
+    color: #e1e5eb;
+}
+
+.dte-checkbox-label:hover {
+    background: #2d3748;
+    border-color: #60a5fa;
+}
+
+.dte-checkbox-label input[type="checkbox"] {
+    margin: 0;
+}
+
+.custom-dte-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.custom-dte-input label {
+    color: #e1e5eb;
+    font-size: 13px;
+}
+
+.custom-dte-input .form-control {
+    width: 150px;
+}
+
 .validation-actions {
     margin-bottom: 20px;
 }
@@ -479,6 +601,7 @@ textarea.form-control {
     padding: 10px 15px;
     border-radius: 4px;
     font-size: 13px;
+    margin-bottom: 10px;
 }
 
 .validation-loading {
@@ -570,7 +693,114 @@ textarea.form-control {
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
+/* Multi-DTE Results Styles */
+.validation-results {
+    margin-top: 20px;
+}
+
+.validation-results h5 {
+    color: #e1e5eb;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+/* DTE Results Table */
+.dte-results-container {
+    margin-top: 20px;
+}
+
+.dte-results-container h6 {
+    margin-bottom: 15px;
+    color: #60a5fa;
+    font-size: 14px;
+}
+
+.dte-results-table-wrapper {
+    overflow-x: auto;
+    border-radius: 6px;
+    border: 1px solid #2a3f5f;
+}
+
+.dte-results-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #1e2936;
+}
+
+.dte-results-table thead {
+    background: #252d3d;
+}
+
+.dte-results-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #60a5fa;
+    border-bottom: 2px solid #2a3f5f;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.dte-results-table td {
+    padding: 12px;
+    border-bottom: 1px solid #2a3f5f;
+    color: #e1e5eb;
+    font-size: 13px;
+}
+
+.dte-results-table tbody tr {
+    transition: background 0.2s;
+}
+
+.dte-results-table tbody tr:hover {
+    background: #252d3d;
+}
+
+.dte-results-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.dte-results-table .valid-row {
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.dte-results-table .invalid-row {
+    background: rgba(239, 68, 68, 0.05);
+    opacity: 0.8;
+}
+
+.dte-results-table .btn-small {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+.btn-info {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #2563eb;
+}
+
 /* Responsive Design */
+@media (max-width: 1024px) {
+    .strategy-builder {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+    
+    .saved-strategies {
+        position: static;
+        max-height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .strategy-builder-main {
+        margin-top: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .strategy-header {
         flex-direction: column;
@@ -590,4 +820,17 @@ textarea.form-control {
     .form-row {
         grid-template-columns: 1fr;
     }
+    
+    .basic-info-tab {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Empty state for saved strategies */
+.no-strategies {
+    color: #8b98a8;
+    font-size: 13px;
+    font-style: italic;
+    text-align: center;
+    padding: 20px 0;
 }

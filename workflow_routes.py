@@ -45,6 +45,45 @@ def init_workflow_routes(tracker_instance):
     workflow_database = WorkflowDatabase()
     logger.info("✅ Initialized workflow routes")
 
+@workflow_bp.route('/api/strategies/by-type', methods=['GET'])
+def get_strategies_by_type():
+    """Get strategies grouped by type"""
+    try:
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+        strategies_by_type = workflow_database.get_strategies_by_type(active_only=active_only)
+        
+        # Convert to JSON-friendly format
+        result = {}
+        for strategy_type, strategies in strategies_by_type.items():
+            result[strategy_type] = [
+                {
+                    'id': strategy.id,
+                    'name': strategy.name,
+                    'description': strategy.description,
+                    'strategy_type': strategy.strategy_type,
+                    'delta_biases': strategy.delta_biases,
+                    'dte_range_min': strategy.dte_range_min,
+                    'dte_range_max': strategy.dte_range_max,
+                    'profit_target_pct': strategy.profit_target_pct,
+                    'stop_loss_pct': strategy.stop_loss_pct,
+                    'no_stop_loss': strategy.no_stop_loss,
+                    'is_active': strategy.is_active
+                } for strategy in strategies
+            ]
+        
+        return jsonify({
+            'success': True,
+            'strategies_by_type': result,
+            'total_strategies': sum(len(strategies) for strategies in strategies_by_type.values())
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting strategies by type: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @workflow_bp.route('/api/strategies', methods=['GET'])
 def get_strategies():
     """Get all strategies"""
@@ -90,6 +129,7 @@ def get_strategies():
                         'priority': rule.priority
                     } for rule in strategy.management_rules
                 ],
+                'strategy_type': strategy.strategy_type,
                 'created_at': strategy.created_at.isoformat() if strategy.created_at else None,
                 'is_active': strategy.is_active
             }
@@ -388,6 +428,7 @@ def validate_strategy():
         
         strategy_data = data.get('strategy_data', data.get('strategy', {}))
         test_symbol = data.get('test_symbol', 'SPY')
+        test_dtes = data.get('test_dtes', None)  # New: array of DTEs to test
         
         # Debug logging to see what we receive
         logger.info(f"🔍 Validation request received strategy_data keys: {list(strategy_data.keys())}")
@@ -395,6 +436,7 @@ def validate_strategy():
         logger.info(f"🔍 Minimum premium in strategy_data: {min_premium_raw}")
         logger.info(f"🔍 Type of minimum premium: {type(min_premium_raw)}")
         logger.info(f"🔍 DTE range max in strategy_data: {strategy_data.get('dte_range_max', 'NOT FOUND')}")
+        logger.info(f"🔍 Test DTEs requested: {test_dtes}")
         logger.info(f"🔍 Full strategy_data received: {strategy_data}")
         
         # Validate basic strategy structure
@@ -487,6 +529,14 @@ def validate_strategy():
         if not validation_result['valid']:
             return jsonify(validation_result)
         
+        # Determine DTEs to test
+        if test_dtes and isinstance(test_dtes, list):
+            # Use provided DTEs
+            dtes_to_validate = test_dtes
+        else:
+            # Fall back to single DTE from strategy range
+            dtes_to_validate = [strategy_data.get('dte_range_max', 45)]
+        
         # Try to get option chain data for real validation
         try:
             # Import here to avoid circular imports
@@ -544,109 +594,169 @@ def validate_strategy():
                                     'error': f'Could not determine underlying price for {test_symbol}'
                                 }), 400
                             
-                            # Determine strategy type and use appropriate engine method
-                            strategy_min_premium_raw = strategy_data.get('minimum_premium_required', 1.0)
-                            strategy_min_premium = float(strategy_min_premium_raw) if strategy_min_premium_raw not in [None, ''] else 1.0
-                            target_dte = strategy_data.get('dte_range_max', 45)
+                            # Initialize results for multi-DTE validation
+                            dte_results = []
+                            overall_valid = True
+                            
+                            # Get strategy parameters once
+                            strategy_min_premium_raw = strategy_data.get('minimum_premium_required', 0)
+                            strategy_min_premium = float(strategy_min_premium_raw) if strategy_min_premium_raw not in [None, ''] else 0
                             
                             logger.info(f"🔍 Raw minimum premium from strategy_data: {strategy_min_premium_raw} (type: {type(strategy_min_premium_raw)})")
                             logger.info(f"🔍 Converted minimum premium: {strategy_min_premium} (type: {type(strategy_min_premium)})")
                             
-                            # Ensure minimum premium is reasonable (not 0 or too small)
-                            if strategy_min_premium <= 0:
-                                strategy_min_premium = 1.0
-                                logger.warning(f"⚠️ Minimum premium was {strategy_min_premium_raw}, using default 1.0")
+                            # Allow 0 as a valid minimum premium (no minimum requirement)
+                            # Only set default if the value is negative or None
+                            if strategy_min_premium < 0:
+                                strategy_min_premium = 0
+                                logger.warning(f"⚠️ Minimum premium was negative ({strategy_min_premium_raw}), using 0 (no minimum)")
                             
-                            # === UNIVERSAL STRATEGY VALIDATION ===
-                            # Use the new universal strategy builder for any leg configuration
-                            logger.info(f"🔍 Universal strategy validation - Min premium: {strategy_min_premium}, Target DTE: {target_dte}")
-                            logger.info(f"🔍 Strategy legs configuration: {legs}")
-                            
-                            # Build strategy sample using universal system
-                            logger.info(f"🚨 About to call build_strategy_sample with legs={legs}")
-                            sample_legs, total_net_premium = strategy_engine.build_strategy_sample(
-                                legs=legs,
-                                underlying_price=underlying_price,
-                                target_dte=target_dte,
-                                test_symbol=test_symbol,
-                                strategy_min_premium=strategy_min_premium
-                            )
-                            logger.info(f"🚨 build_strategy_sample returned {len(sample_legs)} legs")
-                            
-                            if sample_legs:
-                                # Calculate strategy metrics
-                                metrics = strategy_engine.calculate_strategy_metrics(sample_legs, total_net_premium)
-                                
-                                # Determine strategy type for display
-                                strategy_types = []
-                                for leg in legs:
-                                    leg_type = f"{leg['action']}_{leg['option_type']}"
-                                    strategy_types.append(leg_type)
-                                strategy_type_display = "_".join(strategy_types)
-                                
-                                # Check if strategy meets minimum premium requirement
-                                meets_premium_req = total_net_premium >= strategy_min_premium if strategy_min_premium > 0 else True
-                                
-                                sample_trade = {
-                                    'symbol': test_symbol,
-                                    'underlying_price': underlying_price,
-                                    'strategy_type': strategy_type_display,
-                                    'legs': sample_legs,
-                                    'net_premium': metrics['net_premium'],
-                                    'premium_type': metrics.get('premium_type', 'Credit'),
-                                    'max_profit': metrics['max_profit'],
-                                    'max_loss': metrics['max_loss'],
-                                    'break_even': metrics['break_even'],
-                                    'estimated_cost': metrics['max_loss'],
-                                    'meets_premium_requirement': meets_premium_req,
-                                    'target_premium': strategy_min_premium
+                            # Validate each requested DTE
+                            for target_dte in dtes_to_validate:
+                                dte_result = {
+                                    'dte': target_dte,
+                                    'valid': True,
+                                    'errors': [],
+                                    'warnings': [],
+                                    'sample_trade': None
                                 }
                                 
-                                # Add validation warning if premium requirement not met
-                                if not meets_premium_req:
-                                    validation_result['valid'] = False
-                                    validation_result['errors'].append(
-                                        f'Strategy net premium ${total_net_premium:.2f} is below minimum requirement ${strategy_min_premium:.2f}'
-                                    )
+                                try:
+                                    # === UNIVERSAL STRATEGY VALIDATION ===
+                                    # Use the new universal strategy builder for any leg configuration
+                                    logger.info(f"🔍 Validating DTE {target_dte} - Min premium: {strategy_min_premium}")
+                                    logger.info(f"🔍 Strategy legs configuration: {legs}")
                                     
-                                logger.info(f"✅ Universal validation successful: {len(sample_legs)} legs, net premium: ${total_net_premium:.2f}")
+                                    # Build strategy sample using universal system
+                                    logger.info(f"🚨 About to call build_strategy_sample with legs={legs}, DTE={target_dte}")
+                                    sample_legs, total_net_premium = strategy_engine.build_strategy_sample(
+                                        legs=legs,
+                                        underlying_price=underlying_price,
+                                        target_dte=target_dte,
+                                        test_symbol=test_symbol,
+                                        strategy_min_premium=strategy_min_premium
+                                    )
+                                    logger.info(f"🚨 build_strategy_sample returned {len(sample_legs)} legs for DTE {target_dte}")
+                                    
+                                    if sample_legs:
+                                        # Calculate strategy metrics
+                                        metrics = strategy_engine.calculate_strategy_metrics(sample_legs, total_net_premium)
+                                        
+                                        # Determine strategy type for display
+                                        strategy_types = []
+                                        for leg in legs:
+                                            leg_type = f"{leg['action']}_{leg['option_type']}"
+                                            strategy_types.append(leg_type)
+                                        strategy_type_display = "_".join(strategy_types)
+                                        
+                                        # Check if strategy meets minimum premium requirement
+                                        meets_premium_req = total_net_premium >= strategy_min_premium if strategy_min_premium > 0 else True
+                                        
+                                        # Calculate distance from underlying for first leg
+                                        distance_from_underlying = 0
+                                        if sample_legs:
+                                            first_leg = sample_legs[0]
+                                            distance_from_underlying = abs((float(first_leg.get('strike', underlying_price)) - underlying_price) / underlying_price * 100)
+                                        
+                                        sample_trade = {
+                                            'symbol': test_symbol,
+                                            'underlying_price': underlying_price,
+                                            'strategy_type': strategy_type_display,
+                                            'legs': sample_legs,
+                                            'net_premium': metrics['net_premium'],
+                                            'premium_type': metrics.get('premium_type', 'Credit'),
+                                            'max_profit': metrics['max_profit'],
+                                            'max_loss': metrics['max_loss'],
+                                            'break_even': metrics['break_even'],
+                                            'estimated_cost': metrics['max_loss'],
+                                            'meets_premium_requirement': meets_premium_req,
+                                            'target_premium': strategy_min_premium,
+                                            'distance_from_underlying': distance_from_underlying,
+                                            'dte': target_dte
+                                        }
+                                        
+                                        dte_result['sample_trade'] = sample_trade
+                                        
+                                        # Add validation error if premium requirement not met
+                                        if not meets_premium_req:
+                                            dte_result['valid'] = False
+                                            dte_result['errors'].append(
+                                                f'Net premium ${total_net_premium:.2f} is below minimum requirement ${strategy_min_premium:.2f}'
+                                            )
+                                            overall_valid = False
+                                            
+                                        logger.info(f"✅ DTE {target_dte} validation successful: {len(sample_legs)} legs, net premium: ${total_net_premium:.2f}")
+                                        
+                                    else:
+                                        # Strategy building failed - validation failure
+                                        dte_result['valid'] = False
+                                        dte_result['errors'].append(
+                                            f'Could not find suitable options for {target_dte} DTE'
+                                        )
+                                        dte_result['sample_trade'] = {
+                                            'symbol': test_symbol,
+                                            'legs': [],
+                                            'message': f'Could not find suitable options for {target_dte} DTE',
+                                            'estimated_cost': 0,
+                                            'max_profit': 0,
+                                            'max_loss': 0,
+                                            'target_premium': strategy_min_premium,
+                                            'net_premium': 0,
+                                            'distance_from_underlying': 0,
+                                            'dte': target_dte
+                                        }
+                                        overall_valid = False
                                 
-                            else:
-                                # Strategy building failed - validation failure
-                                validation_result['valid'] = False
-                                validation_result['errors'].append(
-                                    f'Could not build strategy sample for the given leg configuration with {target_dte} DTE on {test_symbol}'
+                                except Exception as e:
+                                    logger.error(f"Error validating DTE {target_dte}: {e}")
+                                    dte_result['valid'] = False
+                                    dte_result['errors'].append(f'Validation failed: {str(e)}')
+                                    dte_result['sample_trade'] = {
+                                        'symbol': test_symbol,
+                                        'legs': [],
+                                        'error': f'Error: {str(e)}',
+                                        'estimated_cost': 0,
+                                        'max_profit': 0,
+                                        'max_loss': 0,
+                                        'net_premium': 0,
+                                        'distance_from_underlying': 0,
+                                        'dte': target_dte
+                                    }
+                                    overall_valid = False
+                                
+                                # Add this DTE result to the list
+                                dte_results.append(dte_result)
+                            
+                            # Update validation result with multi-DTE results
+                            validation_result['dte_results'] = dte_results
+                            validation_result['overall_valid'] = overall_valid
+                            
+                            # For backward compatibility, include the first DTE result as sample_trade
+                            if dte_results:
+                                validation_result['sample_trade'] = dte_results[0]['sample_trade']
+                                validation_result['valid'] = dte_results[0]['valid']
+                                
+                                # Aggregate errors from all DTEs
+                                if not overall_valid:
+                                    all_errors = []
+                                    for dte_res in dte_results:
+                                        if not dte_res['valid'] and dte_res['errors']:
+                                            all_errors.extend([f"DTE {dte_res['dte']}: {err}" for err in dte_res['errors']])
+                                    if all_errors:
+                                        validation_result['errors'].extend(all_errors)
+                            
+                            # Only add success warning if no errors occurred
+                            if overall_valid:
+                                validation_result['warnings'].append(
+                                    f'Sample calculations based on {test_symbol} option chain'
                                 )
-                                sample_trade = {
-                                    'symbol': test_symbol,
-                                    'legs': [],
-                                    'message': f'Could not find suitable options for the strategy configuration with {target_dte} DTE',
-                                    'estimated_cost': 0,
-                                    'max_profit': 0,
-                                    'max_loss': 0,
-                                    'target_premium': strategy_min_premium
-                                }
-                                
+                        
                         except Exception as e:
-                            logger.error(f"Error generating sample trade: {e}")
+                            logger.error(f"Error in multi-DTE validation: {e}")
                             validation_result['valid'] = False
-                            validation_result['errors'].append(f'Sample trade generation failed: {str(e)}')
-                            sample_trade = {
-                                'symbol': test_symbol,
-                                'legs': [],
-                                'error': f'Error generating sample trade: {str(e)}',
-                                'estimated_cost': 0,
-                                'max_profit': 0,
-                                'max_loss': 0
-                            }
-                        
-                        validation_result['sample_trade'] = sample_trade
-                        
-                        # Only add success warning if no errors occurred
-                        if validation_result['valid']:
-                            validation_result['warnings'].append(
-                                f'Sample calculation based on {test_symbol} option chain'
-                            )
+                            validation_result['errors'].append(f'Multi-DTE validation failed: {str(e)}')
+                            validation_result['dte_results'] = []
+                            validation_result['overall_valid'] = False
                     
                     else:
                         validation_result['warnings'].append(

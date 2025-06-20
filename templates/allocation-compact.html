@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Allocation Rules - Compact View</title>
+    <link rel="stylesheet" href="/static/css/allocation-compact.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="allocation-compact">
+    <div class="allocation-container">
+        <!-- Left Column: Trading Limits & Portfolio Rules -->
+        <div class="trading-limits">
+            <div class="section-header">Portfolio Limits</div>
+            
+            <div class="limit-row">
+                <span class="limit-label">Max Single Trade</span>
+                <input type="number" class="inline-input limit-value" value="5000">
+                <span class="percent-display">5%</span>
+            </div>
+            
+            <div class="limit-row">
+                <span class="limit-label">Total Allocation</span>
+                <input type="number" class="inline-input limit-value" value="90">
+                <span class="percent-display">%</span>
+            </div>
+            
+            <div class="limit-row">
+                <span class="limit-label">Confidence Threshold</span>
+                <input type="number" class="inline-input limit-value" value="60">
+                <span class="percent-display">%</span>
+            </div>
+            
+            <div class="limit-row">
+                <span class="limit-label">Min Position Size</span>
+                <input type="number" class="inline-input limit-value" value="500">
+                <span class="percent-display">$</span>
+            </div>
+            
+            <div class="section-header" style="margin-top: 12px;">Asset Allocation</div>
+            
+            <table class="compact-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Max%</th>
+                        <th>Curr%</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Equities</td>
+                        <td><input type="number" class="inline-input" value="65"></td>
+                        <td>62.5</td>
+                        <td><span class="status-indicator status-compliant"></span></td>
+                    </tr>
+                    <tr>
+                        <td>Non-Equities</td>
+                        <td><input type="number" class="inline-input" value="45"></td>
+                        <td>37.5</td>
+                        <td><span class="status-indicator status-compliant"></span></td>
+                    </tr>
+                    <tr>
+                        <td>Per Sector/Sub</td>
+                        <td><input type="number" class="inline-input" value="10"></td>
+                        <td>8.2</td>
+                        <td><span class="status-indicator status-compliant"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="section-header" style="margin-top: 12px;">Strategy Diversification</div>
+            
+            <div class="strategy-grid">
+                <div class="strategy-cell active">
+                    <div class="strategy-name">Put CS</div>
+                    <div class="strategy-values">
+                        <span class="strategy-value">40%</span>
+                        <span class="strategy-value">3</span>
+                    </div>
+                </div>
+                <div class="strategy-cell active">
+                    <div class="strategy-name">Iron Condor</div>
+                    <div class="strategy-values">
+                        <span class="strategy-value">35%</span>
+                        <span class="strategy-value">3</span>
+                    </div>
+                </div>
+                <div class="strategy-cell active">
+                    <div class="strategy-name">Call CS</div>
+                    <div class="strategy-values">
+                        <span class="strategy-value">25%</span>
+                        <span class="strategy-value">3</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Center Column: Main Allocation Table -->
+        <div class="allocation-rules">
+            <div class="allocation-table-wrapper">
+                <div class="section-header">
+                    Allocation Rules
+                    <button class="compact-btn compact-btn-primary" style="float: right;">+ Add Rule</button>
+                </div>
+                
+                <table class="compact-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 20px;"><input type="checkbox" class="compact-checkbox"></th>
+                            <th>Category</th>
+                            <th>Symbol</th>
+                            <th>Max%</th>
+                            <th>Current%</th>
+                            <th>Notional</th>
+                            <th>Status</th>
+                            <th style="width: 60px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="checkbox" class="compact-checkbox"></td>
+                            <td>Equity</td>
+                            <td>SPY</td>
+                            <td><input type="number" class="inline-input" value="15"></td>
+                            <td>14.2</td>
+                            <td>$28,400</td>
+                            <td><span class="status-indicator status-compliant"></span></td>
+                            <td>
+                                <button class="compact-btn compact-btn-primary compact-btn-small">Edit</button>
+                                <button class="compact-btn compact-btn-danger compact-btn-small">Del</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" class="compact-checkbox"></td>
+                            <td>Equity</td>
+                            <td>QQQ</td>
+                            <td><input type="number" class="inline-input" value="10"></td>
+                            <td>9.8</td>
+                            <td>$19,600</td>
+                            <td><span class="status-indicator status-compliant"></span></td>
+                            <td>
+                                <button class="compact-btn compact-btn-primary compact-btn-small">Edit</button>
+                                <button class="compact-btn compact-btn-danger compact-btn-small">Del</button>
+                            </td>
+                        </tr>
+                        <tr class="density-high">
+                            <td><input type="checkbox" class="compact-checkbox"></td>
+                            <td>Equity</td>
+                            <td>TSLA</td>
+                            <td><input type="number" class="inline-input" value="5"></td>
+                            <td>6.2</td>
+                            <td>$12,400</td>
+                            <td><span class="status-indicator status-violation"></span></td>
+                            <td>
+                                <button class="compact-btn compact-btn-primary compact-btn-small">Edit</button>
+                                <button class="compact-btn compact-btn-danger compact-btn-small">Del</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" class="compact-checkbox"></td>
+                            <td>Non-Equity</td>
+                            <td>GLD</td>
+                            <td><input type="number" class="inline-input" value="8"></td>
+                            <td>7.5</td>
+                            <td>$15,000</td>
+                            <td><span class="status-indicator status-compliant"></span></td>
+                            <td>
+                                <button class="compact-btn compact-btn-primary compact-btn-small">Edit</button>
+                                <button class="compact-btn compact-btn-danger compact-btn-small">Del</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" class="compact-checkbox"></td>
+                            <td>Sector</td>
+                            <td>XLF</td>
+                            <td><input type="number" class="inline-input" value="10"></td>
+                            <td>8.9</td>
+                            <td>$17,800</td>
+                            <td><span class="status-indicator status-compliant"></span></td>
+                            <td>
+                                <button class="compact-btn compact-btn-primary compact-btn-small">Edit</button>
+                                <button class="compact-btn compact-btn-danger compact-btn-small">Del</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Right Column: Duration & Delta Rules -->
+        <div class="duration-delta">
+            <div class="section-header">Duration Diversification</div>
+            
+            <div class="duration-pills">
+                <div class="duration-pill active">
+                    <span>0 DTE:</span>
+                    <span class="duration-value">8%</span>
+                </div>
+                <div class="duration-pill active">
+                    <span>7 DTE:</span>
+                    <span class="duration-value">15%</span>
+                </div>
+                <div class="duration-pill active">
+                    <span>14 DTE:</span>
+                    <span class="duration-value">20%</span>
+                </div>
+                <div class="duration-pill active">
+                    <span>45 DTE:</span>
+                    <span class="duration-value">80%</span>
+                </div>
+            </div>
+            
+            <div class="section-header">Delta Diversification</div>
+            
+            <div class="delta-ranges">
+                <div class="delta-range-item">
+                    <span class="compact-label">Bullish</span>
+                    <input type="range" class="delta-range-slider" min="0" max="100" value="60">
+                    <span class="percent-display">60%</span>
+                </div>
+                <div class="delta-range-item">
+                    <span class="compact-label">Neutral</span>
+                    <input type="range" class="delta-range-slider" min="0" max="100" value="45">
+                    <span class="percent-display">45%</span>
+                </div>
+                <div class="delta-range-item">
+                    <span class="compact-label">Bearish</span>
+                    <input type="range" class="delta-range-slider" min="0" max="100" value="25">
+                    <span class="percent-display">25%</span>
+                </div>
+            </div>
+            
+            <div class="section-header" style="margin-top: 12px;">Position Requirements</div>
+            
+            <table class="compact-table">
+                <thead>
+                    <tr>
+                        <th>Strategy</th>
+                        <th>Min</th>
+                        <th>Target</th>
+                        <th>Tol</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Put CS</td>
+                        <td><input type="number" class="inline-input" value="30"></td>
+                        <td><input type="number" class="inline-input" value="40"></td>
+                        <td><input type="number" class="inline-input" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>Iron Condor</td>
+                        <td><input type="number" class="inline-input" value="25"></td>
+                        <td><input type="number" class="inline-input" value="35"></td>
+                        <td><input type="number" class="inline-input" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>Call CS</td>
+                        <td><input type="number" class="inline-input" value="15"></td>
+                        <td><input type="number" class="inline-input" value="25"></td>
+                        <td><input type="number" class="inline-input" value="3"></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="section-header" style="margin-top: 12px;">Quick Actions</div>
+            
+            <div class="compact-form-group">
+                <button class="compact-btn compact-btn-save" style="width: 100%;">Save All Rules</button>
+            </div>
+            <div class="compact-form-group">
+                <button class="compact-btn compact-btn-check" style="width: 100%;">Check Compliance</button>
+            </div>
+            <div class="compact-form-group">
+                <button class="compact-btn compact-btn-primary" style="width: 100%;">Load Defaults</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Fixed Action Bar -->
+    <div class="action-bar">
+        <div class="action-group">
+            <span style="font-size: 11px; color: #8b98a8;">Last saved: 2 mins ago</span>
+            <span class="status-indicator status-compliant"></span>
+            <span style="font-size: 11px;">Portfolio Compliant</span>
+        </div>
+        <div class="action-group">
+            <button class="compact-btn compact-btn-primary">Export Rules</button>
+            <button class="compact-btn compact-btn-save">Save Changes</button>
+            <button class="compact-btn compact-btn-check">Run Compliance Check</button>
+        </div>
+    </div>
+    
+    <script>
+        // Handle range slider updates
+        $('.delta-range-slider').on('input', function() {
+            $(this).next('.percent-display').text($(this).val() + '%');
+        });
+        
+        // Handle inline input changes
+        $('.inline-input').on('change', function() {
+            $(this).addClass('modified');
+        });
+        
+        // Quick tooltip on hover for truncated content
+        $('.compact-table td').on('mouseenter', function() {
+            if (this.offsetWidth < this.scrollWidth) {
+                // Content is truncated, show tooltip
+                const tooltip = $('<div class="compact-tooltip"></div>').text($(this).text());
+                $('body').append(tooltip);
+                
+                const offset = $(this).offset();
+                tooltip.css({
+                    top: offset.top - tooltip.outerHeight() - 5,
+                    left: offset.left
+                });
+            }
+        }).on('mouseleave', function() {
+            $('.compact-tooltip').remove();
+        });
+    </script>
+</body>
+</html>

@@ -733,6 +733,7 @@ from rebalancing_routes import create_rebalancing_routes
 
 # Import workflow functionality
 from workflow_routes import create_workflow_routes
+from account_allocation_routes import account_allocation_bp, init_account_allocation_routes
 
 
 @app.route('/')
@@ -952,6 +953,10 @@ if __name__ == '__main__':
     
     # Initialize workflow routes
     create_workflow_routes(app, tracker)
+    
+    # Initialize account allocation routes
+    init_account_allocation_routes(tracker)
+    app.register_blueprint(account_allocation_bp)
     
     threading.Thread(target=run_async_tracker, daemon=True).start()
     logging.info("🌐 Starting dashboard server on http://localhost:5001")

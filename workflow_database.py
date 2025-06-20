@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from enum import Enum
+from collections import defaultdict
 
 class WorkflowState(Enum):
     SCANNING = "scanning"
@@ -61,6 +62,7 @@ class StrategyConfig:
     management_rules: List[ManagementRule] = None
     created_at: Optional[datetime] = None
     is_active: bool = True
+    strategy_type: Optional[str] = None  # Classified strategy type
     
     def __post_init__(self):
         if self.legs is None:
@@ -143,6 +145,10 @@ class WorkflowDatabase:
                 cursor.execute("ALTER TABLE strategies ADD COLUMN closing_21_dte BOOLEAN DEFAULT false")
                 self.logger.info("✅ Added closing_21_dte column to existing strategies table")
             
+            if 'strategy_type' not in columns:
+                cursor.execute("ALTER TABLE strategies ADD COLUMN strategy_type TEXT")
+                self.logger.info("✅ Added strategy_type column to existing strategies table")
+            
             # Strategies table
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS strategies (
@@ -161,6 +167,7 @@ class WorkflowDatabase:
                     closing_21_dte BOOLEAN DEFAULT false,
                     delta_biases TEXT DEFAULT '["neutral"]',  -- JSON array
                     management_rules TEXT DEFAULT '[]',  -- JSON array
+                    strategy_type TEXT,  -- Classified strategy type
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     is_active BOOLEAN DEFAULT true
                 )
@@ -216,11 +223,81 @@ class WorkflowDatabase:
             self.logger.error(f"❌ Failed to initialize workflow database: {e}")
             raise
     
+    def classify_strategy_type(self, strategy: StrategyConfig) -> str:
+        """Classify strategy type based on legs configuration"""
+        if not strategy.legs:
+            return "unknown"
+        
+        leg_count = len(strategy.legs)
+        
+        if leg_count == 1:
+            leg = strategy.legs[0]
+            if leg.action == "sell" and leg.option_type == "put":
+                return "cash_secured_put"
+            elif leg.action == "sell" and leg.option_type == "call":
+                return "naked_call"
+            elif leg.action == "buy" and leg.option_type == "call":
+                return "long_call"
+            elif leg.action == "buy" and leg.option_type == "put":
+                return "long_put"
+        
+        elif leg_count == 2:
+            # Sort legs by action (sell first, then buy)
+            sorted_legs = sorted(strategy.legs, key=lambda x: 0 if x.action == "sell" else 1)
+            
+            # Check for credit spreads
+            if sorted_legs[0].action == "sell" and sorted_legs[1].action == "buy":
+                if sorted_legs[0].option_type == sorted_legs[1].option_type:
+                    if sorted_legs[0].option_type == "put":
+                        return "put_credit_spread"
+                    elif sorted_legs[0].option_type == "call":
+                        return "call_credit_spread"
+            
+            # Check for debit spreads
+            elif sorted_legs[0].action == "buy" and sorted_legs[1].action == "sell":
+                if sorted_legs[0].option_type == sorted_legs[1].option_type:
+                    if sorted_legs[0].option_type == "put":
+                        return "put_debit_spread"
+                    elif sorted_legs[0].option_type == "call":
+                        return "call_debit_spread"
+            
+            # Check for straddles/strangles
+            elif all(leg.action == sorted_legs[0].action for leg in sorted_legs):
+                if sorted_legs[0].option_type != sorted_legs[1].option_type:
+                    # Both ATM = straddle, otherwise strangle
+                    if all(leg.selection_method == "atm" for leg in sorted_legs):
+                        return "straddle"
+                    else:
+                        return "strangle"
+        
+        elif leg_count == 4:
+            # Check for iron condor/butterfly
+            put_legs = [leg for leg in strategy.legs if leg.option_type == "put"]
+            call_legs = [leg for leg in strategy.legs if leg.option_type == "call"]
+            
+            if len(put_legs) == 2 and len(call_legs) == 2:
+                # Check if we have one sell and one buy for each type
+                put_sells = sum(1 for leg in put_legs if leg.action == "sell")
+                put_buys = sum(1 for leg in put_legs if leg.action == "buy")
+                call_sells = sum(1 for leg in call_legs if leg.action == "sell")
+                call_buys = sum(1 for leg in call_legs if leg.action == "buy")
+                
+                if put_sells == 1 and put_buys == 1 and call_sells == 1 and call_buys == 1:
+                    # Check if all legs are equidistant (butterfly) or not (condor)
+                    # For now, assume iron condor (more common)
+                    return "iron_condor"
+        
+        return "custom_strategy"
+    
     def save_strategy(self, strategy: StrategyConfig) -> int:
         """Save strategy configuration"""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
+            
+            # Classify strategy type if not already set
+            if not strategy.strategy_type:
+                strategy.strategy_type = self.classify_strategy_type(strategy)
             
             # Convert complex objects to JSON
             legs_json = json.dumps([asdict(leg) for leg in strategy.legs])
@@ -235,14 +312,14 @@ class WorkflowDatabase:
                         dte_range_min = ?, dte_range_max = ?,
                         profit_target_pct = ?, stop_loss_pct = ?, no_stop_loss = ?,
                         minimum_premium_required = ?, minimum_underlying_price = ?, closing_21_dte = ?,
-                        delta_biases = ?, management_rules = ?, is_active = ?
+                        delta_biases = ?, management_rules = ?, strategy_type = ?, is_active = ?
                     WHERE id = ?
                 ''', (
                     strategy.name, strategy.description, strategy.opening_action, legs_json,
                     strategy.dte_range_min, strategy.dte_range_max,
                     strategy.profit_target_pct, strategy.stop_loss_pct, strategy.no_stop_loss,
                     strategy.minimum_premium_required, strategy.minimum_underlying_price, strategy.closing_21_dte,
-                    delta_biases_json, management_rules_json, strategy.is_active,
+                    delta_biases_json, management_rules_json, strategy.strategy_type, strategy.is_active,
                     strategy.id
                 ))
                 strategy_id = strategy.id
@@ -252,14 +329,15 @@ class WorkflowDatabase:
                     INSERT INTO strategies 
                     (name, description, opening_action, legs_config, dte_range_min, dte_range_max,
                      profit_target_pct, stop_loss_pct, no_stop_loss, minimum_premium_required, 
-                     minimum_underlying_price, closing_21_dte, delta_biases, management_rules, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     minimum_underlying_price, closing_21_dte, delta_biases, management_rules, 
+                     strategy_type, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     strategy.name, strategy.description, strategy.opening_action, legs_json,
                     strategy.dte_range_min, strategy.dte_range_max,
                     strategy.profit_target_pct, strategy.stop_loss_pct, strategy.no_stop_loss,
                     strategy.minimum_premium_required, strategy.minimum_underlying_price, strategy.closing_21_dte,
-                    delta_biases_json, management_rules_json, strategy.is_active
+                    delta_biases_json, management_rules_json, strategy.strategy_type, strategy.is_active
                 ))
                 strategy_id = cursor.lastrowid
             
@@ -283,7 +361,7 @@ class WorkflowDatabase:
                 SELECT id, name, description, opening_action, legs_config, dte_range_min, dte_range_max,
                        profit_target_pct, stop_loss_pct, no_stop_loss, minimum_premium_required,
                        minimum_underlying_price, closing_21_dte, delta_biases, management_rules,
-                       created_at, is_active
+                       strategy_type, created_at, is_active
                 FROM strategies WHERE id = ?
             ''', (strategy_id,))
             
@@ -318,8 +396,9 @@ class WorkflowDatabase:
                 closing_21_dte=bool(row[12]) if row[12] is not None else False,
                 delta_biases=delta_biases,
                 management_rules=management_rules,
-                created_at=datetime.fromisoformat(row[15]) if row[15] else None,
-                is_active=bool(row[16])
+                strategy_type=row[15],
+                created_at=datetime.fromisoformat(row[16]) if row[16] else None,
+                is_active=bool(row[17])
             )
             
         except Exception as e:
@@ -337,7 +416,7 @@ class WorkflowDatabase:
                 SELECT id, name, description, opening_action, legs_config, dte_range_min, dte_range_max,
                        profit_target_pct, stop_loss_pct, no_stop_loss, minimum_premium_required,
                        minimum_underlying_price, closing_21_dte, delta_biases, management_rules,
-                       created_at, is_active
+                       strategy_type, created_at, is_active
                 FROM strategies
             '''
             
@@ -377,8 +456,9 @@ class WorkflowDatabase:
                     closing_21_dte=bool(row[12]) if row[12] is not None else False,
                     delta_biases=delta_biases,
                     management_rules=management_rules,
-                    created_at=datetime.fromisoformat(row[15]) if row[15] else None,
-                    is_active=bool(row[16])
+                    strategy_type=row[15],
+                    created_at=datetime.fromisoformat(row[16]) if row[16] else None,
+                    is_active=bool(row[17])
                 )
                 strategies.append(strategy)
             
@@ -390,6 +470,26 @@ class WorkflowDatabase:
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             return []
+    
+    def get_strategies_by_type(self, active_only: bool = True) -> Dict[str, List[StrategyConfig]]:
+        """Get strategies grouped by strategy type"""
+        try:
+            strategies = self.get_all_strategies(active_only)
+            
+            # Group strategies by type
+            strategies_by_type = defaultdict(list)
+            for strategy in strategies:
+                # Ensure strategy has a type
+                if not strategy.strategy_type:
+                    strategy.strategy_type = self.classify_strategy_type(strategy)
+                
+                strategies_by_type[strategy.strategy_type].append(strategy)
+            
+            return dict(strategies_by_type)
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get strategies by type: {e}")
+            return {}
     
     def delete_strategy(self, strategy_id: int) -> bool:
         """Delete strategy by ID"""

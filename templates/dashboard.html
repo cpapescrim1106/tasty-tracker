@@ -9,6 +9,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="/static/css/strategy-builder.css">
     <link rel="stylesheet" href="/static/css/trade-approval.css">
+    <link rel="stylesheet" href="/static/css/allocation-compact.css">
     <style>
         * {
             margin: 0;
@@ -22,27 +23,27 @@
             min-height: 100vh;
             color: #e1e5eb;
             font-size: 13px;
+            margin: 0;
+            padding: 0;
         }
         
         .container {
-            max-width: 1600px;
+            width: 100%;
+            max-width: none;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .main-wrapper {
+            padding: 20px;
+            max-width: 100%;
             margin: 0 auto;
-            padding: 12px;
         }
         
         .header {
-            background: #1e2936;
-            border: 1px solid #2a3f5f;
-            padding: 16px;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 20px;
-            color: #e1e5eb;
-            margin-bottom: 8px;
-            font-weight: 600;
+            /* Keep for backward compatibility but remove styles */
+            display: none;
         }
         
         .stats-grid {
@@ -85,7 +86,7 @@
         
         .stat-label {
             color: #8b98a8;
-            font-size: 11px;
+            font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 500;
@@ -203,7 +204,7 @@
         .position-item td {
             padding-left: 32px;
             background: #1a2332;
-            font-size: 11px;
+            font-size: 13px;
         }
         
         .position-item:first-child td {
@@ -318,22 +319,48 @@
         /* Tab Navigation Styles */
         .tab-navigation {
             background: #1e2936;
-            border: 1px solid #2a3f5f;
-            padding: 8px;
-            margin-bottom: 16px;
+            border-bottom: 1px solid #2a3f5f;
+            padding: 10px 20px;
+            margin: 0;
             display: flex;
-            gap: 8px;
+            gap: 6px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        
+        /* Custom scrollbar for navigation */
+        .tab-navigation::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .tab-navigation::-webkit-scrollbar-track {
+            background: #1e2936;
+        }
+        
+        .tab-navigation::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 2px;
         }
         
         .tab-button {
-            padding: 8px 16px;
+            padding: 8px 14px;
             border: none;
             background: transparent;
             color: #8b98a8;
             cursor: pointer;
             font-weight: 500;
             transition: all 0.2s ease;
-            font-size: 13px;
+            font-size: 12px;
+            flex-shrink: 0;
+            white-space: nowrap;
+            border-radius: 6px;
         }
         
         .tab-button:hover {
@@ -348,6 +375,7 @@
         
         .tab-content {
             display: none;
+            padding-top: 50px; /* Account for fixed navigation */
         }
         
         .tab-content.active {
@@ -536,7 +564,70 @@
             border: 1px solid rgba(148, 163, 184, 0.1);
         }
         
+        /* Sidebar - hidden on desktop */
+        .sidebar {
+            display: none;
+        }
+        
+        /* Mobile menu toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1001;
+            background: #1e2936;
+            border: 1px solid #2a3f5f;
+            padding: 8px 12px;
+            border-radius: 4px;
+            color: #e1e5eb;
+            cursor: pointer;
+        }
+
         @media (max-width: 1024px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+            
+            .sidebar {
+                display: block;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 250px;
+                height: 100vh;
+                background: #0f172a;
+                padding: 20px;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 1002;
+            }
+            
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            .container {
+                margin-left: 0;
+                width: 100%;
+            }
+            
+            .tab-navigation {
+                padding-left: 60px; /* Space for menu toggle */
+                flex-wrap: nowrap;
+                position: sticky;
+                top: 0;
+            }
+            
+            .tab-content {
+                padding-top: 0;
+            }
+            
+            .tab-button {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+            
             .main-content {
                 grid-template-columns: 1fr;
             }
@@ -810,16 +901,24 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🎯 TastyTracker</h1>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" onclick="toggleSidebar()">☰</button>
+    
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <h1>🎯 TastyTracker</h1>
+        <div class="sidebar-status">
             <p><span class="status-indicator status-live"></span>Live Delta Dashboard</p>
             <p id="lastUpdate" class="stat-label"></p>
-            <div style="margin-top: 10px;">
-                <a href="/underlyings" style="color: #60a5fa; text-decoration: none; padding: 5px 10px; background: rgba(59, 130, 246, 0.1); border-radius: 4px; margin-right: 10px;">📋 Underlyings</a>
-            </div>
         </div>
         
+        <div class="sidebar-links">
+            <a href="/underlyings">📋 Underlyings</a>
+        </div>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="container">
         <!-- Tab Navigation -->
         <div class="tab-navigation">
             <button class="tab-button active" data-tab="portfolio">📊 Portfolio</button>
@@ -830,7 +929,11 @@
             <button class="tab-button" data-tab="positions">🎯 Position Manager</button>
             <button class="tab-button" data-tab="journal">📖 Trade Journal</button>
             <button class="tab-button" data-tab="strategy-builder">🔧 Strategy Builder</button>
+            <button class="tab-button" data-tab="underlyings">📋 Underlyings</button>
         </div>
+        
+        <!-- Main Content Wrapper -->
+        <div class="main-wrapper">
         
         <!-- Portfolio Tab Content -->
         <div id="portfolio-tab" class="tab-content active">
@@ -1272,198 +1375,218 @@
         </div>
         
         <!-- Allocation Rules Tab Content -->
-        <div id="allocation-rules-tab" class="tab-content">
-            <div class="screener-section">
-                <h2 class="section-title">⚙️ Portfolio Allocation Rules</h2>
-                
-                <!-- Configuration Limits -->
-                <div class="form-group">
-                    <h3 class="section-title">🎯 Trading Limits</h3>
-                    <div class="screener-form" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
-                        <div class="form-group">
-                            <label for="max-single-trade">Max Single Trade ($)</label>
-                            <input type="number" id="max-single-trade" value="5000" min="100" step="100">
+        <div id="allocation-rules-tab" class="tab-content allocation-compact">
+            <div class="allocation-container">
+                <!-- Left Column: Account Allocations & Portfolio Rules -->
+                <div class="trading-limits">
+                    <div class="section-header">Account Allocations</div>
+                    
+                    <!-- Account 5WX84566 -->
+                    <div class="account-allocation-card" id="account-5WX84566">
+                        <div class="account-header">
+                            <span class="account-number">5WX84566</span>
+                            <span class="account-type">Joint Tenant</span>
                         </div>
-                        <div class="form-group">
-                            <label for="max-total-allocation">Max Total Allocation (%)</label>
-                            <input type="number" id="max-total-allocation" value="90" min="50" max="100" step="1">
+                        <div class="allocation-row">
+                            <span class="allocation-label">Portfolio Limit:</span>
+                            <input type="number" class="inline-input" id="limit-5WX84566" value="30000">
+                            <button class="compact-btn compact-btn-primary compact-btn-small" onclick="updateAccountLimit('5WX84566')">Update</button>
                         </div>
-                        <div class="form-group">
-                            <label for="min-confidence">Min Confidence Threshold (%)</label>
-                            <input type="number" id="min-confidence" value="60" min="1" max="100" step="1">
+                        <div class="allocation-row">
+                            <span class="allocation-label">Active Allocation:</span>
+                            <span class="allocation-value" id="active-5WX84566">$0</span>
+                            <span class="allocation-percent" id="active-pct-5WX84566">(0%)</span>
                         </div>
-                        <div class="form-group">
-                            <label for="min-position-size">Min Position Size ($)</label>
-                            <input type="number" id="min-position-size" value="500" min="100" step="50">
+                        <div class="allocation-progress">
+                            <div class="progress-bar" id="progress-5WX84566" style="width: 0%"></div>
                         </div>
-                    </div>
-                    <div class="screener-actions">
-                        <button class="btn-primary" id="save-config">Save Configuration</button>
-                        <button class="btn-secondary" id="load-config">Load Current</button>
-                    </div>
-                </div>
-                
-                <!-- Asset Allocation Rules -->
-                <div class="form-group">
-                    <h3 class="section-title">🏗️ Asset Allocation</h3>
-                    <div class="results-table">
-                        <div class="results-header" style="grid-template-columns: 2fr 1fr 1fr;">
-                            <div>Category</div>
-                            <div>Max %</div>
-                            <div>Current %</div>
+                        <div class="allocation-row">
+                            <span class="allocation-label">Long-term Net Liq:</span>
+                            <span class="allocation-value" id="longterm-5WX84566">$0</span>
                         </div>
-                        <div id="asset-allocation-body">
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>Equities</div>
-                                <div><input type="number" id="equities-max" value="65" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="equities-current" class="current-allocation">--</div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>Non-Equities</div>
-                                <div><input type="number" id="non-equities-max" value="45" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="non-equities-current" class="current-allocation">--</div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>Max per Sector/Sub-sector</div>
-                                <div><input type="number" id="max-sector-max" value="10" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="max-sector-current" class="current-allocation">--</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Duration Diversification -->
-                <div class="form-group">
-                    <h3 class="section-title">⏰ Duration Diversification</h3>
-                    <div class="results-table">
-                        <div class="results-header" style="grid-template-columns: 2fr 1fr 1fr;">
-                            <div>Duration</div>
-                            <div>Max %</div>
-                            <div>Current %</div>
-                        </div>
-                        <div id="duration-allocation-body">
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>0 DTE</div>
-                                <div><input type="number" id="dte-0-max" value="8" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="dte-0-current" class="current-allocation">--</div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>7 DTE</div>
-                                <div><input type="number" id="dte-7-max" value="15" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="dte-7-current" class="current-allocation">--</div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>14 DTE</div>
-                                <div><input type="number" id="dte-14-max" value="20" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="dte-14-current" class="current-allocation">--</div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>45 DTE</div>
-                                <div><input type="number" id="dte-45-max" value="80" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="dte-45-current" class="current-allocation">--</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Delta Diversification -->
-                <div class="form-group">
-                    <h3 class="section-title">📈 Delta Diversification</h3>
-                    <div class="results-table">
-                        <div class="results-header" style="grid-template-columns: 2fr 1fr 1fr;">
-                            <div>Delta Range</div>
-                            <div>Max %</div>
-                            <div>Current %</div>
-                        </div>
-                        <div id="strategy-allocation-body">
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>Bullish</div>
-                                <div><input type="number" id="bullish-max" value="60" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="bullish-current" class="current-allocation">--</div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>Neutral</div>
-                                <div><input type="number" id="neutral-max" value="45" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="neutral-current" class="current-allocation">--</div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr;">
-                                <div>Bearish</div>
-                                <div><input type="number" id="bearish-max" value="25" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div id="bearish-current" class="current-allocation">--</div>
-                            </div>
+                        <div class="allocation-row">
+                            <span class="allocation-label">Equities:</span>
+                            <span class="allocation-value" id="equities-5WX84566">0%</span>
+                            <span class="allocation-percent" id="equities-remaining-5WX84566">(60% remaining)</span>
                         </div>
                     </div>
                     
-                    <div style="margin-top: 15px;">
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="require-all-strategies" checked>
-                            <span>Require at least 1 position for each delta range</span>
-                        </label>
-                    </div>
-                </div>
-                
-                <!-- Strategy Diversification -->
-                <div class="form-group">
-                    <h3 class="section-title">🎯 Strategy Diversification</h3>
-                    <div class="results-table">
-                        <div class="results-header" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
-                            <div>Strategy Type</div>
-                            <div>Target %</div>
-                            <div>Min %</div>
-                            <div>Max %</div>
-                            <div>Tolerance %</div>
+                    <!-- Account 5WU39639 -->
+                    <div class="account-allocation-card" id="account-5WU39639">
+                        <div class="account-header">
+                            <span class="account-number">5WU39639</span>
+                            <span class="account-type">Roth IRA</span>
                         </div>
-                        <div id="strategy-type-allocation-body">
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
-                                <div>Put Credit Spread</div>
-                                <div><input type="number" id="put-credit-spread-target" value="40" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="put-credit-spread-min" value="30" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="put-credit-spread-max" value="50" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="put-credit-spread-tolerance" value="3" min="0.5" max="10" step="0.5" style="width: 60px;"></div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
-                                <div>Iron Condor</div>
-                                <div><input type="number" id="iron-condor-target" value="35" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="iron-condor-min" value="25" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="iron-condor-max" value="45" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="iron-condor-tolerance" value="3" min="0.5" max="10" step="0.5" style="width: 60px;"></div>
-                            </div>
-                            <div class="result-row" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr;">
-                                <div>Call Credit Spread</div>
-                                <div><input type="number" id="call-credit-spread-target" value="25" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="call-credit-spread-min" value="15" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="call-credit-spread-max" value="35" min="0" max="100" step="1" style="width: 60px;"></div>
-                                <div><input type="number" id="call-credit-spread-tolerance" value="3" min="0.5" max="10" step="0.5" style="width: 60px;"></div>
-                            </div>
+                        <div class="allocation-row">
+                            <span class="allocation-label">Portfolio Limit:</span>
+                            <input type="number" class="inline-input" id="limit-5WU39639" value="0" disabled>
+                            <span class="allocation-note">No active trading</span>
+                        </div>
+                        <div class="allocation-row">
+                            <span class="allocation-label">Active Allocation:</span>
+                            <span class="allocation-value" id="active-5WU39639">$0</span>
+                            <span class="allocation-percent" id="active-pct-5WU39639">(0%)</span>
+                        </div>
+                        <div class="allocation-row">
+                            <span class="allocation-label">Long-term Net Liq:</span>
+                            <span class="allocation-value" id="longterm-5WU39639">$0</span>
                         </div>
                     </div>
                     
-                    <div style="margin-top: 15px;">
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="require-all-strategy-types" checked>
-                            <span>Require at least 1 position for each strategy type</span>
-                        </label>
+                    <div class="section-header" style="margin-top: 12px;">Asset Allocation</div>
+                    
+                    <table class="compact-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Max%</th>
+                                <th>Curr%</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Equities</td>
+                                <td><input type="number" class="inline-input" id="equities-max" value="65"></td>
+                                <td id="equities-current">--</td>
+                                <td><span class="status-indicator status-compliant"></span></td>
+                            </tr>
+                            <tr>
+                                <td>Non-Equities</td>
+                                <td><input type="number" class="inline-input" id="non-equities-max" value="45"></td>
+                                <td id="non-equities-current">--</td>
+                                <td><span class="status-indicator status-compliant"></span></td>
+                            </tr>
+                            <tr>
+                                <td>Per Sector/Sub</td>
+                                <td><input type="number" class="inline-input" id="max-sector-max" value="10"></td>
+                                <td id="max-sector-current">--</td>
+                                <td><span class="status-indicator status-compliant"></span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Center Column: Main Allocation Table -->
+                <div class="allocation-rules">
+                    <div class="allocation-table-wrapper">
+                        <div class="section-header">
+                            Duration Diversification
+                            <button class="compact-btn compact-btn-primary" style="float: right;">+ Add Rule</button>
+                        </div>
+                        
+                        <table class="compact-table">
+                            <thead>
+                                <tr>
+                                    <th>Duration</th>
+                                    <th>Max%</th>
+                                    <th>Curr%</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>0 DTE</td>
+                                    <td><input type="number" class="inline-input" id="dte-0-max" value="8"></td>
+                                    <td id="dte-0-current">--</td>
+                                    <td><span class="status-indicator status-compliant"></span></td>
+                                </tr>
+                                <tr>
+                                    <td>7 DTE</td>
+                                    <td><input type="number" class="inline-input" id="dte-7-max" value="15"></td>
+                                    <td id="dte-7-current">--</td>
+                                    <td><span class="status-indicator status-compliant"></span></td>
+                                </tr>
+                                <tr>
+                                    <td>14 DTE</td>
+                                    <td><input type="number" class="inline-input" id="dte-14-max" value="20"></td>
+                                    <td id="dte-14-current">--</td>
+                                    <td><span class="status-indicator status-compliant"></span></td>
+                                </tr>
+                                <tr>
+                                    <td>45 DTE</td>
+                                    <td><input type="number" class="inline-input" id="dte-45-max" value="80"></td>
+                                    <td id="dte-45-current">--</td>
+                                    <td><span class="status-indicator status-compliant"></span></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
                 
-                <!-- Actions -->
-                <div class="screener-actions">
-                    <button class="btn-primary" id="save-allocation-rules">💾 Save All Rules</button>
-                    <button class="btn-secondary" id="load-allocation-rules">📥 Load Current Rules</button>
-                    <button class="btn-secondary" id="reset-default-rules">🔄 Reset to Defaults</button>
-                    <span id="allocation-rules-status"></span>
+                <!-- Right Column: Duration & Delta Rules -->
+                <div class="duration-delta">
+                    <div class="section-header">Delta Diversification</div>
+                    
+                    <div class="delta-ranges">
+                        <div class="delta-range-item">
+                            <span class="compact-label">Bullish</span>
+                            <input type="range" class="delta-range-slider" id="bullish-max" min="0" max="100" value="60">
+                            <span class="percent-display" id="bullish-display">60%</span>
+                        </div>
+                        <div class="delta-range-item">
+                            <span class="compact-label">Neutral</span>
+                            <input type="range" class="delta-range-slider" id="neutral-max" min="0" max="100" value="45">
+                            <span class="percent-display" id="neutral-display">45%</span>
+                        </div>
+                        <div class="delta-range-item">
+                            <span class="compact-label">Bearish</span>
+                            <input type="range" class="delta-range-slider" id="bearish-max" min="0" max="100" value="25">
+                            <span class="percent-display" id="bearish-display">25%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="compact-form-group" style="margin-top: 10px;">
+                        <input type="checkbox" class="compact-checkbox" id="require-all-strategies" checked>
+                        <label for="require-all-strategies" style="font-size: 13px;">Require at least 1 position for each delta range</label>
+                    </div>
+                    
+                    <div class="section-header" style="margin-top: 12px;">Position Requirements</div>
+                    
+                    <table class="compact-table">
+                        <thead>
+                            <tr>
+                                <th>Strategy</th>
+                                <th>Min</th>
+                                <th>Target</th>
+                                <th>Tol</th>
+                            </tr>
+                        </thead>
+                        <tbody id="position-requirements-tbody">
+                            <!-- Dynamically populated from saved strategies -->
+                        </tbody>
+                    </table>
+                    
+                    <div class="compact-form-group" style="margin-top: 10px;">
+                        <input type="checkbox" class="compact-checkbox" id="require-all-strategy-types" checked>
+                        <label for="require-all-strategy-types" style="font-size: 13px;">Require at least 1 position for each strategy type</label>
+                    </div>
+                    
+                    <div class="section-header" style="margin-top: 12px;">Quick Actions</div>
+                    
+                    <div class="compact-form-group">
+                        <button class="compact-btn compact-btn-save" id="save-allocation-rules" style="width: 100%;">Save All Rules</button>
+                    </div>
+                    <div class="compact-form-group">
+                        <button class="compact-btn compact-btn-check" id="check-compliance" style="width: 100%;">Check Compliance</button>
+                    </div>
+                    <div class="compact-form-group">
+                        <button class="compact-btn compact-btn-primary" id="reset-default-rules" style="width: 100%;">Load Defaults</button>
+                    </div>
                 </div>
-                
-                <!-- Current Compliance Status -->
-                <div id="current-compliance" style="margin-top: 30px;">
-                    <h3 class="section-title">📊 Current Portfolio Compliance</h3>
-                    <div class="screener-actions">
-                        <button class="btn-primary" id="check-compliance">🔍 Check Compliance</button>
-                        <span id="compliance-status"></span>
-                    </div>
-                    <div id="compliance-results" style="display: none;">
-                        <!-- Compliance results will be populated here -->
-                    </div>
+            </div>
+            
+            <!-- Fixed Action Bar -->
+            <div class="action-bar">
+                <div class="action-group">
+                    <span style="font-size: 13px; color: #8b98a8;">Last saved: <span id="last-saved-time">Never</span></span>
+                    <span class="status-indicator status-compliant" id="compliance-indicator"></span>
+                    <span style="font-size: 13px;" id="compliance-text">Portfolio Compliant</span>
+                </div>
+                <div class="action-group">
+                    <button class="compact-btn compact-btn-primary" id="export-rules">Export Rules</button>
+                    <button class="compact-btn compact-btn-save" id="save-changes">Save Changes</button>
+                    <button class="compact-btn compact-btn-check" id="run-compliance-check">Run Compliance Check</button>
                 </div>
             </div>
         </div>
@@ -1758,9 +1881,37 @@
             </div>
         </div>
 
-    </div>
+        <!-- Underlyings Tab Content -->
+        <div id="underlyings-tab" class="tab-content">
+            <div class="screener-container">
+                <h2 class="section-title">📋 Underlyings Management</h2>
+                <div id="underlyings-content">
+                    <p>Underlyings management content will be displayed here.</p>
+                </div>
+            </div>
+        </div>
+        </div> <!-- End of main-wrapper -->
+    </div> <!-- End of container -->
     
     <script>
+        // Mobile sidebar toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('mobile-open');
+        }
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            
+            if (window.innerWidth <= 1024 && 
+                !sidebar.contains(event.target) && 
+                !toggle.contains(event.target) &&
+                sidebar.classList.contains('mobile-open')) {
+                sidebar.classList.remove('mobile-open');
+            }
+        });
         // Register Chart.js datalabels plugin
         Chart.register(ChartDataLabels);
         
@@ -2648,7 +2799,7 @@
                         <div style="margin-bottom: 10px; padding: 10px; background: rgba(30, 41, 59, 0.5); border-radius: 8px;">
                             <div style="font-weight: 600; margin-bottom: 5px;">
                                 <strong>${strategy.symbol}</strong> ${s.strike_display || ''} Spread (${expDisplay})
-                                <span style="background: ${expBadgeColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 8px;">${expType}</span>
+                                <span style="background: ${expBadgeColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 13px; margin-left: 8px;">${expType}</span>
                             </div>
                             <div style="display: flex; flex-wrap: wrap; gap: 15px; font-size: 14px;">
                                 <span>Premium: <strong>$${premium.toFixed(2)}</strong></span>
@@ -4615,7 +4766,429 @@
                 console.log('🤖 Auto Recommendations tab clicked, loading underlying rankings...');
                 setTimeout(loadUnderlyingRankings, 100);
             });
+            
+            // Initialize compact allocation UI
+            initializeCompactAllocationUI();
         });
+        
+        // Compact Allocation UI Functions
+        function initializeCompactAllocationUI() {
+            // Handle range slider updates
+            $('.delta-range-slider').on('input', function() {
+                const id = $(this).attr('id').replace('-max', '-display');
+                $('#' + id).text($(this).val() + '%');
+            });
+            
+            // Handle inline input changes
+            $('.inline-input').on('change', function() {
+                $(this).addClass('modified');
+                updateComplianceStatus();
+            });
+            
+            // Compact button handlers
+            $('#save-allocation-rules, #save-changes').on('click', saveAllocationRules);
+            $('#check-compliance, #run-compliance-check').on('click', checkCompliance);
+            $('#reset-default-rules').on('click', resetToDefaults);
+            $('#export-rules').on('click', exportRules);
+            
+            // Load current values on init
+            loadCurrentAllocations();
+            
+            // Load account allocations
+            loadAccountAllocations();
+            
+            // Load strategies and generate position requirements
+            loadStrategiesForPositionRequirements();
+        }
+        
+        function updateComplianceStatus() {
+            // Visual indicator that values have changed
+            $('#compliance-text').text('Changes pending');
+            $('#compliance-indicator').removeClass('status-compliant').addClass('status-warning');
+        }
+        
+        function loadStrategiesForPositionRequirements() {
+            // Fetch strategies grouped by type
+            fetch('/api/strategies/by-type?active_only=true')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        generatePositionRequirementsTable(data.strategies_by_type);
+                    } else {
+                        console.error('Failed to load strategies:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading strategies:', error);
+                });
+        }
+        
+        function generatePositionRequirementsTable(strategiesByType) {
+            const tbody = $('#position-requirements-tbody');
+            tbody.empty();
+            
+            // Default allocations for known strategy types
+            const defaultAllocations = {
+                'put_credit_spread': { min: 30, target: 40, tolerance: 3, displayName: 'Put CS' },
+                'call_credit_spread': { min: 15, target: 25, tolerance: 3, displayName: 'Call CS' },
+                'iron_condor': { min: 25, target: 35, tolerance: 3, displayName: 'Iron Condor' },
+                'cash_secured_put': { min: 10, target: 15, tolerance: 2, displayName: 'Cash Put' },
+                'put_debit_spread': { min: 5, target: 10, tolerance: 2, displayName: 'Put DS' },
+                'call_debit_spread': { min: 5, target: 10, tolerance: 2, displayName: 'Call DS' },
+                'custom_strategy': { min: 5, target: 10, tolerance: 2, displayName: 'Custom' }
+            };
+            
+            // Add rows for each strategy type that has active strategies
+            Object.entries(strategiesByType).forEach(([strategyType, strategies]) => {
+                if (strategies.length > 0) {
+                    const defaults = defaultAllocations[strategyType] || { min: 5, target: 10, tolerance: 2, displayName: strategyType };
+                    const strategyNames = strategies.map(s => s.name).join(', ');
+                    
+                    const row = $(`
+                        <tr>
+                            <td title="${strategyNames}">${defaults.displayName}</td>
+                            <td><input type="number" class="inline-input" id="${strategyType}-min" value="${defaults.min}"></td>
+                            <td><input type="number" class="inline-input" id="${strategyType}-target" value="${defaults.target}"></td>
+                            <td><input type="number" class="inline-input" id="${strategyType}-tolerance" value="${defaults.tolerance}"></td>
+                        </tr>
+                    `);
+                    
+                    tbody.append(row);
+                }
+            });
+            
+            // If no strategies found, show default message
+            if (tbody.children().length === 0) {
+                tbody.append(`
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #8b98a8;">
+                            No active strategies found. Create strategies in the Strategy Builder.
+                        </td>
+                    </tr>
+                `);
+            }
+            
+            // Re-attach event handlers for new inputs
+            $('.inline-input').off('change').on('change', function() {
+                $(this).addClass('modified');
+                updateComplianceStatus();
+            });
+        }
+        
+        function saveAllocationRules() {
+            // Collect all allocation rules
+            const rules = [];
+            
+            // Asset allocation rules
+            rules.push({
+                rule_type: 'asset',
+                category: 'equities',
+                max_pct: parseFloat($('#equities-max').val()),
+                tolerance_pct: 2.0
+            });
+            rules.push({
+                rule_type: 'asset',
+                category: 'non_equities',
+                max_pct: parseFloat($('#non-equities-max').val()),
+                tolerance_pct: 2.0
+            });
+            rules.push({
+                rule_type: 'asset',
+                category: 'max_sector',
+                max_pct: parseFloat($('#max-sector-max').val()),
+                tolerance_pct: 1.0
+            });
+            
+            // Duration allocation rules
+            rules.push({
+                rule_type: 'duration',
+                category: '0_dte',
+                max_pct: parseFloat($('#dte-0-max').val()),
+                tolerance_pct: 1.0
+            });
+            rules.push({
+                rule_type: 'duration',
+                category: '7_dte',
+                max_pct: parseFloat($('#dte-7-max').val()),
+                tolerance_pct: 2.0
+            });
+            rules.push({
+                rule_type: 'duration',
+                category: '14_dte',
+                max_pct: parseFloat($('#dte-14-max').val()),
+                tolerance_pct: 2.0
+            });
+            rules.push({
+                rule_type: 'duration',
+                category: '45_dte',
+                max_pct: parseFloat($('#dte-45-max').val()),
+                tolerance_pct: 3.0
+            });
+            
+            // Strategy allocation rules
+            rules.push({
+                rule_type: 'strategy',
+                category: 'bullish',
+                max_pct: parseFloat($('#bullish-max').val()),
+                tolerance_pct: 3.0
+            });
+            rules.push({
+                rule_type: 'strategy',
+                category: 'neutral',
+                max_pct: parseFloat($('#neutral-max').val()),
+                tolerance_pct: 3.0
+            });
+            rules.push({
+                rule_type: 'strategy',
+                category: 'bearish',
+                max_pct: parseFloat($('#bearish-max').val()),
+                tolerance_pct: 3.0
+            });
+            
+            // Position requirements (dynamic based on strategy types)
+            $('#position-requirements-tbody tr').each(function() {
+                const strategyType = $(this).find('td:first').text();
+                const strategyId = $(this).find('input:first').attr('id').replace('-min', '');
+                const minPct = parseFloat($(this).find('input[id$="-min"]').val());
+                const targetPct = parseFloat($(this).find('input[id$="-target"]').val());
+                const tolerancePct = parseFloat($(this).find('input[id$="-tolerance"]').val());
+                
+                rules.push({
+                    rule_type: 'position',
+                    category: strategyId,
+                    min_pct: minPct,
+                    target_pct: targetPct,
+                    max_pct: targetPct + tolerancePct,
+                    tolerance_pct: tolerancePct
+                });
+            });
+            
+            // Save configuration settings
+            const config = {
+                require_all_strategies: $('#require-all-strategies').is(':checked'),
+                require_all_strategy_types: $('#require-all-strategy-types').is(':checked')
+            };
+            
+            // Save both rules and config
+            Promise.all([
+                // Save allocation rules
+                fetch('/api/allocation-rules', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({rules: rules})
+                }),
+                // Save rebalancing config
+                fetch('/api/rebalancing/configuration', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                })
+            ])
+            .then(responses => Promise.all(responses.map(r => r.json())))
+            .then(results => {
+                if (results.every(r => r.success)) {
+                    $('#last-saved-time').text(new Date().toLocaleTimeString());
+                    $('#compliance-text').text('Rules saved');
+                    $('#compliance-indicator').removeClass('status-warning').addClass('status-compliant');
+                    $('.inline-input').removeClass('modified');
+                    alert('✅ Allocation rules saved successfully');
+                } else {
+                    throw new Error('Failed to save some rules');
+                }
+            })
+            .catch(error => {
+                console.error('❌ Save error:', error);
+                alert(`❌ Error saving rules: ${error.message}`);
+            });
+        }
+        
+        function checkCompliance() {
+            fetch('/api/allocation-rules/check-compliance')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const violations = data.compliance_checks.filter(c => c.status === 'violation');
+                        const warnings = data.compliance_checks.filter(c => c.status === 'warning');
+                        
+                        if (violations.length > 0) {
+                            $('#compliance-text').text(`${violations.length} violations found`);
+                            $('#compliance-indicator').removeClass('status-compliant status-warning').addClass('status-violation');
+                        } else if (warnings.length > 0) {
+                            $('#compliance-text').text(`${warnings.length} warnings`);
+                            $('#compliance-indicator').removeClass('status-compliant status-violation').addClass('status-warning');
+                        } else {
+                            $('#compliance-text').text('Portfolio Compliant');
+                            $('#compliance-indicator').removeClass('status-warning status-violation').addClass('status-compliant');
+                        }
+                        
+                        // Show detailed results
+                        let message = 'Compliance Check Results:\n\n';
+                        data.compliance_checks.forEach(check => {
+                            if (check.status !== 'compliant') {
+                                message += `${check.rule_type}/${check.category}: ${check.current_pct.toFixed(1)}% (target: ${check.target_pct}%) - ${check.message}\n`;
+                            }
+                        });
+                        
+                        if (violations.length === 0 && warnings.length === 0) {
+                            message = '✅ All allocation rules are compliant!';
+                        }
+                        
+                        alert(message);
+                    } else {
+                        throw new Error(data.error || 'Compliance check failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Compliance check error:', error);
+                    alert(`❌ Error checking compliance: ${error.message}`);
+                });
+        }
+        
+        function resetToDefaults() {
+            if (!confirm('Reset all allocation rules to defaults? This will overwrite your current settings.')) {
+                return;
+            }
+            
+            // Reset asset allocation
+            $('#equities-max').val('65');
+            $('#non-equities-max').val('45');
+            $('#max-sector-max').val('10');
+            
+            // Reset duration allocation
+            $('#dte-0-max').val('8');
+            $('#dte-7-max').val('15');
+            $('#dte-14-max').val('20');
+            $('#dte-45-max').val('80');
+            
+            // Reset strategy allocation
+            $('#bullish-max').val('60');
+            $('#neutral-max').val('45');
+            $('#bearish-max').val('25');
+            
+            // Reset configuration - removed legacy fields
+            
+            // Reload position requirements to get defaults
+            loadStrategiesForPositionRequirements();
+            
+            updateComplianceStatus();
+            alert('✅ Reset to default allocation rules');
+        }
+        
+        function exportRules() {
+            // Export allocation rules to JSON
+            const rules = {
+                accountLimits: {
+                    '5WX84566': $('#limit-5WX84566').val(),
+                    '5WU39639': $('#limit-5WU39639').val()
+                },
+                asset: {
+                    equitiesMax: $('#equities-max').val(),
+                    nonEquitiesMax: $('#non-equities-max').val(),
+                    maxSectorMax: $('#max-sector-max').val()
+                },
+                duration: {
+                    dte0Max: $('#dte-0-max').val(),
+                    dte7Max: $('#dte-7-max').val(),
+                    dte14Max: $('#dte-14-max').val(),
+                    dte45Max: $('#dte-45-max').val()
+                },
+                delta: {
+                    bullishMax: $('#bullish-max').val(),
+                    neutralMax: $('#neutral-max').val(),
+                    bearishMax: $('#bearish-max').val()
+                },
+                position: {}
+            };
+            
+            // Add position requirements
+            $('#position-requirements-tbody tr').each(function() {
+                const strategyId = $(this).find('input:first').attr('id').replace('-min', '');
+                rules.position[strategyId] = {
+                    min: $(this).find('input[id$="-min"]').val(),
+                    target: $(this).find('input[id$="-target"]').val(),
+                    tolerance: $(this).find('input[id$="-tolerance"]').val()
+                };
+            });
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(rules, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "allocation_rules_" + new Date().toISOString().split('T')[0] + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+        
+        // New account allocation functions
+        function updateAccountLimit(accountNumber) {
+            const limit = parseFloat($(`#limit-${accountNumber}`).val());
+            
+            fetch('/api/account-limits', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    account_number: accountNumber,
+                    portfolio_limit: limit
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`✅ Updated portfolio limit for account ${accountNumber} to $${limit.toLocaleString()}`);
+                    loadAccountAllocations();
+                } else {
+                    throw new Error(data.error || 'Failed to update limit');
+                }
+            })
+            .catch(error => {
+                console.error('❌ Update limit error:', error);
+                alert(`❌ Error updating limit: ${error.message}`);
+            });
+        }
+        
+        function loadAccountAllocations() {
+            fetch('/api/account-allocations')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateAccountAllocationDisplay(data.allocations);
+                    } else {
+                        throw new Error(data.error || 'Failed to load allocations');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Load allocations error:', error);
+                });
+        }
+        
+        function updateAccountAllocationDisplay(allocations) {
+            allocations.forEach(alloc => {
+                const accountId = alloc.account_number;
+                
+                // Update active allocation
+                $(`#active-${accountId}`).text(`$${alloc.active_allocation.toLocaleString()}`);
+                const activePct = (alloc.active_allocation / alloc.portfolio_limit * 100).toFixed(1);
+                $(`#active-pct-${accountId}`).text(`(${activePct}%)`);
+                
+                // Update progress bar
+                const progressBar = $(`#progress-${accountId}`);
+                progressBar.css('width', `${activePct}%`);
+                progressBar.removeClass('warning danger');
+                if (activePct > 90) {
+                    progressBar.addClass('danger');
+                } else if (activePct > 75) {
+                    progressBar.addClass('warning');
+                }
+                
+                // Update long-term net liq
+                $(`#longterm-${accountId}`).text(`$${alloc.long_term_net_liq.toLocaleString()}`);
+                
+                // Update equities percentage
+                $(`#equities-${accountId}`).text(`${alloc.equities_pct.toFixed(1)}%`);
+                const equitiesRemaining = Math.max(0, 60 - alloc.equities_pct).toFixed(1);
+                $(`#equities-remaining-${accountId}`).text(`(${equitiesRemaining}% remaining)`);
+            });
+        }
     </script>
 
     <!-- React CDN for Strategy Builder -->

@@ -15,6 +15,7 @@ class RuleType(Enum):
     ASSET = "asset"
     DURATION = "duration" 
     STRATEGY = "strategy"
+    POSITION = "position"  # For strategy-specific position requirements
 
 class ComplianceStatus(Enum):
     COMPLIANT = "compliant"
@@ -338,6 +339,16 @@ class AllocationRulesManager:
             elif rule_type == RuleType.STRATEGY:
                 strategy_allocations = allocations.get('strategy_allocation', {})
                 return strategy_allocations.get(category, 0.0)
+                
+            elif rule_type == RuleType.POSITION:
+                # For position requirements, we need to count positions by strategy type
+                position_counts = allocations.get('position_counts_by_strategy_type', {})
+                total_positions = allocations.get('total_positions', 1)  # Avoid division by zero
+                
+                # Calculate percentage of positions for this strategy type
+                if total_positions > 0:
+                    count = position_counts.get(category, 0)
+                    return (count / total_positions) * 100.0
                 
             return 0.0
             

@@ -1,0 +1,533 @@
+/* Compact Allocation Rules - Tastytrade-style density */
+
+/* Base reset for compact design */
+.allocation-compact {
+    font-size: 13px;
+    line-height: 1.3;
+    color: #e1e5eb;
+}
+
+/* Grid Layout - Maximize horizontal space */
+.allocation-container {
+    display: grid;
+    grid-template-columns: 320px 1fr 280px;
+    gap: 10px;
+    padding: 10px;
+    max-width: 100%;
+    height: calc(100vh - 60px);
+    overflow: hidden;
+}
+
+/* Compact Section Headers */
+.section-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: #60a5fa;
+    padding: 4px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #2a3f5f;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Ultra-Compact Tables */
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.compact-table th {
+    background: #1a1f2e;
+    color: #8b98a8;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    padding: 4px 6px;
+    border-bottom: 1px solid #2a3f5f;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.compact-table td {
+    padding: 3px 6px;
+    border-bottom: 1px solid rgba(42, 63, 95, 0.3);
+    color: #e1e5eb;
+    white-space: nowrap;
+}
+
+.compact-table tbody tr:hover {
+    background: rgba(96, 165, 250, 0.05);
+}
+
+/* Inline Form Controls */
+.inline-input {
+    background: #1a1f2e;
+    border: 1px solid #2a3f5f;
+    color: #e1e5eb;
+    padding: 2px 4px;
+    font-size: 13px;
+    width: 60px;
+    border-radius: 2px;
+}
+
+.inline-input:focus {
+    outline: none;
+    border-color: #60a5fa;
+}
+
+.inline-select {
+    background: #1a1f2e;
+    border: 1px solid #2a3f5f;
+    color: #e1e5eb;
+    padding: 2px 4px;
+    font-size: 13px;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+/* Compact Checkboxes */
+.compact-checkbox {
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+}
+
+/* Trading Limits Section */
+.trading-limits {
+    background: #1e2936;
+    border: 1px solid #2a3f5f;
+    border-radius: 4px;
+    padding: 8px;
+    height: fit-content;
+}
+
+/* Account Allocation Cards */
+.account-allocation-card {
+    background: #252d3d;
+    border: 1px solid #2a3f5f;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.account-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a3f5f;
+}
+
+.account-number {
+    font-size: 14px;
+    font-weight: 600;
+    color: #60a5fa;
+}
+
+.account-type {
+    font-size: 12px;
+    color: #8b98a8;
+}
+
+.allocation-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+.allocation-label {
+    color: #a0aec0;
+    min-width: 110px;
+}
+
+.allocation-value {
+    color: #e1e5eb;
+    font-weight: 500;
+}
+
+.allocation-percent {
+    color: #8b98a8;
+    font-size: 11px;
+}
+
+.allocation-note {
+    color: #f59e0b;
+    font-size: 11px;
+    font-style: italic;
+}
+
+/* Progress Bar */
+.allocation-progress {
+    width: 100%;
+    height: 6px;
+    background: #1a1f2e;
+    border-radius: 3px;
+    margin: 8px 0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: #60a5fa;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.progress-bar.warning {
+    background: #f59e0b;
+}
+
+.progress-bar.danger {
+    background: #ef4444;
+}
+
+/* Compact button small variant */
+.compact-btn-small {
+    padding: 2px 6px;
+    font-size: 11px;
+}
+
+.limit-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 60px;
+    gap: 6px;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(42, 63, 95, 0.3);
+}
+
+.limit-row:last-child {
+    border-bottom: none;
+}
+
+.limit-label {
+    font-size: 13px;
+    color: #a0aec0;
+}
+
+.limit-value {
+    text-align: right;
+    font-weight: 500;
+}
+
+/* Allocation Rules Table */
+.allocation-rules {
+    background: #1e2936;
+    border: 1px solid #2a3f5f;
+    border-radius: 4px;
+    overflow: auto;
+    height: calc(100vh - 100px);
+}
+
+.allocation-table-wrapper {
+    padding: 8px;
+}
+
+/* Duration & Delta Section */
+.duration-delta {
+    background: #1e2936;
+    border: 1px solid #2a3f5f;
+    border-radius: 4px;
+    padding: 8px;
+    overflow-y: auto;
+    height: calc(100vh - 100px);
+}
+
+/* Compact Duration Pills */
+.duration-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.duration-pill {
+    background: #252d3d;
+    border: 1px solid #2a3f5f;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.duration-pill.active {
+    background: rgba(96, 165, 250, 0.2);
+    border-color: #60a5fa;
+}
+
+.duration-value {
+    font-weight: 600;
+    color: #60a5fa;
+}
+
+/* Delta Range Sliders */
+.delta-ranges {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.delta-range-item {
+    display: grid;
+    grid-template-columns: 60px 1fr 40px;
+    gap: 6px;
+    align-items: center;
+}
+
+.delta-range-slider {
+    -webkit-appearance: none;
+    height: 4px;
+    background: #2a3f5f;
+    border-radius: 2px;
+    outline: none;
+}
+
+.delta-range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #60a5fa;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* Strategy Diversification Grid */
+.strategy-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.strategy-cell {
+    background: #252d3d;
+    border: 1px solid #2a3f5f;
+    padding: 4px;
+    text-align: center;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.strategy-cell:hover {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: #60a5fa;
+}
+
+.strategy-cell.active {
+    background: rgba(96, 165, 250, 0.2);
+    border-color: #60a5fa;
+}
+
+.strategy-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e1e5eb;
+}
+
+.strategy-values {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+}
+
+.strategy-value {
+    font-size: 11px;
+    color: #8b98a8;
+}
+
+/* Compact Buttons */
+.compact-btn {
+    padding: 3px 8px;
+    font-size: 12px;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.1s;
+    font-weight: 500;
+}
+
+.compact-btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.compact-btn-primary:hover {
+    background: #2563eb;
+}
+
+.compact-btn-save {
+    background: #10b981;
+    color: white;
+}
+
+.compact-btn-save:hover {
+    background: #059669;
+}
+
+.compact-btn-check {
+    background: #8b5cf6;
+    color: white;
+}
+
+.compact-btn-check:hover {
+    background: #7c3aed;
+}
+
+/* Action Bar */
+.action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1a1f2e;
+    border-top: 1px solid #2a3f5f;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+}
+
+.action-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* Status Indicators */
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+}
+
+.status-compliant {
+    background: #10b981;
+}
+
+.status-warning {
+    background: #f59e0b;
+}
+
+.status-violation {
+    background: #ef4444;
+}
+
+/* Scrollbar Styling */
+.allocation-compact ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.allocation-compact ::-webkit-scrollbar-track {
+    background: #1a1f2e;
+}
+
+.allocation-compact ::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 2px;
+}
+
+.allocation-compact ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1400px) {
+    .allocation-container {
+        grid-template-columns: 280px 1fr 240px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .allocation-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        height: auto;
+    }
+    
+    .allocation-rules {
+        height: 400px;
+    }
+    
+    .duration-delta {
+        height: 300px;
+    }
+}
+
+/* Hover Effects */
+.compact-table tbody tr {
+    transition: background 0.1s;
+}
+
+/* Loading State */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(26, 31, 46, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #60a5fa;
+}
+
+/* Tooltips for compact design */
+.compact-tooltip {
+    position: absolute;
+    background: #252d3d;
+    border: 1px solid #2a3f5f;
+    padding: 4px 6px;
+    font-size: 12px;
+    border-radius: 2px;
+    z-index: 1000;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Inline percentage displays */
+.percent-display {
+    font-size: 12px;
+    color: #8b98a8;
+    margin-left: 4px;
+}
+
+/* Compact form groups */
+.compact-form-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+}
+
+.compact-label {
+    font-size: 12px;
+    color: #a0aec0;
+    min-width: 80px;
+}
+
+/* Data density indicators */
+.density-high {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.density-medium {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.density-low {
+    background: rgba(16, 185, 129, 0.1);
+}

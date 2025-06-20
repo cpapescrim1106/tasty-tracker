@@ -498,7 +498,7 @@ def get_allocation_rules():
         logging.error(f"❌ Error getting allocation rules: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@rebalancing_bp.route('/api/allocation-rules', methods=['PUT'])
+@rebalancing_bp.route('/api/allocation-rules', methods=['PUT', 'POST'])
 def update_allocation_rules():
     """Update allocation rules"""
     try:
@@ -538,6 +538,50 @@ def update_allocation_rules():
         
     except Exception as e:
         logging.error(f"❌ Error updating allocation rules: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@rebalancing_bp.route('/api/allocation-rules/check-compliance')
+def check_compliance_rules():
+    """Check current portfolio compliance against allocation rules"""
+    try:
+        rebalancer_instance, allocation_manager_instance = get_rebalancer(None)
+        
+        # Get current portfolio analysis
+        analyzer = rebalancer_instance.analyzer
+        analysis = analyzer.analyze_portfolio_allocations()
+        
+        # Check compliance
+        compliance_checks = allocation_manager_instance.check_compliance(
+            analysis,
+            analysis.get('total_portfolio_value', 0)
+        )
+        
+        # Convert to JSON-friendly format
+        results = []
+        for check in compliance_checks:
+            results.append({
+                'rule_type': check.rule.rule_type.value,
+                'category': check.rule.category,
+                'current_pct': check.current_pct,
+                'target_pct': check.target_pct,
+                'deviation_pct': check.deviation_pct,
+                'status': check.status.value,
+                'message': check.message
+            })
+        
+        return jsonify({
+            'success': True,
+            'compliance_checks': results,
+            'summary': {
+                'total_checks': len(compliance_checks),
+                'violations': sum(1 for c in compliance_checks if c.status.value == 'violation'),
+                'warnings': sum(1 for c in compliance_checks if c.status.value == 'warning'),
+                'compliant': sum(1 for c in compliance_checks if c.status.value == 'compliant')
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"❌ Error checking compliance: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @rebalancing_bp.route('/api/allocation-compliance')

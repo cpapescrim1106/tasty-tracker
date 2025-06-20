@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TastyTracker Design System - Style Guide</title>
+    <link rel="stylesheet" href="/static/css/global-design-system.css">
+    <style>
+        .style-guide-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .style-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background: var(--secondary-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        
+        .color-swatch {
+            padding: 20px;
+            border-radius: 4px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .typography-sample {
+            margin: 10px 0;
+            padding: 10px;
+            background: var(--tertiary-bg);
+            border-radius: 4px;
+        }
+        
+        .button-grid {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+        
+        .component-example {
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--primary-bg);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        
+        code {
+            background: var(--tertiary-bg);
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 12px;
+        }
+        
+        .spacing-demo {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .spacing-box {
+            background: var(--accent-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="style-guide-container">
+        <h1 style="color: var(--text-accent); margin-bottom: 40px;">TastyTracker Design System</h1>
+        
+        <!-- Colors Section -->
+        <div class="style-section">
+            <h2 class="section-header">Color Palette</h2>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">Background Colors</h3>
+            <div class="color-grid">
+                <div class="color-swatch" style="background: var(--primary-bg);">
+                    <div>Primary BG</div>
+                    <code>#1a1f2e</code>
+                </div>
+                <div class="color-swatch" style="background: var(--secondary-bg);">
+                    <div>Secondary BG</div>
+                    <code>#1e2936</code>
+                </div>
+                <div class="color-swatch" style="background: var(--tertiary-bg);">
+                    <div>Tertiary BG</div>
+                    <code>#252d3d</code>
+                </div>
+                <div class="color-swatch" style="background: var(--border-color);">
+                    <div>Border Color</div>
+                    <code>#2a3f5f</code>
+                </div>
+            </div>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">Text Colors</h3>
+            <div class="color-grid">
+                <div class="color-swatch" style="background: var(--primary-bg);">
+                    <div style="color: var(--text-primary);">Primary Text</div>
+                    <code>#e1e5eb</code>
+                </div>
+                <div class="color-swatch" style="background: var(--primary-bg);">
+                    <div style="color: var(--text-secondary);">Secondary Text</div>
+                    <code>#a0aec0</code>
+                </div>
+                <div class="color-swatch" style="background: var(--primary-bg);">
+                    <div style="color: var(--text-muted);">Muted Text</div>
+                    <code>#8b98a8</code>
+                </div>
+                <div class="color-swatch" style="background: var(--primary-bg);">
+                    <div style="color: var(--text-accent);">Accent Text</div>
+                    <code>#60a5fa</code>
+                </div>
+            </div>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">Status Colors</h3>
+            <div class="color-grid">
+                <div class="color-swatch" style="background: var(--status-positive); color: white;">
+                    <div>Positive</div>
+                    <code style="color: white;">#10b981</code>
+                </div>
+                <div class="color-swatch" style="background: var(--status-negative); color: white;">
+                    <div>Negative</div>
+                    <code style="color: white;">#ef4444</code>
+                </div>
+                <div class="color-swatch" style="background: var(--status-warning); color: white;">
+                    <div>Warning</div>
+                    <code style="color: white;">#f59e0b</code>
+                </div>
+                <div class="color-swatch" style="background: var(--status-info); color: white;">
+                    <div>Info</div>
+                    <code style="color: white;">#3b82f6</code>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Typography Section -->
+        <div class="style-section">
+            <h2 class="section-header">Typography</h2>
+            
+            <div class="typography-sample">
+                <div class="text-xl font-semibold">Extra Large - 16px Semibold</div>
+            </div>
+            <div class="typography-sample">
+                <div class="text-lg font-semibold">Large - 14px Semibold (Section Headers)</div>
+            </div>
+            <div class="typography-sample">
+                <div class="text-base">Base - 13px Regular (Body Text)</div>
+            </div>
+            <div class="typography-sample">
+                <div class="text-sm">Small - 12px (Labels, Table Headers)</div>
+            </div>
+            <div class="typography-sample">
+                <div class="text-xs">Extra Small - 11px (Status Text)</div>
+            </div>
+        </div>
+        
+        <!-- Spacing Section -->
+        <div class="style-section">
+            <h2 class="section-header">Spacing Scale</h2>
+            
+            <div class="spacing-demo">
+                <span>XS (4px):</span>
+                <div class="spacing-box" style="width: 4px; height: 20px;"></div>
+            </div>
+            <div class="spacing-demo">
+                <span>SM (6px):</span>
+                <div class="spacing-box" style="width: 6px; height: 20px;"></div>
+            </div>
+            <div class="spacing-demo">
+                <span>MD (8px):</span>
+                <div class="spacing-box" style="width: 8px; height: 20px;"></div>
+            </div>
+            <div class="spacing-demo">
+                <span>LG (12px):</span>
+                <div class="spacing-box" style="width: 12px; height: 20px;"></div>
+            </div>
+            <div class="spacing-demo">
+                <span>XL (16px):</span>
+                <div class="spacing-box" style="width: 16px; height: 20px;"></div>
+            </div>
+            <div class="spacing-demo">
+                <span>2XL (20px):</span>
+                <div class="spacing-box" style="width: 20px; height: 20px;"></div>
+            </div>
+        </div>
+        
+        <!-- Buttons Section -->
+        <div class="style-section">
+            <h2 class="section-header">Buttons</h2>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">Compact Buttons</h3>
+            <div class="button-grid">
+                <button class="btn-compact btn-primary">Primary</button>
+                <button class="btn-compact btn-success">Success</button>
+                <button class="btn-compact btn-danger">Danger</button>
+                <button class="btn-compact btn-secondary">Secondary</button>
+                <button class="btn-compact btn-primary" disabled>Disabled</button>
+            </div>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">Button States</h3>
+            <div class="component-example">
+                <code>
+                    .btn-compact { padding: 4px 10px; font-size: 12px; }
+                </code>
+            </div>
+        </div>
+        
+        <!-- Tables Section -->
+        <div class="style-section">
+            <h2 class="section-header">Tables</h2>
+            
+            <div class="component-example">
+                <table class="table-compact">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Max %</th>
+                            <th>Current %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>SPY</td>
+                            <td><input class="input-inline" value="15" style="width: 60px;"></td>
+                            <td>14.2%</td>
+                            <td><span class="status-dot status-positive"></span> Compliant</td>
+                        </tr>
+                        <tr>
+                            <td>QQQ</td>
+                            <td><input class="input-inline" value="10" style="width: 60px;"></td>
+                            <td>11.5%</td>
+                            <td><span class="status-dot status-warning"></span> Warning</td>
+                        </tr>
+                        <tr>
+                            <td>TSLA</td>
+                            <td><input class="input-inline" value="5" style="width: 60px;"></td>
+                            <td>7.8%</td>
+                            <td><span class="status-dot status-negative"></span> Violation</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <code>
+                    Cell padding: 3px 6px | Header font: 12px uppercase | Row hover effect
+                </code>
+            </div>
+        </div>
+        
+        <!-- Form Controls Section -->
+        <div class="style-section">
+            <h2 class="section-header">Form Controls</h2>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">Inline Inputs</h3>
+            <div class="component-example">
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <label>Number:</label>
+                    <input type="number" class="input-inline" value="100" style="width: 80px;">
+                    
+                    <label>Percentage:</label>
+                    <input type="number" class="input-inline" value="60" style="width: 60px;">
+                    <span class="text-muted">%</span>
+                    
+                    <label>Disabled:</label>
+                    <input type="number" class="input-inline" value="50" style="width: 60px;" disabled>
+                </div>
+            </div>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">Range Sliders</h3>
+            <div class="component-example">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="text-secondary">Bullish</span>
+                    <input type="range" min="0" max="100" value="60" style="flex: 1;">
+                    <span class="text-accent">60%</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Indicators Section -->
+        <div class="style-section">
+            <h2 class="section-header">Status Indicators</h2>
+            
+            <div class="component-example">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+                    <div><span class="status-dot status-positive"></span> Compliant</div>
+                    <div><span class="status-dot status-warning"></span> Warning</div>
+                    <div><span class="status-dot status-negative"></span> Violation</div>
+                    <div><span class="status-dot status-info"></span> Information</div>
+                    <div><span class="status-dot status-neutral"></span> Neutral</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Layout Patterns Section -->
+        <div class="style-section">
+            <h2 class="section-header">Layout Patterns</h2>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">3-Column Dense Layout</h3>
+            <div class="component-example" style="height: 200px;">
+                <div style="display: grid; grid-template-columns: 200px 1fr 180px; gap: 10px; height: 100%;">
+                    <div class="card-compact" style="background: var(--tertiary-bg);">
+                        <div class="text-sm text-muted">Left Panel</div>
+                        <div class="text-xs">320px fixed</div>
+                    </div>
+                    <div class="card-compact" style="background: var(--tertiary-bg);">
+                        <div class="text-sm text-muted">Main Content</div>
+                        <div class="text-xs">Flexible width</div>
+                    </div>
+                    <div class="card-compact" style="background: var(--tertiary-bg);">
+                        <div class="text-sm text-muted">Right Panel</div>
+                        <div class="text-xs">280px fixed</div>
+                    </div>
+                </div>
+            </div>
+            
+            <h3 style="margin: 20px 0 10px; color: var(--text-secondary);">Fixed Action Bar</h3>
+            <div class="component-example">
+                <div style="background: var(--primary-bg); border: 1px solid var(--border-color); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <span class="text-xs text-muted">Last saved: 2 mins ago</span>
+                        <span class="status-dot status-positive"></span>
+                        <span class="text-sm">Portfolio Compliant</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-compact btn-secondary">Export</button>
+                        <button class="btn-compact btn-success">Save</button>
+                        <button class="btn-compact btn-primary">Check</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

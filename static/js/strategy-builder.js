@@ -28,6 +28,8 @@ const StrategyBuilder = () => {
     const [isValidating, setIsValidating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedStrategyId, setSelectedStrategyId] = useState(null);
+    const [selectedDTEs, setSelectedDTEs] = useState([30, 45, 60]); // Default DTEs to validate
+    const [customDTE, setCustomDTE] = useState('');
 
     // Load saved strategies on mount
     useEffect(() => {
@@ -41,9 +43,12 @@ const StrategyBuilder = () => {
             const data = await response.json();
             console.log('Strategies API response:', data);
             console.log('Strategies count:', data.strategies?.length || 0);
-            setStrategies(data.strategies || []);
+            const loadedStrategies = data.strategies || [];
+            setStrategies(loadedStrategies);
+            return loadedStrategies;
         } catch (error) {
             console.error('Error loading strategies:', error);
+            return [];
         }
     };
 
@@ -131,18 +136,30 @@ const StrategyBuilder = () => {
         setValidationResult(null);
         
         try {
-            // Debug logging to see what we're sending
+            // Get all selected DTEs
+            let dtesToValidate = [...selectedDTEs];
+            
+            // Add custom DTE if provided
+            if (customDTE && !isNaN(parseInt(customDTE))) {
+                const customDTEValue = parseInt(customDTE);
+                if (customDTEValue > 0 && customDTEValue <= 365 && !dtesToValidate.includes(customDTEValue)) {
+                    dtesToValidate.push(customDTEValue);
+                }
+            }
+            
+            // Sort DTEs for consistent display
+            dtesToValidate.sort((a, b) => a - b);
+            
+            console.log('🔍 Validating DTEs:', dtesToValidate);
             console.log('🔍 Frontend validation request - currentStrategy:', currentStrategy);
-            console.log('🔍 Minimum premium being sent:', currentStrategy.minimum_premium_required);
-            console.log('🔍 Type of minimum premium:', typeof currentStrategy.minimum_premium_required);
-            console.log('🔍 Stringified strategy object:', JSON.stringify(currentStrategy, null, 2));
             
             const response = await fetch('/api/strategies/validate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     strategy: currentStrategy,
-                    test_symbol: 'SPY'
+                    test_symbol: 'SPY',
+                    test_dtes: dtesToValidate  // Send array of DTEs
                 })
             });
             
@@ -210,8 +227,28 @@ const StrategyBuilder = () => {
                 const result = await response.json();
                 console.log('Save successful:', result);
                 alert('Strategy saved successfully!');
-                loadStrategies();
-                clearStrategy();
+                
+                // Store the current strategy name and ID before reloading
+                const savedStrategyName = currentStrategy.name;
+                const savedStrategyId = result.strategy?.id || selectedStrategyId;
+                
+                // Reload strategies list and get the updated array
+                const updatedStrategies = await loadStrategies();
+                
+                // Re-select the saved strategy instead of clearing
+                if (savedStrategyId) {
+                    // Find the strategy in the updated list
+                    const updatedStrategy = updatedStrategies.find(s => s.id === savedStrategyId);
+                    if (updatedStrategy) {
+                        loadStrategy(updatedStrategy);
+                    }
+                } else {
+                    // If we don't have an ID, try to find by name
+                    const updatedStrategy = updatedStrategies.find(s => s.name === savedStrategyName);
+                    if (updatedStrategy) {
+                        loadStrategy(updatedStrategy);
+                    }
+                }
             } else {
                 // Try to parse as JSON first, but handle HTML error pages
                 const contentType = response.headers.get('content-type');
@@ -323,7 +360,7 @@ const StrategyBuilder = () => {
             if (data.success) {
                 console.log('Strategy deleted successfully:', data.message);
                 // Reload strategies list
-                loadStrategies();
+                await loadStrategies();
                 // Clear current strategy if it was the deleted one
                 if (selectedStrategyId === strategyId) {
                     setCurrentStrategy({
@@ -356,56 +393,61 @@ const StrategyBuilder = () => {
 
     // Component rendering
     return React.createElement('div', { className: 'strategy-builder' },
-        // Header
-        React.createElement('div', { className: 'strategy-header' },
-            React.createElement('h3', null, 'Create and Manage Trading Strategies'),
-            React.createElement('div', { className: 'strategy-actions' },
-                React.createElement('button', {
-                    className: 'btn btn-secondary',
-                    onClick: clearStrategy
-                }, '🆕 New Strategy'),
-                React.createElement('button', {
-                    className: 'btn btn-primary',
-                    onClick: saveStrategy,
-                    disabled: isSaving
-                }, isSaving ? '💾 Saving...' : '💾 Save Strategy')
-            )
-        ),
-
-        // Saved Strategies List
-        strategies.length > 0 && React.createElement('div', { className: 'saved-strategies' },
+        // Saved Strategies Sidebar (always show, even if empty)
+        React.createElement('div', { className: 'saved-strategies' },
             React.createElement('h4', null, '📚 Saved Strategies'),
-            React.createElement('div', { className: 'strategy-list' },
-                strategies.map(strategy => 
-                    React.createElement('div', {
-                        key: strategy.id,
-                        className: 'strategy-item'
-                    },
+            strategies.length > 0 ? 
+                React.createElement('div', { className: 'strategy-list' },
+                    strategies.map(strategy => 
                         React.createElement('div', {
-                            className: 'strategy-info',
-                            onClick: () => loadStrategy(strategy)
+                            key: strategy.id,
+                            className: 'strategy-item'
                         },
-                            React.createElement('span', { className: 'strategy-name' }, strategy.name),
-                            React.createElement('span', { className: 'strategy-type' }, strategy.strategy_type),
-                            React.createElement('span', { className: 'strategy-legs' }, 
-                                `${strategy.legs.length} legs`
-                            )
-                        ),
-                        React.createElement('button', {
-                            className: 'btn btn-danger btn-small delete-btn',
-                            onClick: (e) => {
-                                e.stopPropagation();
-                                deleteStrategy(strategy.id, strategy.name);
+                            React.createElement('div', {
+                                className: 'strategy-info',
+                                onClick: () => loadStrategy(strategy)
                             },
-                            title: 'Delete strategy'
-                        }, '🗑️')
+                                React.createElement('span', { className: 'strategy-name' }, strategy.name),
+                                React.createElement('span', { className: 'strategy-type' }, strategy.strategy_type),
+                                React.createElement('span', { className: 'strategy-legs' }, 
+                                    `${strategy.legs.length} legs`
+                                )
+                            ),
+                            React.createElement('button', {
+                                className: 'btn btn-danger btn-small delete-btn',
+                                onClick: (e) => {
+                                    e.stopPropagation();
+                                    deleteStrategy(strategy.id, strategy.name);
+                                },
+                                title: 'Delete strategy'
+                            }, '🗑️')
+                        )
                     )
                 )
-            )
+            : React.createElement('div', { className: 'no-strategies' }, 
+                'No saved strategies yet. Create your first strategy!')
         ),
 
-        // Tab Navigation
-        React.createElement('div', { className: 'strategy-tabs' },
+        // Main Builder Content
+        React.createElement('div', { className: 'strategy-builder-main' },
+            // Header
+            React.createElement('div', { className: 'strategy-header' },
+                React.createElement('h3', null, 'Create and Manage Trading Strategies'),
+                React.createElement('div', { className: 'strategy-actions' },
+                    React.createElement('button', {
+                        className: 'btn btn-secondary',
+                        onClick: clearStrategy
+                    }, '🆕 New Strategy'),
+                    React.createElement('button', {
+                        className: 'btn btn-primary',
+                        onClick: saveStrategy,
+                        disabled: isSaving
+                    }, isSaving ? '💾 Saving...' : '💾 Save Strategy')
+                )
+            ),
+
+            // Tab Navigation
+            React.createElement('div', { className: 'strategy-tabs' },
             ['basic', 'legs', 'management', 'validation'].map(tab =>
                 React.createElement('button', {
                     key: tab,
@@ -424,57 +466,61 @@ const StrategyBuilder = () => {
         React.createElement('div', { className: 'strategy-tab-content' },
             // Basic Info Tab
             activeTab === 'basic' && React.createElement('div', { className: 'basic-info-tab' },
-                React.createElement('div', { className: 'form-group' },
-                    React.createElement('label', null, 'Strategy Name *'),
-                    React.createElement('input', {
-                        type: 'text',
-                        className: 'form-control',
-                        value: currentStrategy.name,
-                        onChange: (e) => updateStrategy('name', e.target.value),
-                        placeholder: 'e.g., Put Credit Spread 30 DTE'
-                    })
-                ),
+                // Left Column
+                React.createElement('div', { className: 'form-section' },
+                    React.createElement('div', { className: 'form-group' },
+                        React.createElement('label', null, 'Strategy Name *'),
+                        React.createElement('input', {
+                            type: 'text',
+                            className: 'form-control',
+                            value: currentStrategy.name,
+                            onChange: (e) => updateStrategy('name', e.target.value),
+                            placeholder: 'e.g., Put Credit Spread 30 DTE'
+                        })
+                    ),
 
-                React.createElement('div', { className: 'form-group' },
-                    React.createElement('label', null, 'Description'),
-                    React.createElement('textarea', {
-                        className: 'form-control',
-                        value: currentStrategy.description,
-                        onChange: (e) => updateStrategy('description', e.target.value),
-                        placeholder: 'Describe your strategy...',
-                        rows: 3
-                    })
-                ),
+                    React.createElement('div', { className: 'form-group' },
+                        React.createElement('label', null, 'Description'),
+                        React.createElement('textarea', {
+                            className: 'form-control',
+                            value: currentStrategy.description,
+                            onChange: (e) => updateStrategy('description', e.target.value),
+                            placeholder: 'Describe your strategy...',
+                            rows: 3
+                        })
+                    ),
 
-                React.createElement('div', { className: 'form-group' },
-                    React.createElement('label', null, 'Strategy Type'),
-                    React.createElement('select', {
-                        className: 'form-control',
-                        value: currentStrategy.strategy_type,
-                        onChange: (e) => updateStrategy('strategy_type', e.target.value)
-                    },
-                        React.createElement('option', { value: 'custom' }, 'Custom'),
-                        React.createElement('option', { value: 'credit_spread' }, 'Credit Spread'),
-                        React.createElement('option', { value: 'iron_condor' }, 'Iron Condor'),
-                        React.createElement('option', { value: 'butterfly' }, 'Butterfly'),
-                        React.createElement('option', { value: 'strangle' }, 'Strangle'),
-                        React.createElement('option', { value: 'straddle' }, 'Straddle')
+                    React.createElement('div', { className: 'form-group' },
+                        React.createElement('label', null, 'Strategy Type'),
+                        React.createElement('select', {
+                            className: 'form-control',
+                            value: currentStrategy.strategy_type,
+                            onChange: (e) => updateStrategy('strategy_type', e.target.value)
+                        },
+                            React.createElement('option', { value: 'custom' }, 'Custom'),
+                            React.createElement('option', { value: 'credit_spread' }, 'Credit Spread'),
+                            React.createElement('option', { value: 'iron_condor' }, 'Iron Condor'),
+                            React.createElement('option', { value: 'butterfly' }, 'Butterfly'),
+                            React.createElement('option', { value: 'strangle' }, 'Strangle'),
+                            React.createElement('option', { value: 'straddle' }, 'Straddle')
+                        )
+                    ),
+
+                    React.createElement('div', { className: 'form-group' },
+                        React.createElement('label', null, 'Opening Action *'),
+                        React.createElement('select', {
+                            className: 'form-control',
+                            value: currentStrategy.opening_action,
+                            onChange: (e) => updateStrategy('opening_action', e.target.value)
+                        },
+                            React.createElement('option', { value: 'STO' }, 'STO (Sell to Open)'),
+                            React.createElement('option', { value: 'BTO' }, 'BTO (Buy to Open)')
+                        )
                     )
                 ),
 
-                React.createElement('div', { className: 'form-group' },
-                    React.createElement('label', null, 'Opening Action *'),
-                    React.createElement('select', {
-                        className: 'form-control',
-                        value: currentStrategy.opening_action,
-                        onChange: (e) => updateStrategy('opening_action', e.target.value)
-                    },
-                        React.createElement('option', { value: 'STO' }, 'STO (Sell to Open)'),
-                        React.createElement('option', { value: 'BTO' }, 'BTO (Buy to Open)')
-                    )
-                ),
-
-                React.createElement('div', { className: 'form-row' },
+                // Right Column
+                React.createElement('div', { className: 'form-section' },
                     React.createElement('div', { className: 'form-group' },
                         React.createElement('label', null, 'DTE Range'),
                         React.createElement('div', { className: 'dte-inputs' },
@@ -498,10 +544,8 @@ const StrategyBuilder = () => {
                                 placeholder: 'Max'
                             })
                         )
-                    )
-                ),
+                    ),
 
-                React.createElement('div', { className: 'form-row' },
                     React.createElement('div', { className: 'form-group' },
                         React.createElement('label', null, `Profit Target: ${currentStrategy.profit_target_pct}%`),
                         React.createElement('input', {
@@ -514,6 +558,7 @@ const StrategyBuilder = () => {
                             step: 5
                         })
                     ),
+
                     React.createElement('div', { className: 'form-group' },
                         React.createElement('div', { className: 'checkbox-group' },
                             React.createElement('label', null,
@@ -537,10 +582,8 @@ const StrategyBuilder = () => {
                                 step: 25
                             })
                         )
-                    )
-                ),
+                    ),
 
-                React.createElement('div', { className: 'form-row' },
                     React.createElement('div', { className: 'form-group' },
                         React.createElement('label', null, 'Minimum Premium Required ($)'),
                         React.createElement('input', {
@@ -553,6 +596,7 @@ const StrategyBuilder = () => {
                             placeholder: '1.00'
                         })
                     ),
+
                     React.createElement('div', { className: 'form-group' },
                         React.createElement('label', null, 'Minimum Underlying Price ($)'),
                         React.createElement('input', {
@@ -564,19 +608,19 @@ const StrategyBuilder = () => {
                             min: 0,
                             placeholder: '45'
                         })
-                    )
-                ),
+                    ),
 
-                React.createElement('div', { className: 'form-group' },
-                    React.createElement('label', null, 'Closing Options'),
-                    React.createElement('div', { className: 'checkbox-group' },
-                        React.createElement('label', null,
-                            React.createElement('input', {
-                                type: 'checkbox',
-                                checked: currentStrategy.closing_21_dte,
-                                onChange: (e) => updateStrategy('closing_21_dte', e.target.checked)
-                            }),
-                            ' Close at 21 DTE'
+                    React.createElement('div', { className: 'form-group' },
+                        React.createElement('label', null, 'Closing Options'),
+                        React.createElement('div', { className: 'checkbox-group' },
+                            React.createElement('label', null,
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: currentStrategy.closing_21_dte,
+                                    onChange: (e) => updateStrategy('closing_21_dte', e.target.checked)
+                                }),
+                                ' Close at 21 DTE'
+                            )
                         )
                     )
                 )
@@ -694,11 +738,46 @@ const StrategyBuilder = () => {
                     React.createElement('p', null, 'Test your strategy configuration with live option chain data from SPY')
                 ),
 
+                // DTE Selection Section
+                React.createElement('div', { className: 'dte-selection-section' },
+                    React.createElement('h5', null, 'Select DTEs to Validate:'),
+                    React.createElement('div', { className: 'dte-checkboxes' },
+                        [7, 14, 21, 30, 45, 60, 90].map(dte => 
+                            React.createElement('label', { key: dte, className: 'dte-checkbox-label' },
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: selectedDTEs.includes(dte),
+                                    onChange: (e) => {
+                                        if (e.target.checked) {
+                                            setSelectedDTEs([...selectedDTEs, dte].sort((a, b) => a - b));
+                                        } else {
+                                            setSelectedDTEs(selectedDTEs.filter(d => d !== dte));
+                                        }
+                                    }
+                                }),
+                                ` ${dte} DTE`
+                            )
+                        )
+                    ),
+                    React.createElement('div', { className: 'custom-dte-input' },
+                        React.createElement('label', null, 'Custom DTE: '),
+                        React.createElement('input', {
+                            type: 'number',
+                            className: 'form-control custom-dte',
+                            value: customDTE,
+                            onChange: (e) => setCustomDTE(e.target.value),
+                            placeholder: 'Enter custom DTE',
+                            min: 1,
+                            max: 365
+                        })
+                    )
+                ),
+
                 React.createElement('div', { className: 'validation-actions' },
                     React.createElement('button', {
                         className: 'btn btn-primary',
                         onClick: validateStrategy,
-                        disabled: isValidating || currentStrategy.legs.length === 0
+                        disabled: isValidating || currentStrategy.legs.length === 0 || (selectedDTEs.length === 0 && !customDTE)
                     }, isValidating ? '🔄 Validating...' : '✅ Validate Strategy')
                 ),
 
@@ -706,16 +785,21 @@ const StrategyBuilder = () => {
                     '⚠️ Please add at least one leg to validate the strategy'
                 ),
 
-                validationResult && React.createElement('div', { 
-                    className: `validation-result ${validationResult.valid ? 'valid' : 'invalid'}` 
-                },
-                    React.createElement('h5', null, 
-                        validationResult.valid ? '✅ Strategy is Valid' : '❌ Validation Failed'
+                (selectedDTEs.length === 0 && !customDTE) && currentStrategy.legs.length > 0 && 
+                React.createElement('div', { className: 'validation-warning' },
+                    '⚠️ Please select at least one DTE to validate'
+                ),
+
+                validationResult && React.createElement('div', { className: 'validation-results' },
+                    // Overall validation summary
+                    validationResult.overall_valid !== undefined && React.createElement('h5', null, 
+                        validationResult.overall_valid ? '✅ Strategy Validation Complete' : '❌ Validation Issues Found'
                     ),
 
+                    // General errors (not DTE-specific)
                     validationResult.errors && validationResult.errors.length > 0 && 
                     React.createElement('div', { className: 'validation-errors' },
-                        React.createElement('h6', null, 'Errors:'),
+                        React.createElement('h6', null, 'General Errors:'),
                         React.createElement('ul', null,
                             validationResult.errors.map((error, idx) =>
                                 React.createElement('li', { key: idx }, error)
@@ -723,7 +807,63 @@ const StrategyBuilder = () => {
                         )
                     ),
 
-                    validationResult.sample_trade && React.createElement('div', { className: 'sample-trade' },
+                    // Multi-DTE Results Table
+                    validationResult.dte_results && validationResult.dte_results.length > 0 && 
+                    React.createElement('div', { className: 'dte-results-container' },
+                        React.createElement('h6', null, '📊 DTE Validation Results:'),
+                        React.createElement('div', { className: 'dte-results-table-wrapper' },
+                            React.createElement('table', { className: 'dte-results-table' },
+                                React.createElement('thead', null,
+                                    React.createElement('tr', null,
+                                        React.createElement('th', null, 'DTE'),
+                                        React.createElement('th', null, 'Status'),
+                                        React.createElement('th', null, 'Premium'),
+                                        React.createElement('th', null, 'Max Loss'),
+                                        React.createElement('th', null, 'Distance'),
+                                        React.createElement('th', null, 'ROC'),
+                                        React.createElement('th', null, 'Details')
+                                    )
+                                ),
+                                React.createElement('tbody', null,
+                                    validationResult.dte_results.map((dteResult, idx) => {
+                                        const sample = dteResult.sample_trade;
+                                        const isValid = dteResult.valid;
+                                        const premium = sample?.net_premium || 0;
+                                        const maxLoss = Math.abs(sample?.max_loss || 0);
+                                        const distance = sample?.distance_from_underlying || 0;
+                                        const roc = maxLoss > 0 ? (premium / maxLoss * 100).toFixed(1) : '0';
+                                        
+                                        return React.createElement('tr', { 
+                                            key: idx,
+                                            className: isValid ? 'valid-row' : 'invalid-row'
+                                        },
+                                            React.createElement('td', null, `${dteResult.dte} days`),
+                                            React.createElement('td', null, 
+                                                isValid ? '✅' : '❌'
+                                            ),
+                                            React.createElement('td', null, `$${premium.toFixed(2)}`),
+                                            React.createElement('td', null, `$${maxLoss.toFixed(2)}`),
+                                            React.createElement('td', null, `${distance.toFixed(1)}%`),
+                                            React.createElement('td', null, `${roc}%`),
+                                            React.createElement('td', null,
+                                                React.createElement('button', {
+                                                    className: 'btn btn-small btn-info',
+                                                    onClick: () => {
+                                                        console.log('DTE Result Details:', dteResult);
+                                                        alert(`DTE ${dteResult.dte} Details:\n${JSON.stringify(dteResult.sample_trade, null, 2)}`);
+                                                    }
+                                                }, '👁️')
+                                            )
+                                        );
+                                    })
+                                )
+                            )
+                        )
+                    ),
+
+                    // Fallback for old single result format
+                    !validationResult.dte_results && validationResult.sample_trade && 
+                    React.createElement('div', { className: 'sample-trade' },
                         React.createElement('h6', null, 'Sample Trade Parameters:'),
                         React.createElement('pre', null, 
                             JSON.stringify(validationResult.sample_trade, null, 2)
@@ -731,7 +871,8 @@ const StrategyBuilder = () => {
                     )
                 )
             )
-        )
+        ) // End of Tab Content
+        ) // End of strategy-builder-main
     );
 };
 
